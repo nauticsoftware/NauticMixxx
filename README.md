@@ -26,9 +26,7 @@ Verifiable distribution.
 Publicisable files are generated in `release/1.0.0/`:
 
 - `NauticMixxx-1.0.0-macOS-arm64.dmg`
-- `NauticMixxx-1.0.0-macOS-arm64.zip`
 - `NauticMixxx-1.0.0-source.tar.gz`
-- `NauticMixxx-1.0.0-skin.zip`
 - `SHA256SUMS.txt` y `release-manifest.json`
 
 In macOS, open the DMG, drag **NauticMixxx.app** to Applications and open it.
