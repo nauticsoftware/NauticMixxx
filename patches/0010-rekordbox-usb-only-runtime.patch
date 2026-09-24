@@ -8103,19 +8103,19 @@ index 0000000..1d0f112
 +    EXPECT_FALSE(index.diagnostics.isEmpty());
 +}
 +TEST(RekordboxMetadataTest, ResolvesNearAndFarArtistNames) {
-+    QByteArray near(10, '\0');
-+    put32(&near, 4, 5);
-+    near[9] = 10;
-+    near += shortText("Artist");
-+    QByteArray far(12, '\0');
-+    put16(&far, 0, 100);
-+    put32(&far, 4, 7);
-+    put16(&far, 10, 12);
-+    far += wideText(QString::fromUtf8("Compositor ñ"));
++    QByteArray nearRow(10, '\0');
++    put32(&nearRow, 4, 5);
++    nearRow[9] = 10;
++    nearRow += shortText("Artist");
++    QByteArray farRow(12, '\0');
++    put16(&farRow, 0, 100);
++    put32(&farRow, 4, 7);
++    put16(&farRow, 10, 12);
++    farRow += wideText(QString::fromUtf8("Compositor ñ"));
 +    auto row = metadataTrack();
 +    put32(&row, 68, 5);
 +    put32(&row, 12, 7);
-+    const auto index = tracksFromRows({{0, row}, {2, near}, {2, far}});
++    const auto index = tracksFromRows({{0, row}, {2, nearRow}, {2, farRow}});
 +    ASSERT_EQ(index.tracks.size(), 1);
 +    EXPECT_EQ(index.tracks.first().metadata.value("artist").toString(), "Artist");
 +    EXPECT_EQ(index.tracks.first().metadata.value("composer").toString(), QString::fromUtf8("Compositor ñ"));
