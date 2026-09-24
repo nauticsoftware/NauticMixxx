@@ -25,12 +25,18 @@ Primera versión estable pública de NauticMixxx, basada en Mixxx 2.5.6.
 
 - macOS ARM64 (recomendado): `NauticMixxx-1.0.0-macOS-arm64.dmg`
 - macOS ARM64: `NauticMixxx-1.0.0-macOS-arm64.zip`
+- Windows 10/11 x64: `NauticMixxx-1.0.0-Windows-x64.zip`
 - Skin: `NauticMixxx-1.0.0-skin.zip`
 - Fuentes correspondientes: `NauticMixxx-1.0.0-source.tar.gz`
 
 Verifica siempre `SHA256SUMS.txt`. La build macOS firmada de forma ad hoc está
 destinada a testing; para distribución sin advertencias debe usarse una build
 Developer ID notarizada.
+
+En Windows, extrae todo el ZIP y ejecuta `INSTALL-WINDOWS.cmd`. El instalador
+comprueba los archivos, detecta Mixxx y consulta la última versión estable. La
+opción recomendada instala NauticMixxx en paralelo con un perfil independiente;
+el reemplazo avanzado exige escribir `REEMPLAZAR` y crea respaldos completos.
 
 NauticMixxx es independiente y no está afiliado ni respaldado por los
 propietarios de las marcas de hardware o software compatibles.

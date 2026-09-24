@@ -4,28 +4,31 @@ set -eu
 project=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$project"
 
-printf '%s\n' '1/5 Metadatos y datos privados'
+printf '%s\n' '1/6 Metadatos y datos privados'
 python3 scripts/release-audit.py
 
-printf '%s\n' '2/5 Contrato de lectura exclusiva desde USB Rekordbox'
+printf '%s\n' '2/6 Contrato del instalador de Windows'
+python3 scripts/test-windows-installer-contract.py
+
+printf '%s\n' '3/6 Contrato de lectura exclusiva desde USB Rekordbox'
 if [ -f ../src/coreservices.cpp ] || [ -f tmp/mixxx-native-rebuild/mixxx-2.5.6/src/coreservices.cpp ]; then
   python3 scripts/test-rx3-usb-only.py
 else
   printf '%s\n' 'Fuentes parcheadas no disponibles; ejecuta primero el build reproducible.'
 fi
 
-printf '%s\n' '3/5 XML de skin, mapping y efectos'
+printf '%s\n' '4/6 XML de skin, mapping y efectos'
 find skins/XDJ_RX3_Mixxx controllers/Hercules_DJControl_Inpulse_500_RX3 effects \
   -type f -name '*.xml' -exec xmllint --noout {} +
 
-printf '%s\n' '4/5 JavaScript del controlador'
+printf '%s\n' '5/6 JavaScript del controlador'
 node --check controllers/Hercules_DJControl_Inpulse_500_RX3/Hercules-DJControl-Inpulse-500-RX3-script.js
 node scripts/test-rx3-autoloop.js
 node scripts/test-rx3-loop-adjust.js
 node scripts/test-rx3-sound-color-fx.js
 node scripts/test-rx3-transport-controls.js
 
-printf '%s\n' '5/5 Pruebas nativas'
+printf '%s\n' '6/6 Pruebas nativas'
 native_test=../build/mixxx-test
 native_test_dir=../build
 if [ ! -x "$native_test" ] && [ -x tmp/mixxx-native-rebuild/build/mixxx-test ]; then

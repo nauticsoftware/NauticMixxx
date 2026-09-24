@@ -1,3 +1,4 @@
+param([switch]$NonInteractive)
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version 2.0
 try {
@@ -12,7 +13,9 @@ try {
     Write-Host "Driver oficial Hercules HDJCSeries 2023.HDJS.2 (Windows 10/11)."
     Write-Host "Si ya lo tienes instalado, no hace falta repetir este paso."
     Write-Host "Cierra los programas de DJ y sigue las indicaciones de conexion USB del asistente Hercules."
-    [void](Read-Host "Pulsa ENTER para descargar y abrir el asistente oficial (Ctrl+C para salir)")
+    if (-not $NonInteractive) {
+        [void](Read-Host "Pulsa ENTER para descargar y abrir el asistente oficial (Ctrl+C para salir)")
+    }
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     if (-not (Test-Path -LiteralPath $installer) -or (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash -ne $expected) {
         Write-Host "Descargando desde $url (aprox. 58 MB)..."

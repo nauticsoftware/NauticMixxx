@@ -42,12 +42,29 @@ de macOS; selecciona la raíz del USB, nunca una carpeta de Música local.
 ## Windows x64
 
 La versión nativa se obtiene como artefacto del workflow **NauticMixxx Windows
-x64**. Extrae por completo el ZIP y ejecuta `INSTALL-WINDOWS.cmd`. El instalador
-crea un perfil independiente y respalda la configuración existente antes de
-copiar skin, mapping y efectos.
+x64**. Extrae por completo el ZIP y ejecuta únicamente `INSTALL-WINDOWS.cmd`.
+El paquete ya contiene la aplicación modificada, la skin, el mapping, efectos,
+fuentes y resultados de prueba; no descarga ni parchea una instalación oficial.
+
+El instalador valida los hashes, detecta las instalaciones de Mixxx y consulta
+la última versión estable disponible. Si encuentra Mixxx ofrece:
+
+- **Paralelo (recomendado):** instala en
+  `%LOCALAPPDATA%\Programs\NauticMixxx\1.0.0` y usa el perfil independiente
+  `%LOCALAPPDATA%\Mixxx-RX3`; la instalación oficial queda intacta.
+- **Reemplazo avanzado:** permite elegir una instalación detectada, exige
+  escribir `REEMPLAZAR`, respalda primero la aplicación y el perfil, y solicita
+  permisos de administrador sólo cuando la ruta los necesita. Nunca reemplaza
+  una versión posterior a la base Mixxx 2.5.6.
+
+Si no detecta el driver ASIO de Hercules, el asistente ofrece descargarlo como
+opción separada y con respuesta predeterminada **No**. No es necesario para
+usuarios de otros controladores o interfaces. Los respaldos de aplicaciones se guardan en
+`%LOCALAPPDATA%\NauticMixxx-Backups\Applications` y los de perfiles en
+`%LOCALAPPDATA%\Mixxx-XDJ-RX3-Backups`.
 
 No presentes como estable un ZIP de Windows hasta que el workflow termine con
-las pruebas nativas en verde.
+la validación del instalador y las pruebas nativas en verde.
 
 ## Sólo la skin
 

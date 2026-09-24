@@ -64,6 +64,7 @@ def validate_runtime(runtime):
             raise ValueError('mixxx.exe must be a Windows x64 executable')
     info = json.loads((runtime / 'rx3-build.json').read_text(encoding='utf-8-sig'))
     if (info.get('version') != VERSION or info.get('platform') != 'windows-x64'
+            or info.get('product') != 'NauticMixxx' or info.get('baseMixxxVersion') != '2.5.6'
             or info.get('testsPassed') is not True or info.get('executableSha256', '').lower() != digest(exe)):
         raise ValueError('Runtime has no matching successful RX3 build/test record')
     result = ET.parse(runtime / 'rx3-tests.xml').getroot()
@@ -111,17 +112,29 @@ def package(runtime, source, output, settings_file=None):
         tar.add(source, arcname='mixxx-2.5.6', filter=source_filter)
     # Keep the recipe at the same relative paths it uses in the project.
     shutil.copytree(ROOT / 'patches', destination / 'patches')
-    for name in ['build-mixxx-rx3-windows.ps1', 'package-rx3-windows-native.py']:
+    for name in ['build-mixxx-rx3-windows.ps1', 'build-app-icon-windows.py', 'package-rx3-windows-native.py']:
         (destination / 'scripts').mkdir(exist_ok=True)
         shutil.copy2(ROOT / 'scripts' / name, destination / 'scripts' / name)
+    icon_source = destination / 'packaging/DMG_PROJECT/iCon-macOS-Dark-1024x1024@1x.png'
+    icon_source.parent.mkdir(parents=True)
+    shutil.copy2(ROOT / 'packaging/DMG_PROJECT/iCon-macOS-Dark-1024x1024@1x.png', icon_source)
     for name in ['install-native-rx3.ps1', 'INSTALL-NATIVE.cmd', 'README-NATIVE.txt']:
         shutil.copy2(ROOT / 'packaging/windows' / name, destination / 'windows' / name)
     for name in ['BUILD-WINDOWS.cmd', 'EMPEZAR-COMPILACION.txt']:
         shutil.copy2(ROOT / name, destination / name)
     shutil.copy2(source / 'LICENSE', source_dir)
     files = sorted(p for p in destination.rglob('*') if p.is_file())
-    manifest = {'version': VERSION, 'platform': 'windows-x64', 'files': [
-        {'path': p.relative_to(destination).as_posix(), 'sha256': digest(p)} for p in files]}
+    manifest = {
+        'product': 'NauticMixxx',
+        'version': VERSION,
+        'platform': 'windows-x64',
+        'baseMixxxVersion': '2.5.6',
+        'entryPoint': 'INSTALL-WINDOWS.cmd',
+        'installModes': ['parallel', 'replace'],
+        'files': [
+            {'path': p.relative_to(destination).as_posix(), 'sha256': digest(p)} for p in files
+        ],
+    }
     (destination / 'payload-sha256.json').write_text(json.dumps(manifest, indent=2) + '\n')
     archive = output / (NAME + '.zip')
     with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as z:

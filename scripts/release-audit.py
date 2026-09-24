@@ -88,6 +88,7 @@ def validate_metadata() -> list[str]:
     required = [
         ROOT / "branding/iCon.icon/icon.json",
         ROOT / "branding/NauticMixxx.png",
+        ROOT / "packaging/DMG_PROJECT/iCon-macOS-Dark-1024x1024@1x.png",
         ROOT / "skins/XDJ_RX3_Mixxx/LICENSE",
     ]
     # The monorepo keeps Mixxx's license one level above `nautic/`; the

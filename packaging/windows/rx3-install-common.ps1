@@ -78,25 +78,35 @@ function Start-Rx3Mixxx {
     Start-Process -FilePath $Executable -ArgumentList @("--settings-path", ('"' + $SettingsPath + '"')) | Out-Null
 }
 
-function Find-MixxxExecutable {
-    $candidates = @()
+function ConvertTo-MixxxVersion {
+    param([string]$Value)
+
+    if ($Value -and $Value -match '(\d+\.\d+\.\d+)') {
+        return [version]$Matches[1]
+    }
+    return $null
+}
+
+function Get-MixxxInstallations {
+    $candidates = New-Object System.Collections.ArrayList
 
     if ($env:ProgramFiles) {
-        $candidates += Join-Path $env:ProgramFiles "Mixxx\mixxx.exe"
+        [void]$candidates.Add([pscustomobject]@{ Path = (Join-Path $env:ProgramFiles "Mixxx\mixxx.exe"); Source = 'Program Files'; VersionHint = $null })
     }
     if (${env:ProgramFiles(x86)}) {
-        $candidates += Join-Path ${env:ProgramFiles(x86)} "Mixxx\mixxx.exe"
+        [void]$candidates.Add([pscustomobject]@{ Path = (Join-Path ${env:ProgramFiles(x86)} "Mixxx\mixxx.exe"); Source = 'Program Files (x86)'; VersionHint = $null })
     }
     if ($env:LOCALAPPDATA) {
-        $candidates += Join-Path $env:LOCALAPPDATA "Programs\Mixxx\mixxx.exe"
+        [void]$candidates.Add([pscustomobject]@{ Path = (Join-Path $env:LOCALAPPDATA "Programs\Mixxx\mixxx.exe"); Source = 'Usuario'; VersionHint = $null })
     }
 
     foreach ($registryRoot in @("HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall", "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")) {
         if (Test-Path $registryRoot) {
             foreach ($entry in Get-ChildItem $registryRoot) {
-                $values = Get-ItemProperty $entry.PSPath
+                $values = Get-ItemProperty $entry.PSPath -ErrorAction SilentlyContinue
                 if ($values.PSObject.Properties["DisplayName"] -and $values.DisplayName -match "^Mixxx(?: |$)" -and $values.PSObject.Properties["InstallLocation"] -and $values.InstallLocation) {
-                    $candidates += Join-Path $values.InstallLocation "mixxx.exe"
+                    $versionHint = if ($values.PSObject.Properties['DisplayVersion']) { $values.DisplayVersion } else { $null }
+                    [void]$candidates.Add([pscustomobject]@{ Path = (Join-Path $values.InstallLocation "mixxx.exe"); Source = 'Registro'; VersionHint = $versionHint })
                 }
             }
         }
@@ -104,15 +114,109 @@ function Find-MixxxExecutable {
 
     $command = Get-Command "mixxx.exe" -ErrorAction SilentlyContinue
     if ($command) {
-        $candidates += $command.Source
+        [void]$candidates.Add([pscustomobject]@{ Path = $command.Source; Source = 'PATH'; VersionHint = $null })
     }
 
+    $seen = @{}
     foreach ($candidate in $candidates) {
-        if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Leaf)) {
-            return $candidate
+        if (-not $candidate.Path -or -not (Test-Path -LiteralPath $candidate.Path -PathType Leaf)) { continue }
+        $fullPath = [IO.Path]::GetFullPath($candidate.Path)
+        if ($seen.ContainsKey($fullPath)) { continue }
+        $seen[$fullPath] = $true
+        $versionText = (Get-Item -LiteralPath $fullPath).VersionInfo.ProductVersion
+        $version = ConvertTo-MixxxVersion -Value $versionText
+        if (-not $version) { $version = ConvertTo-MixxxVersion -Value $candidate.VersionHint }
+        [pscustomobject]@{
+            Path = $fullPath
+            InstallRoot = Split-Path -Parent $fullPath
+            Version = $version
+            VersionText = if ($version) { $version.ToString() } elseif ($versionText) { $versionText } else { 'desconocida' }
+            Source = $candidate.Source
         }
     }
+}
+
+function Find-MixxxExecutable {
+    $installation = @(Get-MixxxInstallations | Select-Object -First 1)
+    if ($installation.Count -gt 0) { return $installation[0].Path }
     return $null
+}
+
+function Get-LatestStableMixxxVersion {
+    param([version]$Fallback = [version]'2.5.6')
+
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $headers = @{ 'User-Agent' = 'NauticMixxx-Installer/1.0.0' }
+        $release = Invoke-RestMethod -UseBasicParsing -Uri 'https://api.github.com/repos/mixxxdj/mixxx/releases/latest' `
+            -Headers $headers -TimeoutSec 8
+        $version = ConvertTo-MixxxVersion -Value $release.tag_name
+        if ($version) { return $version }
+    }
+    catch {
+        Write-Warning "No se pudo consultar la ultima version estable de Mixxx. Se usara la base validada $Fallback."
+    }
+    return $Fallback
+}
+
+function Test-HerculesAsioDriver {
+    foreach ($root in @('HKLM:\SOFTWARE\ASIO', 'HKLM:\SOFTWARE\WOW6432Node\ASIO')) {
+        if (-not (Test-Path -LiteralPath $root)) { continue }
+        if (@(Get-ChildItem -LiteralPath $root -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '(?i)Hercules|DJControl|Inpulse' }).Count -gt 0) {
+            return $true
+        }
+    }
+    return $false
+}
+
+function Test-Administrator {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+function Assert-SafeInstallRoot {
+    param([string]$InstallRoot)
+
+    $full = [IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
+    $root = [IO.Path]::GetPathRoot($full).TrimEnd('\')
+    $forbidden = @($root, $env:ProgramFiles, ${env:ProgramFiles(x86)}, $env:LOCALAPPDATA, $env:USERPROFILE, $env:WINDIR) |
+        Where-Object { $_ } | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\') }
+    if ($forbidden -contains $full -or $full.Length -lt 8) {
+        throw "Ruta de instalacion insegura: $full"
+    }
+    return $full
+}
+
+function Test-DirectoryWritable {
+    param([string]$Directory)
+
+    try {
+        $probe = Join-Path $Directory ('.nauticmixxx-write-' + [guid]::NewGuid().ToString('N') + '.tmp')
+        [IO.File]::WriteAllText($probe, 'test')
+        Remove-Item -LiteralPath $probe -Force
+        return $true
+    }
+    catch { return $false }
+}
+
+function Backup-MixxxApplication {
+    param([string]$InstallRoot, [string]$VersionText = 'desconocida')
+
+    $safeRoot = Assert-SafeInstallRoot -InstallRoot $InstallRoot
+    if (-not (Test-Path -LiteralPath (Join-Path $safeRoot 'mixxx.exe') -PathType Leaf)) {
+        throw "No se encontro mixxx.exe en la instalacion que se quiere reemplazar: $safeRoot"
+    }
+    $backupParent = Join-Path $env:LOCALAPPDATA 'NauticMixxx-Backups\Applications'
+    $safeVersion = $VersionText -replace '[^0-9A-Za-z._-]', '_'
+    $backupRoot = Join-Path $backupParent ("Mixxx-$safeVersion-" + (Get-Date -Format 'yyyyMMdd-HHmmssfff'))
+    New-Item -ItemType Directory -Path $backupParent -Force | Out-Null
+    Write-Step "Respaldando la aplicacion completa en $backupRoot"
+    Copy-Item -LiteralPath $safeRoot -Destination $backupRoot -Recurse -Force
+    if (-not (Test-Path -LiteralPath (Join-Path $backupRoot 'mixxx.exe') -PathType Leaf)) {
+        throw 'El respaldo de la aplicacion no se pudo verificar.'
+    }
+    return $backupRoot
 }
 
 function Install-OfficialMixxx {

@@ -80,6 +80,15 @@ try {
     if (-not (Test-Path $marker) -or (Get-Content $marker -Raw).Trim() -ne $patchState) {
         throw 'Los fuentes en cache no coinciden con estos parches. Usa otro WorkRoot.'
     }
+    $windowsIcon = Join-Path $source 'res\images\icons\ic_mixxx.ico'
+    Invoke-Checked -File python -Arguments @((Join-Path $PSScriptRoot 'build-app-icon-windows.py'), $windowsIcon)
+    $resourceFile = Join-Path $source 'src\mixxx.rc'
+    $resourceText = [IO.File]::ReadAllText($resourceFile)
+    $resourceText = $resourceText.Replace('#define VER_PRODUCTNAME_STR         "Mixxx\0"', '#define VER_PRODUCTNAME_STR         "NauticMixxx\0"')
+    $resourceText = $resourceText.Replace('#define VER_FILEDESCRIPTION_STR     "Mixxx digital DJ software"', '#define VER_FILEDESCRIPTION_STR     "NauticMixxx digital DJ software"')
+    $resourceText = $resourceText.Replace('#define VER_COMPANYNAME_STR         "The Mixxx Development Team"', '#define VER_COMPANYNAME_STR         "NauticMixxx contributors and Mixxx Development Team"')
+    $utf8WithoutBom = New-Object -TypeName System.Text.UTF8Encoding -ArgumentList $false
+    [IO.File]::WriteAllText($resourceFile, $resourceText, $utf8WithoutBom)
     $build = Join-Path $WorkRoot 'build'
     $stage = Join-Path $WorkRoot ('stage-' + (Get-Date -Format 'yyyyMMdd-HHmmssfff'))
     $env:MIXXX_VCPKG_ROOT = $deps
@@ -102,7 +111,7 @@ try {
     Invoke-Checked -File cmake -Arguments @('--install', $build, '--prefix', $stage)
     Copy-Item -LiteralPath (Join-Path $projectRoot 'skins\XDJ_RX3_Mixxx') -Destination (Join-Path $stage 'skins') -Recurse -Force
     Copy-Item -LiteralPath $testXml -Destination (Join-Path $stage 'rx3-tests.xml')
-    $info = @{ version = '1.0.0'; product = 'NauticMixxx'; platform = 'windows-x64'; testsPassed = $true; patches = $patchState;
+    $info = @{ version = '1.0.0'; product = 'NauticMixxx'; platform = 'windows-x64'; baseMixxxVersion = '2.5.6'; testsPassed = $true; patches = $patchState;
         executableSha256 = (Get-FileHash (Join-Path $stage 'mixxx.exe') -Algorithm SHA256).Hash.ToLowerInvariant() }
     $info | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $stage 'rx3-build.json') -Encoding UTF8
     Invoke-Checked -File python -Arguments @((Join-Path $PSScriptRoot 'package-rx3-windows-native.py'), '--runtime', $stage, '--source', $source)

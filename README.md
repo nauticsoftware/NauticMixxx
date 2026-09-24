@@ -27,6 +27,7 @@ distribución verificable.
 Los archivos publicables se generan en `release/1.0.0/`:
 
 - `NauticMixxx-1.0.0-macOS-arm64.dmg`
+- `NauticMixxx-1.0.0-Windows-x64.zip`
 - `NauticMixxx-1.0.0-macOS-arm64.zip`
 - `NauticMixxx-1.0.0-source.tar.gz`
 - `NauticMixxx-1.0.0-skin.zip`
@@ -38,8 +39,12 @@ compilación local está firmada de forma ad hoc; una publicación general debe
 firmarse y notarizarse con una cuenta Apple Developer. Consulta
 [`docs/INSTALLATION.md`](docs/INSTALLATION.md).
 
-Windows x64 dispone de un flujo reproducible mediante GitHub Actions. El
-artefacto se genera desde la misma base y los mismos diez parches; consulta
+En Windows 10/11 x64, extrae por completo el ZIP y ejecuta únicamente
+`INSTALL-WINDOWS.cmd`. El asistente detecta Mixxx y la versión estable vigente;
+ofrece una instalación paralela segura o un reemplazo avanzado con copia de
+seguridad y confirmación explícita. El artefacto se genera desde la misma base y
+los mismos diez parches mediante GitHub Actions; consulta
+[`docs/INSTALLATION.md`](docs/INSTALLATION.md) y
 [`docs/BUILDING.md`](docs/BUILDING.md).
 
 ## Verificar una descarga

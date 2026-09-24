@@ -15,6 +15,27 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install icon build dependency
+        run: python -m pip install Pillow==11.3.0
+      - name: Validate installer scripts and contract
+        shell: powershell
+        run: |
+          $scripts = @(
+            'packaging/windows/install-native-rx3.ps1',
+            'packaging/windows/rx3-install-common.ps1',
+            'packaging/windows/install-hercules-driver.ps1',
+            'scripts/build-mixxx-rx3-windows.ps1'
+          )
+          foreach ($script in $scripts) {
+            $tokens = $null
+            $parseErrors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$parseErrors)
+            if ($parseErrors.Count -gt 0) {
+              $parseErrors | Format-List | Out-String | Write-Error
+              throw "PowerShell syntax error: $script"
+            }
+          }
+          python scripts/test-windows-installer-contract.py
       - name: Build, test and package NauticMixxx 1.0.0
         shell: powershell
         run: ./scripts/build-mixxx-rx3-windows.ps1 -WorkRoot C:\rx3-build -Jobs 4
