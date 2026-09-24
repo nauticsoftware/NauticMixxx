@@ -1,0 +1,90 @@
+<Template>
+  <WidgetGroup>
+    <ObjectName>Overview</ObjectName>
+    <Layout>vertical</Layout>
+    <Size>0me,0me</Size>
+    <Children>
+      <WidgetGroup>
+        <ObjectName>RX3PerformanceArea</ObjectName>
+        <Layout>horizontal</Layout>
+        <Size>0me,0me</Size>
+        <Children>
+          <WidgetGroup>
+            <ObjectName>Waveforms</ObjectName>
+            <Layout>stacked</Layout>
+            <Size>0me,0me</Size>
+            <Children>
+              <!-- Centered empty-state logo. The two nested
+                   visibility bindings implement !deck1_loaded && !deck2_loaded. -->
+              <WidgetGroup>
+                <ObjectName>NauticBgLogoContainer</ObjectName>
+                <Layout>vertical</Layout>
+                <Size>0me,0me</Size>
+                <Children>
+                  <Label>
+                    <ObjectName>NauticBgLogo</ObjectName>
+                    <Size>420f,140f</Size>
+                    <SizePolicy>f,f</SizePolicy>
+                    <Connection>
+                      <ConfigKey>[Channel2],track_loaded</ConfigKey>
+                      <Transform><Not/></Transform>
+                      <BindProperty>visible</BindProperty>
+                    </Connection>
+                  </Label>
+                </Children>
+                <Connection>
+                  <ConfigKey>[Channel1],track_loaded</ConfigKey>
+                  <Transform><Not/></Transform>
+                  <BindProperty>visible</BindProperty>
+                </Connection>
+              </WidgetGroup>
+              <!-- Waveform surfaces are above the logo while loaded. Their
+                   transparent placeholders reveal it in the empty state. -->
+              <WidgetGroup>
+                <ObjectName>WaveformsContent</ObjectName>
+                <Layout>vertical</Layout>
+                <Size>0me,0me</Size>
+                <Children>
+                  <Template src="skin:waveform.xml">
+                    <SetVariable name="channel">1</SetVariable>
+                  </Template>
+                  <Template src="skin:waveform.xml">
+                    <SetVariable name="channel">2</SetVariable>
+                  </Template>
+                </Children>
+              </WidgetGroup>
+            </Children>
+          </WidgetGroup>
+          <WidgetGroup>
+            <ObjectName>SidePanel_Container</ObjectName>
+            <Layout>vertical</Layout>
+            <Size>184f,0me</Size>
+            <Children>
+              <Template src="skin:beffect.xml"/>
+            </Children>
+          </WidgetGroup>
+        </Children>
+      </WidgetGroup>
+
+      <Template src="skin:rx3_mode_strip.xml"/>
+
+      <WidgetGroup>
+        <ObjectName>Decks</ObjectName>
+        <Layout>horizontal</Layout>
+        <Size>0me,210f</Size>
+        <Children>
+          <Template src="skin:deck.xml">
+            <SetVariable name="channel">1</SetVariable>
+            <SetVariable name="ovh">64</SetVariable>
+            <SetVariable name="ovwf">60</SetVariable>
+          </Template>
+          <Template src="skin:deck.xml">
+            <SetVariable name="channel">2</SetVariable>
+            <SetVariable name="ovh">64</SetVariable>
+            <SetVariable name="ovwf">60</SetVariable>
+          </Template>
+        </Children>
+      </WidgetGroup>
+    </Children>
+  </WidgetGroup>
+</Template>

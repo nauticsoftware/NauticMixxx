@@ -1,0 +1,61 @@
+<Template>
+  <WidgetGroup>
+    <ObjectName>SidePanelBody</ObjectName>
+    <Layout>vertical</Layout>
+    <Size>0me,0me</Size>
+    <Children>
+      <WidgetGroup><ObjectName>RX3FxBezel</ObjectName><Layout>vertical</Layout><Size>0me,308f</Size><Children>
+      <Label><ObjectName>RX3BeatFxTitle</ObjectName><Text>BEAT FX</Text></Label>
+      <EffectSelector>
+        <ObjectName>RX3BeatFxSelector</ObjectName><Size>0me,40f</Size>
+        <EffectRack>1</EffectRack><EffectUnit>1</EffectUnit><Effect>1</Effect>
+      </EffectSelector>
+      <Label><ObjectName>RX3BeatFxCaption</ObjectName><Text>CH SELECT</Text></Label>
+      <PushButton>
+        <ObjectName>RX3FxMaster</ObjectName><Size>0me,40f</Size><NumberStates>2</NumberStates>
+        <State><Number>0</Number><Text>MASTER</Text></State><State><Number>1</Number><Text>MASTER</Text></State>
+        <Connection><ConfigKey>[EffectRack1_EffectUnit1],group_[Master]_enable</ConfigKey></Connection>
+      </PushButton>
+      <WidgetGroup>
+        <ObjectName>RX3BeatFxReadout</ObjectName><Layout>vertical</Layout><Size>0me,134f</Size>
+        <Children>
+          <WidgetGroup><ObjectName>RX3BeatFxBpmRow</ObjectName><Layout>horizontal</Layout><Children>
+            <Number><ObjectName>RX3BeatFxBpm</ObjectName><NumberOfDigits>1</NumberOfDigits><Connection><ConfigKey>[RX3Display],master_bpm</ConfigKey></Connection></Number>
+            <Label><ObjectName>RX3BeatFxBpmUnit</ObjectName><Text>BPM</Text></Label>
+          </Children></WidgetGroup>
+          <Number><ObjectName>RX3BeatFxMilliseconds</ObjectName><Rx3Format>beat-ms</Rx3Format><Connection><ConfigKey>[RX3Display],master_bpm</ConfigKey></Connection></Number>
+          <Label><ObjectName>RX3BeatFxBeat</ObjectName><Text>1 BEAT</Text></Label>
+          <Label><ObjectName>RX3BeatFxQuantize</ObjectName><Text>QUANTIZE</Text></Label>
+        </Children>
+      </WidgetGroup>
+      </Children></WidgetGroup>
+      <WidgetGroup><ObjectName>RX3FxSpacer</ObjectName><Size>0me,14f</Size></WidgetGroup>
+      <WidgetGroup>
+        <ObjectName>RX3ZoomControls</ObjectName><Connection><ConfigKey>[RX3Controller],grid_mode</ConfigKey><BindProperty>highlight</BindProperty></Connection><Layout>horizontal</Layout><Size>0me,36f</Size>
+        <Children>
+          <PushButton><ObjectName>ZoomOutButton</ObjectName><Connection><ConfigKey>[RX3Controller],grid_mode</ConfigKey><BindProperty>highlight</BindProperty></Connection><Size>18f,28f</Size><NumberStates>1</NumberStates><State><Number>0</Number><Text>−</Text></State><Connection><ConfigKey>[Channel1],waveform_zoom_down</ConfigKey><ConnectValueToWidget>false</ConnectValueToWidget></Connection><Connection><ConfigKey>[Channel2],waveform_zoom_down</ConfigKey><ConnectValueToWidget>false</ConnectValueToWidget></Connection></PushButton>
+
+          <PushButton><ObjectName>ZoomInButton</ObjectName><Connection><ConfigKey>[RX3Controller],grid_mode</ConfigKey><BindProperty>highlight</BindProperty></Connection><Size>70f,28f</Size><NumberStates>1</NumberStates><State><Number>0</Number><Text>ZOOM</Text></State><Connection><ConfigKey>[Channel1],waveform_zoom_up</ConfigKey><ConnectValueToWidget>false</ConnectValueToWidget></Connection><Connection><ConfigKey>[Channel2],waveform_zoom_up</ConfigKey><ConnectValueToWidget>false</ConnectValueToWidget></Connection></PushButton>
+          <PushButton><ObjectName>GridButton</ObjectName><Connection><ConfigKey>[RX3Controller],grid_mode</ConfigKey><BindProperty>highlight</BindProperty></Connection><Size>58f,28f</Size><NumberStates>1</NumberStates><State><Number>0</Number><Text>GRID</Text></State><Connection><ConfigKey>[Channel1],waveform_zoom_set_default</ConfigKey><ConnectValueToWidget>false</ConnectValueToWidget></Connection><Connection><ConfigKey>[Channel2],waveform_zoom_set_default</ConfigKey><ConnectValueToWidget>false</ConnectValueToWidget></Connection></PushButton>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup><ObjectName>RX3TabGap</ObjectName><Size>0me,12f</Size></WidgetGroup>
+      <WidgetGroup>
+        <ObjectName>RX3StatusTabs</ObjectName><Layout>horizontal</Layout><Size>0me,50f</Size>
+        <Children>
+          <PushButton>
+            <ObjectName>RX3StatusTab</ObjectName><Size>0me,44f</Size><NumberStates>2</NumberStates>
+            <State><Number>0</Number><Text>STATUS</Text></State><State><Number>1</Number><Text>STATUS</Text></State>
+            <LeftClickIsPushButton>true</LeftClickIsPushButton><Connection><ConfigKey>[RX3SidePanel],status</ConfigKey><EmitOnDownPress>true</EmitOnDownPress></Connection>
+          </PushButton>
+          <PushButton>
+            <ObjectName>RX3StatusTab</ObjectName><Size>0me,44f</Size><NumberStates>2</NumberStates>
+            <State><Number>0</Number><Text>BEAT FX</Text></State><State><Number>1</Number><Text>BEAT FX</Text></State>
+            <LeftClickIsPushButton>true</LeftClickIsPushButton><Connection><ConfigKey>[RX3SidePanel],beatfx</ConfigKey><EmitOnDownPress>true</EmitOnDownPress></Connection>
+          </PushButton>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup><ObjectName>RX3SideBottomSpace</ObjectName><Size>0me,0me</Size></WidgetGroup>
+    </Children>
+  </WidgetGroup>
+</Template>

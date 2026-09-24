@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<EffectChain>
+ <Name>RX3 NOISE</Name>
+ <MixMode>DRY/WET</MixMode>
+ <SuperParameterValue>0</SuperParameterValue>
+ <Effects>
+  <Effect>
+   <MetaParameterValue>0</MetaParameterValue>
+   <Id>org.mixxx.effects.whitenoise</Id>
+   <BackendType>Built-In</BackendType>
+   <Parameters>
+    <Parameter><Id>dry_wet</Id><Value>1</Value><LinkType>LINKED</LinkType><LinkInversion>0</LinkInversion><Hidden>0</Hidden></Parameter>
+   </Parameters>
+  </Effect>
+ </Effects>
+</EffectChain>

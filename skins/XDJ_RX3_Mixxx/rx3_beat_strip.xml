@@ -1,0 +1,36 @@
+<Template>
+  <WidgetGroup>
+    <ObjectName>RX3BeatStrip</ObjectName><Layout>horizontal</Layout><Size>0me,80f</Size>
+    <Children>
+      <WidgetGroup>
+        <ObjectName>RX3BeatFxBank</ObjectName><Layout>vertical</Layout><Size>620f,0me</Size>
+        <Children>
+          <Label><ObjectName>RX3StripCaption</ObjectName><Text>BEAT FX SELECT</Text><Size>0me,16f</Size></Label>
+          <WidgetGroup><ObjectName>RX3BeatFxBankRow</ObjectName><Layout>horizontal</Layout><Children>
+            <EffectSelector><ObjectName>RX3BankSlot</ObjectName><Size>132f,40f</Size><EffectRack>1</EffectRack><EffectUnit>1</EffectUnit><Effect>1</Effect></EffectSelector>
+            <EffectSelector><ObjectName>RX3BankSlot</ObjectName><Size>132f,40f</Size><EffectRack>1</EffectRack><EffectUnit>1</EffectUnit><Effect>2</Effect></EffectSelector>
+            <EffectSelector><ObjectName>RX3BankSlot</ObjectName><Size>132f,40f</Size><EffectRack>1</EffectRack><EffectUnit>1</EffectUnit><Effect>3</Effect></EffectSelector>
+            <PushButton><ObjectName>RX3BankSlot</ObjectName><Size>132f,40f</Size><NumberStates>2</NumberStates><State><Number>0</Number><Text>FX UNIT</Text></State><State><Number>1</Number><Text>FX UNIT</Text></State><Connection><ConfigKey>[EffectRack1_EffectUnit1],enabled</ConfigKey></Connection></PushButton>
+            <PushButton><ObjectName>RX3BankDelete</ObjectName><Size>36f,40f</Size><NumberStates>1</NumberStates><State><Number>0</Number><Text>&#9003;</Text></State></PushButton>
+          </Children></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup>
+        <ObjectName>RX3XPad</ObjectName><Layout>vertical</Layout>
+        <Children>
+          <Label><ObjectName>RX3XPadLabel</ObjectName><Text>X-PAD</Text><Size>0me,16f</Size></Label>
+          <WidgetGroup><ObjectName>RX3XPadRow</ObjectName><Layout>horizontal</Layout><Children>
+            <Template src="skin:rx3_loop_button.xml"><SetVariable name="channel">1</SetVariable><SetVariable name="size">0.0625</SetVariable><SetVariable name="label">1/16</SetVariable></Template>
+            <Template src="skin:rx3_loop_button.xml"><SetVariable name="channel">1</SetVariable><SetVariable name="size">0.125</SetVariable><SetVariable name="label">1/8</SetVariable></Template>
+            <Template src="skin:rx3_loop_button.xml"><SetVariable name="channel">1</SetVariable><SetVariable name="size">0.25</SetVariable><SetVariable name="label">1/4</SetVariable></Template>
+            <Template src="skin:rx3_loop_button.xml"><SetVariable name="channel">1</SetVariable><SetVariable name="size">0.5</SetVariable><SetVariable name="label">1/2</SetVariable></Template>
+            <Template src="skin:rx3_loop_button.xml"><SetVariable name="channel">1</SetVariable><SetVariable name="size">0.75</SetVariable><SetVariable name="label">3/4</SetVariable></Template>
+            <Template src="skin:rx3_loop_button.xml"><SetVariable name="channel">1</SetVariable><SetVariable name="size">1</SetVariable><SetVariable name="label">1</SetVariable></Template>
+            <Template src="skin:rx3_loop_button.xml"><SetVariable name="channel">1</SetVariable><SetVariable name="size">2</SetVariable><SetVariable name="label">2</SetVariable></Template>
+            <Template src="skin:rx3_loop_button.xml"><SetVariable name="channel">1</SetVariable><SetVariable name="size">4</SetVariable><SetVariable name="label">4</SetVariable></Template>
+          </Children></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+    </Children>
+  </WidgetGroup>
+</Template>

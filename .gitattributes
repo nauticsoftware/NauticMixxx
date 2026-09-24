@@ -1,0 +1,12 @@
+*.sh text eol=lf
+*.command text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.png binary
+*.jpg binary
+*.icns binary
+*.zip binary
+*.gz binary
+*.dmg binary
+*.wav binary

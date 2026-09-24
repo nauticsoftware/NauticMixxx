@@ -1,0 +1,657 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index b61b6a8..629c7a3 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1329,6 +1329,7 @@ add_library(mixxx-lib STATIC EXCLUDE_FROM_ALL
+   src/widget/wlibrarytextbrowser.cpp
+   src/widget/wmainmenubar.cpp
+   src/widget/wmenucheckbox.cpp
++  src/widget/wreferencescaler.cpp
+   src/widget/wnumber.cpp
+   src/widget/wnumberdb.cpp
+   src/widget/wnumberpos.cpp
+@@ -2123,6 +2124,7 @@ endif()
+ if(BUILD_TESTING)
+   set(
+     src-mixxx-test
++    src/test/rx3display_test.cpp
+     src/test/analyserwaveformtest.cpp
+     src/test/analyzersilence_test.cpp
+     src/test/audiotaperpot_test.cpp
+diff --git a/src/skin/legacy/legacyskinparser.cpp b/src/skin/legacy/legacyskinparser.cpp
+index 4b35bcb..cf62c81 100644
+--- a/src/skin/legacy/legacyskinparser.cpp
++++ b/src/skin/legacy/legacyskinparser.cpp
+@@ -57,6 +57,7 @@
+ #include "widget/wnumber.h"
+ #include "widget/wnumberdb.h"
+ #include "widget/wnumberpos.h"
++#include "widget/wreferencescaler.h"
+ #include "widget/wnumberrate.h"
+ #include "widget/woverview.h"
+ #include "widget/wpixmapstore.h"
+@@ -427,6 +428,16 @@ QWidget* LegacySkinParser::parseSkin(const QString& skinPath, QWidget* pParent)
+                 *m_pContext,
+                 QStringLiteral("Skin produced more than 1 widget!"));
+     }
++    const QString reference = m_pContext->selectString(skinDocument, "ReferenceSize");
++    const auto dimensions = reference.split(',');
++    if (dimensions.size() == 2) {
++        bool widthOk = false, heightOk = false;
++        const int width = dimensions[0].toInt(&widthOk);
++        const int height = dimensions[1].toInt(&heightOk);
++        if (widthOk && heightOk && width > 0 && height > 0) {
++            return new WReferenceScaler(widgets[0], QSize(width, height), pParent);
++        }
++    }
+     return widgets[0];
+ }
+ 
+diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
+new file mode 100644
+index 0000000..6b90386
+--- /dev/null
++++ b/src/test/rx3display_test.cpp
+@@ -0,0 +1,69 @@
++#include <gtest/gtest.h>
++#include <QCoreApplication>
++#include <QLabel>
++#include <QPointer>
++#include <limits>
++#include "test/mixxxtest.h"
++#include "widget/rx3displayformat.h"
++#include "widget/wreferencescaler.h"
++#include "track/beats.h"
++
++TEST(Rx3Display, TimeUsesThreeDecimalsAndCarriesMinutes) {
++    EXPECT_EQ(QStringLiteral("00:00.000"), rx3::time(0));
++    EXPECT_EQ(QStringLiteral("04:21.799"), rx3::time(261.799));
++    EXPECT_EQ(QStringLiteral("00:59.999"), rx3::time(59.9999));
++    EXPECT_EQ(QStringLiteral("01:00.000"), rx3::time(60));
++    EXPECT_EQ(QStringLiteral("01:02:03"), rx3::time(3723.9, true));
++    EXPECT_EQ(QStringLiteral("00:00.000"), rx3::time(std::numeric_limits<double>::quiet_NaN()));
++}
++TEST(Rx3Display, BeatMillisecondsNeverShowsInfinity) {
++    EXPECT_EQ(QStringLiteral("500"), rx3::beatMilliseconds(120));
++    EXPECT_EQ(QStringLiteral("483"), rx3::beatMilliseconds(124));
++    EXPECT_EQ(QStringLiteral("689"), rx3::beatMilliseconds(87));
++    EXPECT_EQ(QStringLiteral("—"), rx3::beatMilliseconds(0));
++    EXPECT_EQ(QStringLiteral("—"), rx3::beatMilliseconds(-1));
++}
++TEST(Rx3Display, BarsFollowTheBeatGridAcrossTempoChanges) {
++    using namespace mixxx;
++    const auto rate = audio::SampleRate(48000);
++    const auto grid = Beats::fromBeatPositions(rate, {audio::FramePos(0), audio::FramePos(24000),
++            audio::FramePos(48000), audio::FramePos(72000), audio::FramePos(96000),
++            audio::FramePos(144000), audio::FramePos(192000)});
++    ASSERT_TRUE(grid);
++    auto beat = grid->iteratorFrom(audio::FramePos(168000));
++    if (*beat > audio::FramePos(168000)) --beat;
++    EXPECT_EQ(QStringLiteral("02.2"), rx3::bars(beat - grid->cfirstmarker()));
++    EXPECT_EQ(QStringLiteral("01.1"), rx3::bars(0));
++    EXPECT_EQ(QStringLiteral("02.1"), rx3::bars(4));
++    EXPECT_EQ(QStringLiteral("—"), rx3::bars(-1));
++}
++class Rx3ReferenceScaleTest : public MixxxTest {};
++TEST_F(Rx3ReferenceScaleTest, ResizesUniformlyWithoutRecreatingWidgetsOrDrifting) {
++    auto* canvas = new QWidget;
++    canvas->setFixedSize(1280, 800);
++    canvas->setStyleSheet(QStringLiteral("QLabel { font-size:20px; color:#ff8800; }"));
++    QPointer<QLabel> label = new QLabel(QStringLiteral("120.0"), canvas);
++    label->setFixedSize(120,40);
++    label->setProperty("testControlValue", 7);
++    WReferenceScaler viewport(canvas, QSize(1280,800), nullptr);
++    viewport.show();
++    QCoreApplication::processEvents();
++    for (int repeat = 0; repeat < 3; ++repeat) {
++        viewport.resize(1920,1080);
++        QCoreApplication::processEvents();
++        EXPECT_NEAR(1.35, viewport.scale(), 0.001);
++        EXPECT_EQ(QSize(1728,1080), canvas->size());
++        EXPECT_EQ(QPoint(96,0), canvas->pos());
++        EXPECT_EQ(QSize(162,54), label->size());
++        viewport.resize(1024,640);
++        QCoreApplication::processEvents();
++        EXPECT_NEAR(0.8, viewport.scale(), 0.001);
++        EXPECT_EQ(QSize(96,32), label->size());
++        viewport.resize(1280,800);
++        QCoreApplication::processEvents();
++        EXPECT_EQ(QSize(120,40), label->size());
++        EXPECT_TRUE(canvas->styleSheet().contains(QStringLiteral("font-size:20px")));
++        ASSERT_TRUE(label);
++        EXPECT_EQ(7, label->property("testControlValue").toInt());
++    }
++}
+diff --git a/src/waveform/renderers/waveformwidgetrenderer.cpp b/src/waveform/renderers/waveformwidgetrenderer.cpp
+index b4953bb..c8e8aca 100644
+--- a/src/waveform/renderers/waveformwidgetrenderer.cpp
++++ b/src/waveform/renderers/waveformwidgetrenderer.cpp
+@@ -492,3 +492,13 @@ CuePointer WaveformWidgetRenderer::getCuePointerFromIndex(int cueIndex) const {
+     }
+     return {};
+ }
++
++void WaveformWidgetRenderer::setReferenceScale(double scale) {
++    if (scale <= 0 || qFuzzyCompare(m_scaleFactor, scale)) return;
++    m_scaleFactor = scale;
++    for (auto* renderer : m_rendererStack) {
++        renderer->setScaleFactor(scale);
++        renderer->setDirty(true);
++        renderer->onResize();
++    }
++}
+diff --git a/src/waveform/renderers/waveformwidgetrenderer.h b/src/waveform/renderers/waveformwidgetrenderer.h
+index 47cd21b..f315fee 100644
+--- a/src/waveform/renderers/waveformwidgetrenderer.h
++++ b/src/waveform/renderers/waveformwidgetrenderer.h
+@@ -74,6 +74,7 @@ class WaveformWidgetRenderer {
+     }
+ 
+     void setZoom(double zoom);
++    void setReferenceScale(double scale);
+ 
+     void setDisplayBeatGrid(bool set);
+     void setDisplayBeatGridAlpha(int alpha);
+diff --git a/src/widget/rx3displayformat.h b/src/widget/rx3displayformat.h
+new file mode 100644
+index 0000000..72c50a2
+--- /dev/null
++++ b/src/widget/rx3displayformat.h
+@@ -0,0 +1,33 @@
++#pragma once
++#include <QString>
++#include <algorithm>
++#include <cmath>
++
++namespace rx3 {
++inline QString time(double seconds, bool transport = false) {
++    const auto milliseconds = std::isfinite(seconds)
++            ? static_cast<qint64>(std::floor(std::clamp(seconds, 0.0, 359999.999) * 1000.0 + 0.00001)) : 0;
++    const auto whole = milliseconds / 1000;
++    if (transport) {
++        return QStringLiteral("%1:%2:%3").arg(whole / 3600, 2, 10, QLatin1Char('0'))
++                .arg((whole / 60) % 60, 2, 10, QLatin1Char('0'))
++                .arg(whole % 60, 2, 10, QLatin1Char('0'));
++    }
++    return QStringLiteral("%1:%2.%3").arg(whole / 60, 2, 10, QLatin1Char('0'))
++            .arg(whole % 60, 2, 10, QLatin1Char('0'))
++            .arg(milliseconds % 1000, 3, 10, QLatin1Char('0'));
++}
++inline QString bars(int zeroBasedBeat) {
++    if (zeroBasedBeat < 0) return QStringLiteral("—");
++    return QStringLiteral("%1.%2").arg(zeroBasedBeat / 4 + 1, 2, 10, QLatin1Char('0'))
++            .arg(zeroBasedBeat % 4 + 1);
++}
++inline QString beatMilliseconds(double bpm) {
++    return std::isfinite(bpm) && bpm >= 0.001
++            ? QString::number(static_cast<qint64>(std::floor(60000.0 / bpm))) : QStringLiteral("—");
++}
++inline QString smallSuffix(const QString& major, const QString& suffix, int fontPixels) {
++    return major + QStringLiteral("<span style=\"font-size:%1px\">%2</span>")
++            .arg(std::max(1, qRound(fontPixels * 0.43))).arg(suffix);
++}
++}
+diff --git a/src/widget/whotcuebutton.cpp b/src/widget/whotcuebutton.cpp
+index 2adb773..c8dc443 100644
+--- a/src/widget/whotcuebutton.cpp
++++ b/src/widget/whotcuebutton.cpp
+@@ -1,6 +1,7 @@
+ #include "widget/whotcuebutton.h"
+ 
+ #include <QMouseEvent>
++#include <QPainter>
+ 
+ #include "mixer/playerinfo.h"
+ #include "moc_whotcuebutton.cpp"
+@@ -24,6 +25,7 @@ WHotcueButton::WHotcueButton(const QString& group, QWidget* pParent)
+ }
+ 
+ void WHotcueButton::setup(const QDomNode& node, const SkinContext& context) {
++    m_rx3Badge = context.selectBool(node, "Rx3Badge", false);
+     // Setup parent class.
+     WPushButton::setup(node, context);
+ 
+@@ -154,6 +156,11 @@ void WHotcueButton::slotColorChanged(double color) {
+         return;
+     }
+     QColor cueColor = QColor::fromRgb(static_cast<QRgb>(color));
++    if (m_rx3Badge) {
++        m_bCueColorDimmed = Color::isDimColorCustom(cueColor, m_cueColorDimThreshold);
++        restyleAndRepaint();
++        return;
++    }
+     m_bCueColorDimmed = Color::isDimColorCustom(cueColor, m_cueColorDimThreshold);
+ 
+     QString style =
+@@ -225,3 +232,25 @@ void WHotcueButton::restyleAndRepaint() {
+     }
+     WPushButton::restyleAndRepaint();
+ }
++
++void WHotcueButton::paintEvent(QPaintEvent* event) {
++    if (!m_rx3Badge) {
++        WPushButton::paintEvent(event);
++        return;
++    }
++    QPainter painter(this);
++    painter.fillRect(rect(), QColor(QStringLiteral("#282828")));
++    const int side = std::max(1, qRound(height() * 0.89));
++    const QRect badge((width() - side) / 2, (height() - side) / 2, side, side);
++    const bool active = readDisplayValue() != 0;
++    if (active && m_pCoColor) {
++        painter.fillRect(badge, QColor::fromRgb(static_cast<QRgb>(m_pCoColor->get())));
++    }
++    painter.setPen(active ? (m_bCueColorDimmed ? Qt::white : Qt::black) : QColor(QStringLiteral("#888888")));
++    painter.setFont(font());
++    painter.drawText(badge, Qt::AlignCenter, QString(QChar('A' + m_hotcue)));
++    if (isPressed()) {
++        painter.setPen(Qt::white);
++        painter.drawRect(badge.adjusted(0, 0, -1, -1));
++    }
++}
+diff --git a/src/widget/whotcuebutton.h b/src/widget/whotcuebutton.h
+index 48dd339..69468d3 100644
+--- a/src/widget/whotcuebutton.h
++++ b/src/widget/whotcuebutton.h
+@@ -25,6 +25,7 @@ class WHotcueButton : public WPushButton {
+     Q_PROPERTY(QString type MEMBER m_type);
+ 
+   protected:
++    void paintEvent(QPaintEvent* event) override;
+     void mousePressEvent(QMouseEvent* e) override;
+     void mouseReleaseEvent(QMouseEvent* e) override;
+     void restyleAndRepaint() override;
+@@ -37,6 +38,7 @@ class WHotcueButton : public WPushButton {
+     ConfigKey createConfigKey(const QString& name);
+     void updateStyleSheet();
+ 
++    bool m_rx3Badge = false;
+     const QString m_group;
+     int m_hotcue;
+     bool m_hoverCueColor;
+diff --git a/src/widget/wnumber.cpp b/src/widget/wnumber.cpp
+index 482eccb..9a65ff9 100644
+--- a/src/widget/wnumber.cpp
++++ b/src/widget/wnumber.cpp
+@@ -1,6 +1,9 @@
+ #include "widget/wnumber.h"
+ 
+ #include "moc_wnumber.cpp"
++#include <QFontInfo>
++#include <QEvent>
++#include "widget/rx3displayformat.h"
+ #include "skin/legacy/skincontext.h"
+ 
+ WNumber::WNumber(QWidget* pParent)
+@@ -9,6 +12,7 @@ WNumber::WNumber(QWidget* pParent)
+ }
+ 
+ void WNumber::setup(const QDomNode& node, const SkinContext& context) {
++    m_rx3Format = context.selectString(node, "Rx3Format");
+     WLabel::setup(node, context);
+ 
+     // Number of digits after the decimal.
+@@ -24,9 +28,26 @@ void WNumber::onConnectedControlChanged(double dParameter, double dValue) {
+ }
+ 
+ void WNumber::setValue(double dValue) {
++    m_rx3LastValue = dValue;
++    if (m_rx3Format == QStringLiteral("beat-ms")) {
++        setText(rx3::smallSuffix(rx3::beatMilliseconds(dValue), QStringLiteral(" msec"), QFontInfo(font()).pixelSize()));
++        return;
++    }
++    if (m_rx3Format == QStringLiteral("bpm")) {
++        const QString value = QString::number(std::isfinite(dValue) ? std::max(0.0, dValue) : 0.0, 'f', 1);
++        const int dot = value.indexOf('.');
++        setText(rx3::smallSuffix(value.left(dot), value.mid(dot), QFontInfo(font()).pixelSize()));
++        return;
++    }
+     if (m_skinText.contains("%1")) {
+         setText(m_skinText.arg(QString::number(dValue, 'f', m_iNoDigits)));
+     } else {
+         setText(m_skinText + QString::number(dValue, 'f', m_iNoDigits));
+     }
+ }
++
++bool WNumber::event(QEvent* event) {
++    const bool result = WLabel::event(event);
++    if (event->type() == QEvent::FontChange && !m_rx3Format.isEmpty()) setValue(m_rx3LastValue);
++    return result;
++}
+diff --git a/src/widget/wnumber.h b/src/widget/wnumber.h
+index 2dc9942..04ef186 100644
+--- a/src/widget/wnumber.h
++++ b/src/widget/wnumber.h
+@@ -15,6 +15,9 @@ class WNumber : public WLabel  {
+     virtual void setValue(double dValue);
+ 
+   protected:
++    bool event(QEvent* event) override;
++    double m_rx3LastValue = 0;
+     // Number of digits to round to.
+     int m_iNoDigits;
++    QString m_rx3Format;
+ };
+diff --git a/src/widget/wnumberpos.cpp b/src/widget/wnumberpos.cpp
+index ddf137a..96bf97e 100644
+--- a/src/widget/wnumberpos.cpp
++++ b/src/widget/wnumberpos.cpp
+@@ -5,9 +5,15 @@
+ #include "control/controlproxy.h"
+ #include "moc_wnumberpos.cpp"
+ #include "util/duration.h"
++#include <QFontInfo>
++#include "mixer/playerinfo.h"
++#include "track/track.h"
++#include "track/beats.h"
++#include "widget/rx3displayformat.h"
+ 
+ WNumberPos::WNumberPos(const QString& group, QWidget* parent)
+         : WNumber(parent),
++          m_group(group),
+           m_displayFormat(TrackTime::DisplayFormat::TRADITIONAL),
+           m_dOldTimeElapsed(0.0) {
+     m_pTimeElapsed = new ControlProxy(group, "time_elapsed", this, ControlFlag::NoAssertIfMissing);
+@@ -30,7 +36,28 @@ WNumberPos::WNumberPos(const QString& group, QWidget* parent)
+     slotSetTimeFormat(m_pTimeFormat->get());
+ }
+ 
++void WNumberPos::setup(const QDomNode& node, const SkinContext& context) {
++    WNumber::setup(node, context);
++    if (m_rx3Format == QStringLiteral("bars")) {
++        const auto observeTrack = [this](const TrackPointer& track) {
++            disconnect(m_rx3BeatsConnection);
++            if (track) {
++                m_rx3BeatsConnection = connect(track.get(), &Track::beatsUpdated, this,
++                        [this] { slotSetTimeElapsed(m_pTimeElapsed->get()); });
++            }
++            slotSetTimeElapsed(m_pTimeElapsed->get());
++        };
++        connect(&PlayerInfo::instance(), &PlayerInfo::trackChanged, this,
++                [this, observeTrack](const QString& group, TrackPointer track, TrackPointer) {
++                    if (group == m_group) observeTrack(track);
++                });
++        observeTrack(PlayerInfo::instance().getTrackInfo(m_group));
++    }
++    slotSetTimeElapsed(m_pTimeElapsed->get());
++}
++
+ void WNumberPos::mousePressEvent(QMouseEvent* pEvent) {
++    if (m_rx3Format == QStringLiteral("bars") || m_rx3Format == QStringLiteral("transport")) return;
+     bool leftClick = pEvent->buttons() & Qt::LeftButton;
+ 
+     if (leftClick) {
+@@ -58,6 +85,35 @@ void WNumberPos::setValue(double dValue) {
+ 
+ void WNumberPos::slotSetTimeElapsed(double dTimeElapsed) {
+     double dTimeRemaining = m_pTimeRemaining->get();
++    if (m_rx3Format == QStringLiteral("bars")) {
++        QString count = QStringLiteral("—");
++        const auto track = PlayerInfo::instance().getTrackInfo(m_group);
++        const auto beats = track ? track->getBeats() : nullptr;
++        if (beats && beats->firstBeat().isValid() && std::isfinite(dTimeElapsed)) {
++            const auto position = mixxx::audio::FramePos(dTimeElapsed * beats->getSampleRate());
++            auto beat = beats->iteratorFrom(position);
++            if (*beat > position) --beat;
++            count = rx3::bars(beat - beats->cfirstmarker());
++        }
++        setText(rx3::smallSuffix(count, QStringLiteral(" Bars"), QFontInfo(font()).pixelSize()));
++        m_dOldTimeElapsed = dTimeElapsed;
++        return;
++    }
++    if (m_rx3Format == QStringLiteral("deck") || m_rx3Format == QStringLiteral("transport")) {
++        const bool transport = m_rx3Format == QStringLiteral("transport");
++        double seconds = transport || m_displayMode != TrackTime::DisplayMode::ELAPSED
++                ? dTimeRemaining : dTimeElapsed;
++        const bool negative = !transport && m_displayMode == TrackTime::DisplayMode::ELAPSED && seconds < 0;
++        const QString value = rx3::time(std::abs(seconds), transport);
++        if (transport) setText(value);
++        else {
++            const int dot = value.indexOf('.');
++            setText(rx3::smallSuffix((negative ? QStringLiteral("−") : QString()) + value.left(dot),
++                    value.mid(dot), QFontInfo(font()).pixelSize()));
++        }
++        m_dOldTimeElapsed = dTimeElapsed;
++        return;
++    }
+     QString (*timeFormat)(double dSeconds, mixxx::Duration::Precision precision);
+ 
+     if (m_displayFormat == TrackTime::DisplayFormat::KILO_SECONDS) {
+diff --git a/src/widget/wnumberpos.h b/src/widget/wnumberpos.h
+index c9dd62d..d111789 100644
+--- a/src/widget/wnumberpos.h
++++ b/src/widget/wnumberpos.h
+@@ -11,6 +11,7 @@ class WNumberPos : public WNumber {
+ 
+   public:
+     explicit WNumberPos(const QString& group, QWidget* parent = nullptr);
++    void setup(const QDomNode& node, const SkinContext& context) override;
+ 
+   protected:
+     void mousePressEvent(QMouseEvent* pEvent) override;
+@@ -24,6 +25,8 @@ class WNumberPos : public WNumber {
+ 
+   private:
+ 
++    QMetaObject::Connection m_rx3BeatsConnection;
++    const QString m_group;
+     TrackTime::DisplayMode m_displayMode;
+     TrackTime::DisplayFormat m_displayFormat;
+ 
+diff --git a/src/widget/woverview.h b/src/widget/woverview.h
+index f28e78a..0c44cad 100644
+--- a/src/widget/woverview.h
++++ b/src/widget/woverview.h
+@@ -23,6 +23,7 @@ class SkinContext;
+ class WOverview : public WWidget, public TrackDropTarget {
+     Q_OBJECT
+   public:
++    void setReferenceScale(double scale) { m_scaleFactor = scale; update(); }
+     WOverview(
+             const QString& group,
+             PlayerManager* pPlayerManager,
+diff --git a/src/widget/wreferencescaler.cpp b/src/widget/wreferencescaler.cpp
+new file mode 100644
+index 0000000..4e52f79
+--- /dev/null
++++ b/src/widget/wreferencescaler.cpp
+@@ -0,0 +1,119 @@
++#include "widget/wreferencescaler.h"
++
++#include <QLayout>
++#include <QRegularExpression>
++#include <QResizeEvent>
++#include <QTimer>
++#include <algorithm>
++#include <cmath>
++
++#include "widget/wwaveformviewer.h"
++#include "widget/woverview.h"
++#include "widget/whotcuebutton.h"
++
++namespace {
++QString scaleStyle(const QString& original, double scale) {
++    // Only lengths are transformed: never colors, control values, or selectors.
++    static const QRegularExpression pixels(QStringLiteral("(-?\\d+(?:\\.\\d+)?)px"));
++    static const QRegularExpression spacing(
++            QStringLiteral("(qproperty-layoutSpacing:\\s*)(-?\\d+)"));
++    auto replace = [scale](const QString& text, const QRegularExpression& expression,
++                           bool isSpacing) -> QString {
++        QString result;
++        qsizetype cursor = 0;
++        auto matches = expression.globalMatch(text);
++        while (matches.hasNext()) {
++            const auto match = matches.next();
++            result += text.mid(cursor, match.capturedStart() - cursor);
++            if (isSpacing) result += match.captured(1);
++            const double value = match.captured(isSpacing ? 2 : 1).toDouble();
++            result += QString::number(value == QWIDGETSIZE_MAX ? QWIDGETSIZE_MAX : qRound(value * scale));
++            if (!isSpacing) result += QStringLiteral("px");
++            cursor = match.capturedEnd();
++        }
++        return result + text.mid(cursor);
++    };
++    return replace(replace(original, pixels, false), spacing, true);
++}
++QSize scaledConstraint(QSize size, double scale) {
++    auto dimension = [scale](int value) {
++        return value == QWIDGETSIZE_MAX ? value : qRound(value * scale);
++    };
++    return QSize(dimension(size.width()), dimension(size.height()));
++}
++}
++
++WReferenceScaler::WReferenceScaler(QWidget* canvas, QSize referenceSize, QWidget* parent)
++        : QWidget(parent), m_canvas(canvas), m_referenceSize(referenceSize) {
++    setObjectName(QStringLiteral("RX3ReferenceViewport"));
++    setAutoFillBackground(true);
++    QPalette colors = palette();
++    colors.setColor(QPalette::Window, Qt::black);
++    setPalette(colors);
++    setMinimumSize(referenceSize / 2);
++    canvas->setParent(this);
++    canvas->resize(referenceSize);
++    canvas->ensurePolished();
++    auto widgets = canvas->findChildren<QWidget*>();
++    widgets.prepend(canvas);
++    for (QWidget* widget : widgets) {
++        if (widget->isWindow()) continue;
++        widget->ensurePolished();
++        m_metrics.push_back({widget, widget->minimumSize(), widget->maximumSize(),
++                widget->font(), qobject_cast<WHotcueButton*>(widget) ? QString() : widget->styleSheet()});
++    }
++    resize(referenceSize);
++    applyScale();
++}
++
++void WReferenceScaler::resizeEvent(QResizeEvent* event) {
++    QWidget::resizeEvent(event);
++    if (m_pending) return;
++    m_pending = true;
++    QTimer::singleShot(0, this, [this] {
++        m_pending = false;
++        applyScale();
++    });
++}
++
++void WReferenceScaler::applyScale() {
++    const double factor = std::min(width() / double(m_referenceSize.width()),
++            height() / double(m_referenceSize.height()));
++    if (factor <= 0) return;
++    const QSize target(qRound(m_referenceSize.width() * factor),
++            qRound(m_referenceSize.height() * factor));
++    if (std::abs(m_scale - factor) > 0.0001) {
++        m_scale = factor;
++        m_canvas->setUpdatesEnabled(false);
++        // Clear constraints first so previous scaled minimums cannot prevent
++        // shrinking. Restore from immutable reference metrics, never from the
++        // previous frame (avoids cumulative rounding/font-size drift).
++        for (const auto& metric : m_metrics) {
++            if (!metric.widget) continue;
++            metric.widget->setMinimumSize(0, 0);
++            metric.widget->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
++        }
++        for (const auto& metric : m_metrics) {
++            auto* widget = metric.widget.data();
++            if (!widget) continue;
++            QFont font = metric.font;
++            if (font.pixelSize() > 0) font.setPixelSize(std::max(1, qRound(font.pixelSize() * factor)));
++            else if (font.pointSizeF() > 0) font.setPointSizeF(font.pointSizeF() * factor);
++            widget->setFont(font);
++            widget->setMinimumSize(scaledConstraint(metric.minimum, factor));
++            widget->setMaximumSize(scaledConstraint(metric.maximum, factor));
++            if (!metric.style.isEmpty()) widget->setStyleSheet(scaleStyle(metric.style, factor));
++            if (auto* waveform = qobject_cast<WWaveformViewer*>(widget)) {
++                waveform->setReferenceScale(factor);
++            }
++            if (auto* overview = qobject_cast<WOverview*>(widget)) {
++                overview->setReferenceScale(factor);
++            }
++            widget->updateGeometry();
++        }
++        m_canvas->setFixedSize(target);
++        m_canvas->setUpdatesEnabled(true);
++        setProperty("referenceScale", factor);
++    }
++    m_canvas->move((width() - target.width()) / 2, (height() - target.height()) / 2);
++}
+diff --git a/src/widget/wreferencescaler.h b/src/widget/wreferencescaler.h
+new file mode 100644
+index 0000000..642d5ef
+--- /dev/null
++++ b/src/widget/wreferencescaler.h
+@@ -0,0 +1,32 @@
++#pragma once
++
++#include <QPointer>
++#include <QWidget>
++#include <vector>
++
++// Opt-in wrapper for fixed-resolution legacy skins. The live widget tree is
++// resized in place; no controls, decks, or skin pages are recreated.
++class WReferenceScaler : public QWidget {
++  public:
++    WReferenceScaler(QWidget* canvas, QSize referenceSize, QWidget* parent);
++    QSize sizeHint() const override { return m_referenceSize; }
++    double scale() const { return m_scale; }
++
++  protected:
++    void resizeEvent(QResizeEvent* event) override;
++
++  private:
++    struct Metrics {
++        QPointer<QWidget> widget;
++        QSize minimum;
++        QSize maximum;
++        QFont font;
++        QString style;
++    };
++    void applyScale();
++    QWidget* m_canvas;
++    QSize m_referenceSize;
++    std::vector<Metrics> m_metrics;
++    double m_scale = -1;
++    bool m_pending = false;
++};
+diff --git a/src/widget/wwaveformviewer.cpp b/src/widget/wwaveformviewer.cpp
+index 9e672f1..4ae0139 100644
+--- a/src/widget/wwaveformviewer.cpp
++++ b/src/widget/wwaveformviewer.cpp
+@@ -50,6 +50,7 @@ WWaveformViewer::~WWaveformViewer() {
+ void WWaveformViewer::setup(const QDomNode& node, const SkinContext& context) {
+     if (m_waveformWidget) {
+         m_waveformWidget->setup(node, context);
++        if (m_referenceScale > 0) m_waveformWidget->setReferenceScale(m_referenceScale);
+         m_dimBrightThreshold = m_waveformWidget->getDimBrightThreshold();
+     }
+ }
+@@ -341,3 +342,8 @@ void WWaveformViewer::unhighlightMark(WaveformMarkPointer pMark) {
+ bool WWaveformViewer::isPlaying() const {
+     return m_pPlayEnabled->toBool();
+ }
++
++void WWaveformViewer::setReferenceScale(double scale) {
++    m_referenceScale = scale;
++    if (m_waveformWidget) m_waveformWidget->setReferenceScale(scale);
++}
+diff --git a/src/widget/wwaveformviewer.h b/src/widget/wwaveformviewer.h
+index eead266..66b5525 100644
+--- a/src/widget/wwaveformviewer.h
++++ b/src/widget/wwaveformviewer.h
+@@ -26,6 +26,8 @@ class WWaveformViewer : public WWidget, public TrackDropTarget {
+     }
+     void setup(const QDomNode& node, const SkinContext& context);
+ 
++    void setReferenceScale(double scale);
++
+     bool handleDragAndDropEventFromWindow(QEvent* pEvent) override;
+ 
+     void dragEnterEvent(QDragEnterEvent *event) override;
+@@ -80,6 +82,7 @@ class WWaveformViewer : public WWidget, public TrackDropTarget {
+     WaveformMarkPointer m_pHoveredMark;
+ 
+     WaveformWidgetAbstract* m_waveformWidget;
++    double m_referenceScale = 0;
+ 
+     int m_dimBrightThreshold;
+ 

@@ -1,0 +1,245 @@
+diff --git a/src/skin/legacy/legacyskinparser.cpp b/src/skin/legacy/legacyskinparser.cpp
+index cf62c81..10f5dc4 100644
+--- a/src/skin/legacy/legacyskinparser.cpp
++++ b/src/skin/legacy/legacyskinparser.cpp
+@@ -58,6 +58,7 @@
+ #include "widget/wnumberdb.h"
+ #include "widget/wnumberpos.h"
+ #include "widget/wreferencescaler.h"
++#include "widget/rx3displaystate.h"
+ #include "widget/wnumberrate.h"
+ #include "widget/woverview.h"
+ #include "widget/wpixmapstore.h"
+@@ -399,6 +400,11 @@ QWidget* LegacySkinParser::parseSkin(const QString& skinPath, QWidget* pParent)
+         }
+     }
+ 
++    std::unique_ptr<Rx3DisplayState> rx3State;
++    if (m_pContext->selectBool(skinDocument, "Rx3DisplayState", false)) {
++        rx3State = std::make_unique<Rx3DisplayState>();
++    }
++
+     // This enables file paths like 'skins:Deere/some_template.xml',
+     // in addition to relative paths like 'skins:Deere/some_template.xml'
+     // Note: Here we assume this path exists. If it doesn't SkinLoader::getSkinSearchPaths()
+@@ -435,9 +441,12 @@ QWidget* LegacySkinParser::parseSkin(const QString& skinPath, QWidget* pParent)
+         const int width = dimensions[0].toInt(&widthOk);
+         const int height = dimensions[1].toInt(&heightOk);
+         if (widthOk && heightOk && width > 0 && height > 0) {
+-            return new WReferenceScaler(widgets[0], QSize(width, height), pParent);
++            auto* viewport = new WReferenceScaler(widgets[0], QSize(width, height), pParent);
++            if (rx3State) rx3State.release()->setParent(viewport);
++            return viewport;
+         }
+     }
++    if (rx3State) rx3State.release()->setParent(widgets[0]);
+     return widgets[0];
+ }
+ 
+diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
+index 6b90386..7d619ec 100644
+--- a/src/test/rx3display_test.cpp
++++ b/src/test/rx3display_test.cpp
+@@ -67,3 +67,50 @@ TEST_F(Rx3ReferenceScaleTest, ResizesUniformlyWithoutRecreatingWidgetsOrDrifting
+         EXPECT_EQ(7, label->property("testControlValue").toInt());
+     }
+ }
++
++#include "widget/rx3displaystate.h"
++TEST(Rx3Display, LoopSizesIncludeFractions) {
++    EXPECT_EQ(QStringLiteral("2"), rx3::loop(2));
++    EXPECT_EQ(QStringLiteral("1/2"), rx3::loop(0.5));
++    EXPECT_EQ(QStringLiteral("1/128"), rx3::loop(1.0 / 128));
++    EXPECT_EQ(QStringLiteral("0.75"), rx3::loop(0.75));
++    EXPECT_TRUE(rx3::loop(0).isEmpty());
++}
++TEST_F(Rx3ReferenceScaleTest, MasterFollowsPlaybackWithoutChangingEngineControls) {
++    std::vector<std::unique_ptr<ControlObject>> inputs;
++    for (const auto& group : {QStringLiteral("[Channel1]"), QStringLiteral("[Channel2]")}) {
++        for (const auto& key : {QStringLiteral("play"), QStringLiteral("track_loaded"),
++                     QStringLiteral("sync_leader"), QStringLiteral("visual_bpm")})
++            inputs.push_back(std::make_unique<ControlObject>(ConfigKey(group, key)));
++    }
++    Rx3DisplayState display;
++    ControlProxy first(QStringLiteral("[RX3Display]"), QStringLiteral("master1"));
++    ControlProxy second(QStringLiteral("[RX3Display]"), QStringLiteral("master2"));
++    first.connectValueChanged(&display, [&](double) { EXPECT_LE(first.get() + second.get(), 1); });
++    second.connectValueChanged(&display, [&](double) { EXPECT_LE(first.get() + second.get(), 1); });
++    auto set = [&](int deck, const QString& key, double value) {
++        ControlObject::getControl(QStringLiteral("[Channel%1]").arg(deck), key)->set(value);
++        QCoreApplication::processEvents();
++    };
++    EXPECT_EQ(0, display.masterDeck());
++    set(1, QStringLiteral("track_loaded"), 1);
++    set(1, QStringLiteral("visual_bpm"), 122);
++    set(1, QStringLiteral("play"), 1);
++    set(2, QStringLiteral("track_loaded"), 1);
++    set(2, QStringLiteral("visual_bpm"), 128);
++    set(2, QStringLiteral("play"), 1);
++    EXPECT_EQ(1, display.masterDeck());
++    set(1, QStringLiteral("play"), 0);
++    EXPECT_EQ(2, display.masterDeck());
++    EXPECT_EQ(128, ControlObject::get(ConfigKey("[RX3Display]", "master_bpm")));
++    set(1, QStringLiteral("play"), 1);
++    EXPECT_EQ(2, display.masterDeck());
++    set(2, QStringLiteral("play"), 0);
++    EXPECT_EQ(1, display.masterDeck());
++    set(1, QStringLiteral("track_loaded"), 0);
++    EXPECT_EQ(2, display.masterDeck());
++    set(2, QStringLiteral("track_loaded"), 0);
++    EXPECT_EQ(0, display.masterDeck());
++    EXPECT_EQ(0, ControlObject::get(ConfigKey("[Channel1]", "sync_leader")));
++    EXPECT_EQ(122, ControlObject::get(ConfigKey("[Channel1]", "visual_bpm")));
++}
+diff --git a/src/widget/rx3displayformat.h b/src/widget/rx3displayformat.h
+index 72c50a2..228f430 100644
+--- a/src/widget/rx3displayformat.h
++++ b/src/widget/rx3displayformat.h
+@@ -1,11 +1,12 @@
+ #pragma once
++#include "util/fpclassify.h"
+ #include <QString>
+ #include <algorithm>
+ #include <cmath>
+ 
+ namespace rx3 {
+ inline QString time(double seconds, bool transport = false) {
+-    const auto milliseconds = std::isfinite(seconds)
++    const auto milliseconds = util_isfinite(seconds)
+             ? static_cast<qint64>(std::floor(std::clamp(seconds, 0.0, 359999.999) * 1000.0 + 0.00001)) : 0;
+     const auto whole = milliseconds / 1000;
+     if (transport) {
+@@ -23,9 +24,18 @@ inline QString bars(int zeroBasedBeat) {
+             .arg(zeroBasedBeat % 4 + 1);
+ }
+ inline QString beatMilliseconds(double bpm) {
+-    return std::isfinite(bpm) && bpm >= 0.001
++    return util_isfinite(bpm) && bpm >= 0.001
+             ? QString::number(static_cast<qint64>(std::floor(60000.0 / bpm))) : QStringLiteral("—");
+ }
++inline QString loop(double beats) {
++    if (!util_isfinite(beats) || beats <= 0) return QString();
++    if (beats < 1) {
++        const double inverse = 1.0 / beats;
++        if (inverse <= 1024 && std::abs(inverse - std::round(inverse)) < 0.0001)
++            return QStringLiteral("1/%1").arg(qRound(inverse));
++    }
++    return QString::number(beats, 'g', 4);
++}
+ inline QString smallSuffix(const QString& major, const QString& suffix, int fontPixels) {
+     return major + QStringLiteral("<span style=\"font-size:%1px\">%2</span>")
+             .arg(std::max(1, qRound(fontPixels * 0.43))).arg(suffix);
+diff --git a/src/widget/rx3displaystate.h b/src/widget/rx3displaystate.h
+new file mode 100644
+index 0000000..f1072d7
+--- /dev/null
++++ b/src/widget/rx3displaystate.h
+@@ -0,0 +1,63 @@
++#pragma once
++#include <QObject>
++#include <QHash>
++#include <array>
++#include <memory>
++#include "control/controlobject.h"
++#include "control/controlproxy.h"
++
++// Presentation state only. Never writes to transport, sync, tempo or mapping controls.
++class Rx3DisplayState : public QObject {
++  public:
++    explicit Rx3DisplayState(QObject* parent = nullptr) : QObject(parent) {
++        for (int i = 0; i < 2; ++i) {
++            const QString group = QStringLiteral("[Channel%1]").arg(i + 1);
++            m_master[i] = std::make_unique<ControlObject>(ConfigKey(
++                    QStringLiteral("[RX3Display]"), QStringLiteral("master%1").arg(i + 1)));
++            for (const auto& name : {QStringLiteral("play"), QStringLiteral("track_loaded"),
++                         QStringLiteral("sync_leader"), QStringLiteral("visual_bpm")}) {
++                auto* input = new ControlProxy(group, name, this, ControlFlag::NoAssertIfMissing);
++                m_inputs[i][name] = input;
++                input->connectValueChanged(this, [this](double) { refresh(); });
++            }
++        }
++        m_bpm = std::make_unique<ControlObject>(ConfigKey(
++                QStringLiteral("[RX3Display]"), QStringLiteral("master_bpm")));
++        refresh();
++    }
++
++    int masterDeck() const { return m_selected + 1; }
++
++  private:
++    void refresh() {
++        // Connections are established before all output controls exist.
++        if (!m_bpm) return;
++        std::array<bool, 2> loaded, playing;
++        int explicitLeader = -1;
++        for (int i = 0; i < 2; ++i) {
++            loaded[i] = m_inputs[i][QStringLiteral("track_loaded")]->get() > 0;
++            playing[i] = loaded[i] && m_inputs[i][QStringLiteral("play")]->get() > 0;
++            if (playing[i] && m_inputs[i][QStringLiteral("sync_leader")]->get() > 0 && explicitLeader < 0)
++                explicitLeader = i;
++        }
++        int next = m_selected;
++        if (explicitLeader >= 0) next = explicitLeader;
++        else if (next < 0 || !playing[next]) {
++            if (playing[0]) next = 0;
++            else if (playing[1]) next = 1;
++            else if (next < 0 || !loaded[next]) next = loaded[0] ? 0 : (loaded[1] ? 1 : -1);
++        }
++        // Clear the previous master before enabling the next: observers never
++        // see both decks marked MASTER, even between value-change signals.
++        if (next != m_selected) {
++            for (auto& output : m_master) output->set(0);
++            m_selected = next;
++        }
++        for (int i = 0; i < 2; ++i) m_master[i]->set(i == next ? 1 : 0);
++        m_bpm->set(next >= 0 ? m_inputs[next][QStringLiteral("visual_bpm")]->get() : 0);
++    }
++    std::array<QHash<QString, ControlProxy*>, 2> m_inputs;
++    std::array<std::unique_ptr<ControlObject>, 2> m_master;
++    std::unique_ptr<ControlObject> m_bpm;
++    int m_selected = -1;
++};
+diff --git a/src/widget/wnumber.cpp b/src/widget/wnumber.cpp
+index 9a65ff9..2f16edf 100644
+--- a/src/widget/wnumber.cpp
++++ b/src/widget/wnumber.cpp
+@@ -1,3 +1,4 @@
++#include "util/fpclassify.h"
+ #include "widget/wnumber.h"
+ 
+ #include "moc_wnumber.cpp"
+@@ -29,12 +30,16 @@ void WNumber::onConnectedControlChanged(double dParameter, double dValue) {
+ 
+ void WNumber::setValue(double dValue) {
+     m_rx3LastValue = dValue;
++    if (m_rx3Format == QStringLiteral("loop")) {
++        setText(rx3::loop(dValue));
++        return;
++    }
+     if (m_rx3Format == QStringLiteral("beat-ms")) {
+         setText(rx3::smallSuffix(rx3::beatMilliseconds(dValue), QStringLiteral(" msec"), QFontInfo(font()).pixelSize()));
+         return;
+     }
+     if (m_rx3Format == QStringLiteral("bpm")) {
+-        const QString value = QString::number(std::isfinite(dValue) ? std::max(0.0, dValue) : 0.0, 'f', 1);
++        const QString value = QString::number(util_isfinite(dValue) ? std::max(0.0, dValue) : 0.0, 'f', 1);
+         const int dot = value.indexOf('.');
+         setText(rx3::smallSuffix(value.left(dot), value.mid(dot), QFontInfo(font()).pixelSize()));
+         return;
+diff --git a/src/widget/wnumberpos.cpp b/src/widget/wnumberpos.cpp
+index 96bf97e..8563467 100644
+--- a/src/widget/wnumberpos.cpp
++++ b/src/widget/wnumberpos.cpp
+@@ -1,3 +1,4 @@
++#include "util/fpclassify.h"
+ #include "widget/wnumberpos.h"
+ 
+ #include <QMouseEvent>
+@@ -89,7 +90,7 @@ void WNumberPos::slotSetTimeElapsed(double dTimeElapsed) {
+         QString count = QStringLiteral("—");
+         const auto track = PlayerInfo::instance().getTrackInfo(m_group);
+         const auto beats = track ? track->getBeats() : nullptr;
+-        if (beats && beats->firstBeat().isValid() && std::isfinite(dTimeElapsed)) {
++        if (beats && beats->firstBeat().isValid() && util_isfinite(dTimeElapsed)) {
+             const auto position = mixxx::audio::FramePos(dTimeElapsed * beats->getSampleRate());
+             auto beat = beats->iteratorFrom(position);
+             if (*beat > position) --beat;

@@ -1,0 +1,109 @@
+{
+  "fill" : "system-dark",
+  "groups" : [
+    {
+      "blend-mode" : "lighten",
+      "blur-material" : null,
+      "hidden" : false,
+      "layers" : [
+        {
+          "blend-mode" : "overlay",
+          "image-name" : "ChatGPT Image Sep 18, 2026 at 04_34_00 PM 2.png",
+          "name" : "ChatGPT Image Sep 18, 2026 at 04_34_00 PM 2",
+          "opacity" : 1
+        }
+      ],
+      "opacity" : 1,
+      "position" : {
+        "scale" : 0.98,
+        "translation-in-points" : [
+          0,
+          0
+        ]
+      },
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "blend-mode" : "soft-light",
+      "blur-material" : null,
+      "hidden" : false,
+      "layers" : [
+        {
+          "blend-mode" : "normal",
+          "fill" : {
+            "linear-gradient" : [
+              "extended-gray:0.00000,1.00000",
+              "extended-gray:1.00000,1.00000"
+            ],
+            "orientation" : {
+              "start" : {
+                "x" : 0.5,
+                "y" : 1
+              },
+              "stop" : {
+                "x" : 0.5,
+                "y" : 0.3
+              }
+            }
+          },
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "ChatGPT Image Sep 18, 2026 at 04_34_00 PM.png",
+          "name" : "ChatGPT Image Sep 18, 2026 at 04_34_00 PM",
+          "position" : {
+            "scale" : 0.98,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "blend-mode" : "normal",
+          "fill" : "automatic",
+          "glass" : true,
+          "hidden" : true,
+          "image-name" : "ChatGPT Image Sep 18, 2026 at 04_33_49 PM.png",
+          "name" : "ChatGPT Image Sep 18, 2026 at 04_33_49 PM",
+          "position" : {
+            "scale" : 0.95,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "lighting" : "individual",
+      "position" : {
+        "scale" : 1,
+        "translation-in-points" : [
+          0,
+          0
+        ]
+      },
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 1
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : [
+      "macOS"
+    ]
+  }
+}

@@ -1,0 +1,42 @@
+diff --git a/src/util/versionstore.cpp b/src/util/versionstore.cpp
+--- a/src/util/versionstore.cpp
++++ b/src/util/versionstore.cpp
+@@ -61,7 +61,7 @@ QDateTime VersionStore::date() {
+ 
+ // static
+ QString VersionStore::applicationName() {
+-    return kMixxx;
++    return QStringLiteral("NauticMixxx");
+ }
+ 
+ // static
+diff --git a/src/util/sandbox.cpp b/src/util/sandbox.cpp
+--- a/src/util/sandbox.cpp
++++ b/src/util/sandbox.cpp
+@@ -441,12 +441,12 @@ QString Sandbox::migrateOldSettings() {
+     QString sandboxedParentPath = homePath +
+             QLatin1String(
+                     "/Library/Containers/org.mixxx.mixxx/Data/Library/"
+                     "Application Support");
+-    QString sandboxedPath = sandboxedParentPath + QLatin1String("/Mixxx");
++    QString sandboxedPath = sandboxedParentPath + QLatin1String("/NauticMixxx");
+     QDir sandboxedDir(sandboxedPath);
+ 
+-    QString legacySettingsPath = homePath + QLatin1String("/Library/Application Support/Mixxx");
++    QString legacySettingsPath = homePath + QLatin1String("/Library/Application Support/NauticMixxx");
+     // The user has no settings from Mixxx < 2.3.0, so there is no migration to do.
+     if (!QDir(legacySettingsPath).exists()) {
+         return sandboxedPath;
+     }
+diff --git a/src/skin/skinloader.cpp b/src/skin/skinloader.cpp
+--- a/src/skin/skinloader.cpp
++++ b/src/skin/skinloader.cpp
+@@ -125,7 +125,7 @@ SkinPointer SkinLoader::getConfiguredSkin() const {
+ }
+ 
+ QString SkinLoader::getDefaultSkinName() const {
+-    return "LateNight";
++    return "XDJ_RX3_Mixxx";
+ }
+ 
+ QWidget* SkinLoader::loadConfiguredSkin(QWidget* pParent,

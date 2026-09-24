@@ -1,0 +1,31 @@
+name: NauticMixxx validation
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-source:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Release metadata and privacy audit
+        run: python3 scripts/release-audit.py
+      - name: XML and controller tests
+        run: |
+          find skins/XDJ_RX3_Mixxx controllers/Hercules_DJControl_Inpulse_500_RX3 effects -type f -name '*.xml' -exec xmllint --noout {} +
+          node --check controllers/Hercules_DJControl_Inpulse_500_RX3/Hercules-DJControl-Inpulse-500-RX3-script.js
+          node scripts/test-rx3-autoloop.js
+          node scripts/test-rx3-loop-adjust.js
+          node scripts/test-rx3-sound-color-fx.js
+          node scripts/test-rx3-transport-controls.js

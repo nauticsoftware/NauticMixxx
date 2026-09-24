@@ -1,0 +1,371 @@
+diff --git a/src/mixxxmainwindow.cpp b/src/mixxxmainwindow.cpp
+--- a/src/mixxxmainwindow.cpp
++++ b/src/mixxxmainwindow.cpp
+@@ -207,7 +207,11 @@
+     // The Fullscreen menu item is refreshed in connectMenuBar()
+     bool fullscreenPref = m_pCoreServices->getSettings()->getValue<bool>(
+             ConfigKey("[Config]", "StartInFullscreen"));
+-    if ((CmdlineArgs::Instance().getStartInFullscreen() || fullscreenPref) &&
++    const bool rx3Skin = pConfig->getValueString(ConfigKey("[Config]", "ResizableSkin")) == "XDJ_RX3_Mixxx";
++    const ConfigKey rx3LastFullscreen("[RX3Window]", "LastFullscreen");
++    const bool rx3Fullscreen = pConfig->getValueString(rx3LastFullscreen).isEmpty()
++            ? (isFullScreen() || fullscreenPref) : pConfig->getValue<bool>(rx3LastFullscreen);
++    if ((CmdlineArgs::Instance().getStartInFullscreen() || (rx3Skin ? rx3Fullscreen : fullscreenPref)) &&
+             // could be we're fullscreen already after setGeomtery(previousGeometry)
+             !isFullScreen()) {
+         showFullScreen();
+@@ -403,6 +407,17 @@
+     // Show the menubar after the launch image is replaced by the skin widget,
+     // otherwise it would shift the launch image shortly before the skin is visible.
+     m_pMenuBar->show();
++    if (rx3Skin && !isFullScreen()) {
++        // Discard a saved maximized/windowed size, but keep the window position.
++        setWindowState(windowState() & ~(Qt::WindowMaximized | Qt::WindowMinimized));
++        QTimer::singleShot(0,this,[this]{
++            if (!isFullScreen() && m_pCentralWidget) {
++                const QSize chrome = size() - m_pCentralWidget->size();
++                resize(QSize(1280,800) + chrome);
++                qInfo() << "RX3 windowed canvas:" << m_pCentralWidget->size();
++            }
++        });
++    }
+ 
+     // The launch image widget is automatically disposed, but we still have a
+     // pointer to it.
+@@ -450,7 +465,11 @@
+     // So let's quit fullscreen if StartInFullscreen is not checked in Preferences.
+     bool fullscreenPref = m_pCoreServices->getSettings()->getValue<bool>(
+             ConfigKey("[Config]", "StartInFullscreen"));
+-    if (isFullScreen() && !fullscreenPref) {
++    const bool rx3Skin = m_pCoreServices->getSettings()->getValueString(
++            ConfigKey("[Config]", "ResizableSkin")) == "XDJ_RX3_Mixxx";
++    if (rx3Skin) m_pCoreServices->getSettings()->setValue(
++            ConfigKey("[RX3Window]", "LastFullscreen"), isFullScreen());
++    if (isFullScreen() && !fullscreenPref && !rx3Skin) {
+         // Simply maximize the window so we can store a geometry that fits the screen.
+         // Don't call slotViewFullScreen(false) (calls showNormal()) because that
+         // can make the main window incl. window decoration too large for the screen.
+diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
+--- a/src/test/rx3display_test.cpp
++++ b/src/test/rx3display_test.cpp
+@@ -145,7 +145,7 @@
+     const auto image=mark.generateImage(1);
+     EXPECT_GT(image.pixelColor(qRound(mark.m_linePosition),100).alpha(),0);
+ }
+-TEST_F(Rx3HotcueTest, LabelsMatchPadsAndTrackColorChanges) {
++TEST_F(Rx3HotcueTest, LabelsAndWaveformMarkersUseFixedRx3Palette) {
+     SkinContext context(config(), QString()); QDomDocument doc;
+     ASSERT_TRUE(doc.setContent(QStringLiteral("<DefaultMark><Rx3Hotcue>true</Rx3Hotcue><Color>#00ff00</Color></DefaultMark>")));
+     WaveformSignalColors colors;
+@@ -153,7 +153,7 @@
+     EXPECT_EQ(QStringLiteral("H"),mark.rx3Label());
+     mark.setBreadth(200); mark.setBaseColor(QColor("#cc00ff"),128);
+     const auto image=mark.generateImage(1);
+-    EXPECT_EQ(QColor("#cc00ff"),image.pixelColor(2,20));
++    EXPECT_EQ(QColor("#c3af04"),image.pixelColor(2,20));
+ }
+ 
+ #include "widget/rx3waveform.h"
+@@ -181,3 +181,55 @@
+     EXPECT_EQ(QColor("#0055e1"), image.pixelColor(3, 25));
+     EXPECT_EQ(QColor("#ffffff"), image.pixelColor(5, 100));
+ }
++
++#include "widget/whotcuebutton.h"
++#include "widget/controlwidgetconnection.h"
++TEST_F(Rx3HotcueTest, AssignedPadsUseFixedRx3PaletteAndEmptyPadsUseWhite) {
++    const QColor expected[] = {QColor("#ff376f"), QColor("#45acdb"),
++            QColor("#7dc13d"), QColor("#aa72ff"), QColor("#30d26e"),
++            QColor("#e0641b"), QColor("#305aff"), QColor("#c3af04")};
++    SkinContext context(config(), QString());
++    for (int hotcue = 1; hotcue <= 8; ++hotcue) {
++        const QString prefix = QStringLiteral("hotcue_%1_").arg(hotcue);
++        ControlObject color(ConfigKey("[Channel1]", prefix + "color"));
++        ControlObject type(ConfigKey("[Channel1]", prefix + "type"));
++        ControlObject enabled(ConfigKey("[Channel1]", prefix + "enabled"));
++        QDomDocument doc;
++        ASSERT_TRUE(doc.setContent(QStringLiteral(
++                "<HotcueButton><Rx3Badge>true</Rx3Badge><Hotcue>%1</Hotcue>"
++                "<NumberStates>2</NumberStates></HotcueButton>").arg(hotcue)));
++        WHotcueButton button("[Channel1]", nullptr);
++        button.setup(doc.documentElement(), context);
++        auto* connection = new ControlParameterWidgetConnection(&button,
++                enabled.getKey(), nullptr,
++                ControlParameterWidgetConnection::DIR_FROM_AND_TO_WIDGET,
++                ControlParameterWidgetConnection::EMIT_ON_PRESS_AND_RELEASE);
++        button.addConnection(connection);
++        button.setDisplayConnection(connection);
++        button.resize(120, 40);
++        QFont font("Arial");
++        font.setPixelSize(28);
++        button.setFont(font);
++        const auto countPixels = [&](const QColor& target) {
++            const QImage image = button.grab().toImage();
++            int count = 0;
++            for (int y = 0; y < image.height(); ++y) {
++                for (int x = 0; x < image.width(); ++x) {
++                    if (image.pixelColor(x, y) == target) {
++                        ++count;
++                    }
++                }
++            }
++            return count;
++        };
++        color.set(0x010203);
++        enabled.set(1);
++        QCoreApplication::processEvents();
++        EXPECT_GT(countPixels(expected[hotcue - 1]), 0);
++        EXPECT_GT(countPixels(Qt::black), 0);
++        EXPECT_EQ(countPixels(Qt::white), 0);
++        enabled.set(0);
++        QCoreApplication::processEvents();
++        EXPECT_GT(countPixels(Qt::white), 0);
++    }
++}
+diff --git a/src/waveform/renderers/allshader/waveformrendererpreroll.cpp b/src/waveform/renderers/allshader/waveformrendererpreroll.cpp
+--- a/src/waveform/renderers/allshader/waveformrendererpreroll.cpp
++++ b/src/waveform/renderers/allshader/waveformrendererpreroll.cpp
+@@ -70,6 +70,7 @@
+ 
+ void WaveformRendererPreroll::setup(
+         const QDomNode& node, const SkinContext& context) {
++    m_showPreroll = context.selectBool(node, "ShowPreroll", true);
+     m_color = QColor(context.selectString(node, "SignalColor"));
+     m_color = WSkinColor::getCorrectColor(m_color);
+ }
+@@ -80,6 +81,7 @@
+ }
+ 
+ void WaveformRendererPreroll::paintGL() {
++    if (!m_showPreroll) return;
+     const TrackPointer track = m_waveformRenderer->getTrackInfo();
+     if (!track || (m_isSlipRenderer && !m_waveformRenderer->isSlipActive())) {
+         return;
+diff --git a/src/waveform/renderers/allshader/waveformrendererpreroll.h b/src/waveform/renderers/allshader/waveformrendererpreroll.h
+--- a/src/waveform/renderers/allshader/waveformrendererpreroll.h
++++ b/src/waveform/renderers/allshader/waveformrendererpreroll.h
+@@ -35,6 +35,7 @@
+     void drawPattern(float x1, float y1, float x2, float y2, float repetitions);
+ 
+     mixxx::PatternShader m_shader;
++    bool m_showPreroll = true;
+     QColor m_color;
+     float m_markerBreadth{};
+     float m_markerLength{};
+diff --git a/src/waveform/renderers/allshader/waveformrendermark.cpp b/src/waveform/renderers/allshader/waveformrendermark.cpp
+--- a/src/waveform/renderers/allshader/waveformrendermark.cpp
++++ b/src/waveform/renderers/allshader/waveformrendermark.cpp
+@@ -316,8 +316,8 @@
+         drawTexture(matrix, drawOffset, 0.f, &m_playPosMarkTexture);
+     }
+ 
+-    if (WaveformWidgetFactory::instance()->getUntilMarkShowBeats() ||
+-            WaveformWidgetFactory::instance()->getUntilMarkShowTime()) {
++    if (m_showUntilNextMark && (WaveformWidgetFactory::instance()->getUntilMarkShowBeats() ||
++            WaveformWidgetFactory::instance()->getUntilMarkShowTime())) {
+         updateUntilMark(playPosition, nextMarkPosition);
+         drawUntilMark(matrix, currentMarkPoint + 20);
+     }
+diff --git a/src/waveform/renderers/waveformrendererpreroll.cpp b/src/waveform/renderers/waveformrendererpreroll.cpp
+--- a/src/waveform/renderers/waveformrendererpreroll.cpp
++++ b/src/waveform/renderers/waveformrendererpreroll.cpp
+@@ -18,12 +18,14 @@
+ 
+ void WaveformRendererPreroll::setup(
+         const QDomNode& node, const SkinContext& context) {
++    m_showPreroll = context.selectBool(node, "ShowPreroll", true);
+     m_color = QColor(context.selectString(node, "SignalColor"));
+     m_color = WSkinColor::getCorrectColor(m_color);
+ }
+ 
+ void WaveformRendererPreroll::draw(QPainter* painter, QPaintEvent* event) {
+     Q_UNUSED(event);
++    if (!m_showPreroll) return;
+ 
+     const TrackPointer pTrack = m_waveformRenderer->getTrackInfo();
+     if (!pTrack) {
+diff --git a/src/waveform/renderers/waveformrendererpreroll.h b/src/waveform/renderers/waveformrendererpreroll.h
+--- a/src/waveform/renderers/waveformrendererpreroll.h
++++ b/src/waveform/renderers/waveformrendererpreroll.h
+@@ -15,6 +15,7 @@
+     virtual void draw(QPainter* painter, QPaintEvent* event);
+ 
+   private:
++    bool m_showPreroll = true;
+     QColor m_color;
+     
+     DISALLOW_COPY_AND_ASSIGN(WaveformRendererPreroll);
+diff --git a/src/waveform/renderers/waveformrendermarkbase.cpp b/src/waveform/renderers/waveformrendermarkbase.cpp
+--- a/src/waveform/renderers/waveformrendermarkbase.cpp
++++ b/src/waveform/renderers/waveformrendermarkbase.cpp
+@@ -12,6 +12,7 @@
+ }
+ 
+ void WaveformRenderMarkBase::setup(const QDomNode& node, const SkinContext& context) {
++    m_showUntilNextMark = context.selectBool(node, "ShowUntilNextMark", true);
+     WaveformSignalColors signalColors = *m_waveformRenderer->getWaveformSignalColors();
+     m_marks.setup(m_waveformRenderer->getGroup(), node, context, signalColors);
+     m_marks.connectSamplePositionChanged(this, &WaveformRenderMarkBase::onMarkChanged);
+diff --git a/src/waveform/renderers/waveformrendermarkbase.h b/src/waveform/renderers/waveformrendermarkbase.h
+--- a/src/waveform/renderers/waveformrendermarkbase.h
++++ b/src/waveform/renderers/waveformrendermarkbase.h
+@@ -34,6 +34,7 @@
+     void onMarkChanged(double v);
+ 
+   protected:
++    bool m_showUntilNextMark = true;
+     WaveformMarkSet m_marks;
+ 
+     void updateMarkImages();
+diff --git a/src/waveform/renderers/waveformmark.cpp b/src/waveform/renderers/waveformmark.cpp
+--- a/src/waveform/renderers/waveformmark.cpp
++++ b/src/waveform/renderers/waveformmark.cpp
+@@ -14,6 +14,16 @@
+ // Without some padding, the user would only have a single pixel width that
+ // would count as hovering over the WaveformMark.
+ constexpr float lineHoverPadding = 5.0;
++constexpr QRgb kRx3HotcueColors[] = {
++        0xFF376F,
++        0x45ACDB,
++        0x7DC13D,
++        0xAA72FF,
++        0x30D26E,
++        0xE0641B,
++        0x305AFF,
++        0xC3AF04,
++};
+ 
+ Qt::Alignment decodeAlignmentFlags(const QString& alignString, Qt::Alignment defaultFlags) {
+     const QStringList stringFlags = alignString.toLower()
+@@ -173,6 +183,9 @@
+ WaveformMark::~WaveformMark() = default;
+ 
+ void WaveformMark::setBaseColor(QColor baseColor, int dimBrightThreshold) {
++    if (rx3Hotcue() && m_iHotCue < 8) {
++        baseColor = QColor::fromRgb(kRx3HotcueColors[m_iHotCue]);
++    }
+     if (m_fillColor == baseColor) {
+         return;
+     }
+diff --git a/src/widget/whotcuebutton.cpp b/src/widget/whotcuebutton.cpp
+--- a/src/widget/whotcuebutton.cpp
++++ b/src/widget/whotcuebutton.cpp
+@@ -8,6 +8,16 @@
+ 
+ namespace {
+ constexpr int kDefaultDimBrightThreshold = 127;
++constexpr QRgb kRx3HotcueColors[] = {
++        0xFF376F,
++        0x45ACDB,
++        0x7DC13D,
++        0xAA72FF,
++        0x30D26E,
++        0xE0641B,
++        0x305AFF,
++        0xC3AF04,
++};
+ } // namespace
+ 
+ WHotcueButton::WHotcueButton(const QString& group, QWidget* pParent)
+@@ -243,9 +253,14 @@
+     const QRect badge((width() - side) / 2, (height() - side) / 2, side, side);
+     const bool active = readDisplayValue() != 0;
+-    if (active && m_pCoColor) {
+-        painter.fillRect(badge, QColor::fromRgb(static_cast<QRgb>(m_pCoColor->get())));
++    if (active) {
++        if (m_hotcue >= 0 && m_hotcue < 8) {
++            painter.fillRect(badge, QColor::fromRgb(kRx3HotcueColors[m_hotcue]));
++        } else if (m_pCoColor) {
++            painter.fillRect(
++                    badge, QColor::fromRgb(static_cast<QRgb>(m_pCoColor->get())));
++        }
+     }
+-    painter.setPen(active ? (m_bCueColorDimmed ? Qt::white : Qt::black) : QColor(QStringLiteral("#888888")));
++    painter.setPen(active ? Qt::black : Qt::white);
+     painter.setFont(font());
+     painter.drawText(badge, Qt::AlignCenter, QString(QChar('A' + m_hotcue)));
+     if (isPressed()) {
+diff --git a/src/widget/woverview.cpp b/src/widget/woverview.cpp
+--- a/src/widget/woverview.cpp
++++ b/src/widget/woverview.cpp
+@@ -664,6 +664,12 @@
+         painter.drawPixmap(rect(), m_backgroundPixmap);
+     }
+ 
++    if (!m_pCurrentTrack && m_rx3Overview) {
++        painter.setPen(QColor("#ff3b22"));
++        QFont emptyFont("Arial");emptyFont.setPixelSize(qMax(12,qRound(16*m_scaleFactor)));
++        painter.setFont(emptyFont);
++        painter.drawText(rect(),Qt::AlignCenter,QStringLiteral("Not Loaded."));
++    }
+     if (m_pCurrentTrack) {
+         // Refer to util/ScopePainter.h to understand the semantics of
+         // ScopePainter.
+@@ -752,11 +758,13 @@
+             const qreal inset = 10 * m_scaleFactor;
+             // The RX3 overview rises from a baseline, with cue lanes above
+             // and below it. The RX3 source contains the measured three-band signal here.
+-            const QRectF target(0, inset, width(), qMax(qreal(1), height()-2*inset));
++            const qreal gap = 4 * m_scaleFactor;
++            const QRectF target(0, inset, width(), qMax(qreal(1), height()-2*inset-gap));
+             const QRectF source(0, 0, m_waveformImageScaled.width(), m_waveformImageScaled.height()/2.0);
+             pPainter->drawImage(target, m_waveformImageScaled, source);
+-            pPainter->setPen(QPen(QColor("#ddd"), m_scaleFactor));
+-            pPainter->drawLine(target.bottomLeft(), target.bottomRight());
++            pPainter->setPen(QPen(Qt::white, 2 * m_scaleFactor));
++            const qreal baseline = height()-inset;
++            pPainter->drawLine(QPointF(0,baseline), QPointF(width(),baseline));
+         } else pPainter->drawImage(rect(), m_waveformImageScaled);
+     }
+ }
+diff --git a/src/widget/wrx3browser.h b/src/widget/wrx3browser.h
+--- a/src/widget/wrx3browser.h
++++ b/src/widget/wrx3browser.h
+@@ -120,7 +120,14 @@
+         makeControl("enter", [this](double value){ if(value > 0) enter(); });
+         makeControl("back", [this](double value){ if(value > 0) back(); });
+         makeControl("source", [this](double value){ if(value > 0) showSources(); });
+-        makeControl("open", [this](double value){ if(value > 0) { m_search->clear(); m_search->hide(); refreshTable(); } });
++        makeControl("open", [this](double value){ if(value > 0) {
++            m_search->hide();
++            // Showing the tab may make Qt restore focus to the folder tree.
++            // Restore our saved logical navigation target after that completes.
++            const int resume=m_resumeFocus;
++            m_focus=resume;
++            QTimer::singleShot(0,this,[this,resume]{restoreNavigationFocus(resume);});
++        } });
+         QTimer::singleShot(0, this, [this]{ populateCategories(); refreshTable(); });
+         connect(m_sidebar->model(), &QAbstractItemModel::rowsInserted, this, [this]{ if(m_pages->currentIndex()==1) refreshSources(); });
+         connect(m_sidebar->model(), &QAbstractItemModel::rowsRemoved, this, [this]{ if(m_pages->currentIndex()==1) refreshSources(); });
+@@ -128,6 +135,10 @@
+     }
+     ~WRx3Browser() override = default;
+   protected:
++    void hideEvent(QHideEvent* event) override {
++        m_resumeFocus=m_focus;
++        QWidget::hideEvent(event);
++    }
+     void resizeEvent(QResizeEvent* event) override {
+         QWidget::resizeEvent(event);
+         const double scale = qMax(0.6, height()/690.0);
+@@ -268,6 +279,13 @@
+         refreshTable();
+     }
+     void chooseFacet() {filterFacet();focusTracks();}
++    void restoreNavigationFocus(int focus) {
++        if(m_pages->currentIndex()==1) {m_focus=3;m_sources->setFocus();return;}
++        if(focus==1 && m_sidebar->isVisible()) {m_focus=1;m_sidebar->setFocus();}
++        else if(focus==4 && m_facets->isVisible()) {m_focus=4;m_facets->setFocus();}
++        else if(focus==0) {m_focus=0;m_categories->setFocus();}
++        else focusTracks();
++    }
+     void focusTracks() {
+         refreshTable(); m_focus=2;
+         if(auto* table=m_library->getCurrentTrackTableView()) {
+@@ -400,5 +418,6 @@
+     std::vector<QPersistentModelIndex> m_roots, m_devices;
+     std::vector<std::unique_ptr<ControlObject>> m_controls;
+     int m_focus=0;
++    int m_resumeFocus=2;
+     bool m_refreshingSources=false;
+ };

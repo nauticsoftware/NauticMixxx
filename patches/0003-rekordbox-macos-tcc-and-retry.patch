@@ -1,0 +1,174 @@
+diff --git a/src/library/rekordbox/rekordboxfeature.cpp b/src/library/rekordbox/rekordboxfeature.cpp
+index d251ca28e7..63106cb99d 100644
+--- a/src/library/rekordbox/rekordboxfeature.cpp
++++ b/src/library/rekordbox/rekordboxfeature.cpp
+@@ -1,6 +1,7 @@
+ #include "library/rekordbox/rekordboxfeature.h"
+ 
+ #include <algorithm>
++#include <stdexcept>
+ 
+ #include <mp3guessenc.h>
+ #include <rekordbox_anlz.h>
+@@ -540,6 +541,12 @@ QString parseDeviceDB(mixxx::DbConnectionPoolPtr dbConnectionPool, TreeItem* dev
+         return QString();
+     }
+     std::ifstream ifs(dbPath.toStdString(), std::ifstream::binary);
++    if (!ifs.is_open()) {
++        throw std::runtime_error(
++                QStringLiteral("Cannot open Rekordbox database: %1")
++                        .arg(dbPath)
++                        .toStdString());
++    }
+     kaitai::kstream ks(&ifs);
+ 
+     rekordbox_pdb_t rekordboxDB = rekordbox_pdb_t(&ks);
+@@ -1553,22 +1560,40 @@ void RekordboxFeature::activate() {
+             }
+         }
+ 
+-        bool automaticallyDiscoverable = false;
++        QStringList unauthorizedMountedRoots;
+         const QFileInfoList mountedVolumes =
+                 QDir(QStringLiteral("/Volumes"))
+                         .entryInfoList(QDir::AllDirs | QDir::NoDotAndDotDot);
+         for (const QFileInfo& volume : mountedVolumes) {
+-            if (!findRekordboxPdbPath(volume.absoluteFilePath()).isEmpty()) {
+-                automaticallyDiscoverable = true;
+-                break;
++            const QString volumePath = volume.absoluteFilePath();
++            if (findRekordboxPdbPath(volumePath).isEmpty() ||
++                    manuallyAuthorizedDevicePaths.contains(volumePath)) {
++                continue;
++            }
++
++            // Merely discovering export.pdb does not mean macOS will allow us
++            // to read it. Removable volumes are additionally protected by
++            // TCC, so recover an existing bookmark or ask the user to select
++            // the drive once below.
++            auto token =
++                    Sandbox::openSecurityTokenForDir(QDir(volumePath), false);
++            if (!token.isNull()) {
++                m_rekordboxSecurityTokens.append(token);
++                manuallyAuthorizedDevicePaths.append(volumePath);
++                rootsToPersist.append(volumePath);
++            } else {
++                unauthorizedMountedRoots.append(volumePath);
+             }
+         }
+ 
+-        if (!automaticallyDiscoverable &&
++        if (!unauthorizedMountedRoots.isEmpty() ||
+                 manuallyAuthorizedDevicePaths.isEmpty()) {
++            const QString initialPath = unauthorizedMountedRoots.isEmpty()
++                    ? QStringLiteral("/Volumes")
++                    : unauthorizedMountedRoots.constFirst();
+             const QString selectedPath = QFileDialog::getExistingDirectory(nullptr,
+                     tr("Select your Rekordbox USB drive"),
+-                    QStringLiteral("/Volumes"),
++                    initialPath,
+                     QFileDialog::ShowDirsOnly |
+                             QFileDialog::DontResolveSymlinks);
+             if (!selectedPath.isEmpty()) {
+@@ -1581,16 +1606,20 @@ void RekordboxFeature::activate() {
+                                "PIONEER/rekordbox/export.pdb."));
+                 } else {
+                     const QDir rootDir(deviceRoot);
+-                    if (Sandbox::createSecurityTokenForDir(rootDir)) {
+-                        auto token =
+-                                Sandbox::openSecurityTokenForDir(rootDir, false);
+-                        if (!token.isNull()) {
+-                            m_rekordboxSecurityTokens.append(token);
+-                            manuallyAuthorizedDevicePaths.append(deviceRoot);
+-                            if (!rootsToPersist.contains(deviceRoot)) {
+-                                rootsToPersist.append(deviceRoot);
+-                            }
++                    auto token =
++                            Sandbox::openSecurityTokenForDir(rootDir, true);
++                    if (!token.isNull()) {
++                        m_rekordboxSecurityTokens.append(token);
++                        manuallyAuthorizedDevicePaths.append(deviceRoot);
++                        if (!rootsToPersist.contains(deviceRoot)) {
++                            rootsToPersist.append(deviceRoot);
+                         }
++                    } else {
++                        QMessageBox::warning(nullptr,
++                                tr("Could not authorize Rekordbox USB drive"),
++                                tr("Mixxx could not save permission to read the "
++                                   "selected drive. Please select the root of "
++                                   "the USB drive and try again."));
+                     }
+                 }
+             }
+@@ -1642,16 +1671,16 @@ void RekordboxFeature::activateChild(const QModelIndex& index) {
+              << " playlist: " << playlist << " doParseDeviceDB: " << doParseDeviceDB;
+ 
+     if (doParseDeviceDB) {
++        if (m_tracksFutureWatcher.isRunning()) {
++            return;
++        }
++
+         qDebug() << "Parse Rekordbox Device DB: " << playlist;
+ 
+         // Let a worker thread do the XML parsing
++        m_pParsingDeviceItem = item;
+         m_tracksFuture = QtConcurrent::run(parseDeviceDB, static_cast<Library*>(parent())->dbConnectionPool(), item);
+         m_tracksFutureWatcher.setFuture(m_tracksFuture);
+-
+-        // This device is now a playlist element, future activations should treat is
+-        // as such
+-        data[1] = QVariant(IS_NOT_RECORDBOX_DEVICE);
+-        item->setData(QVariant(data));
+     } else {
+         qDebug() << "Activate Rekordbox Playlist: " << playlist;
+         m_pRekordboxPlaylistModel->setPlaylist(playlist);
+@@ -1737,16 +1766,36 @@ void RekordboxFeature::onRekordboxDevicesFound() {
+ 
+ void RekordboxFeature::onTracksFound() {
+     qDebug() << "onTracksFound";
+-    m_pSidebarModel->triggerRepaint();
+ 
+     QString devicePlaylist;
+     try {
+         devicePlaylist = m_tracksFuture.result();
+     } catch (const std::exception& e) {
+         qWarning() << "Failed to load Rekordbox database:" << e.what();
++        m_pParsingDeviceItem = nullptr;
++        m_pSidebarModel->triggerRepaint();
++        return;
++    }
++
++    if (devicePlaylist.isEmpty()) {
++        qWarning() << "Failed to load Rekordbox database: access was not granted";
++        m_pParsingDeviceItem = nullptr;
++        m_pSidebarModel->triggerRepaint();
+         return;
+     }
+ 
++    if (m_pParsingDeviceItem) {
++        QList<QVariant> data = m_pParsingDeviceItem->getData().toList();
++        if (data.size() > 1) {
++            // Only mark the device as parsed after the transaction completed.
++            // A denied/corrupt read can therefore be retried with another click.
++            data[1] = QVariant(IS_NOT_RECORDBOX_DEVICE);
++            m_pParsingDeviceItem->setData(QVariant(data));
++        }
++    }
++    m_pParsingDeviceItem = nullptr;
++    m_pSidebarModel->triggerRepaint();
++
+     qDebug() << "Show Rekordbox Device Playlist: " << devicePlaylist;
+ 
+     m_pRekordboxPlaylistModel->setPlaylist(devicePlaylist);
+diff --git a/src/library/rekordbox/rekordboxfeature.h b/src/library/rekordbox/rekordboxfeature.h
+index 09134f2b45..7f32d578a9 100644
+--- a/src/library/rekordbox/rekordboxfeature.h
++++ b/src/library/rekordbox/rekordboxfeature.h
+@@ -89,6 +89,7 @@ class RekordboxFeature : public BaseExternalLibraryFeature {
+     QFuture<QList<TreeItem*>> m_devicesFuture;
+     QFutureWatcher<QString> m_tracksFutureWatcher;
+     QFuture<QString> m_tracksFuture;
++    TreeItem* m_pParsingDeviceItem{nullptr};
+     QString m_title;
+ 
+     // Keep security-scoped bookmarks active while Rekordbox metadata and

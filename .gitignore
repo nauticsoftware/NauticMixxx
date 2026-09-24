@@ -1,0 +1,41 @@
+# Local build and runtime state
+node_modules/
+dist/
+build/
+release/
+tmp/
+native/rekordbox-usb/build*/
+native/rekordbox-usb/stage*/
+native/rekordbox-usb/mixxx-2.5.6/
+.mixxx-validation/
+.mixxx-visual-qa/
+.mixxx-visual-runtime/
+backups/
+graphify-out/
+
+# User and editor state
+.DS_Store
+*.log
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.tsbuildinfo
+.vscode/
+.idea/
+compile_flags.txt
+__pycache__/
+*.pyc
+
+# Signing credentials must never enter source control
+*.p12
+*.cer
+*.provisionprofile
+*.mobileprovision
+notarytool-profile.*
+.env
+.env.*
+!.env.example
+
+# Generated DMG project outputs
+packaging/DMG_PROJECT/*.dmg
+packaging/DMG_PROJECT/*.dmgcanvas/

@@ -1,0 +1,29 @@
+name: Informe de prueba
+description: Comparte resultados de hardware y plataforma.
+title: "[Test 1.0.0]: "
+labels: [testing]
+body:
+  - type: input
+    id: system
+    attributes:
+      label: Sistema y equipo
+      placeholder: macOS, MacBook Apple Silicon
+    validations:
+      required: true
+  - type: input
+    id: package
+    attributes:
+      label: Paquete y SHA-256
+    validations:
+      required: true
+  - type: textarea
+    id: matrix
+    attributes:
+      label: Resultado de la matriz de docs/TESTING.md
+      placeholder: Indica OK/FALLO para cada punto probado.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Observaciones

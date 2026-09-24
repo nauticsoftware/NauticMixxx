@@ -1,0 +1,274 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 95eb1c8..b61b6a8 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -3435,6 +3435,13 @@ endif()
+ # SndFile
+ find_package(SndFile REQUIRED)
+ target_link_libraries(mixxx-lib PRIVATE SndFile::sndfile)
++if(APPLE AND SndFile_IS_STATIC)
++  # The 2.5 ARM64 release environment ships libsndfile with MPEG support, but
++  # its pkg-config version is not exposed while cross-compiling. Link the
++  # dependency explicitly so the final static link resolves mpg123 symbols.
++  find_package(mpg123 CONFIG REQUIRED)
++  target_link_libraries(mixxx-lib PRIVATE MPG123::libmpg123)
++endif()
+ target_compile_definitions(mixxx-lib PUBLIC __SNDFILE__)
+ if(SndFile_SUPPORTS_SET_COMPRESSION_LEVEL)
+   target_compile_definitions(mixxx-lib PUBLIC SFC_SUPPORTS_SET_COMPRESSION_LEVEL)
+diff --git a/cmake/modules/BundleInstall.cmake.in b/cmake/modules/BundleInstall.cmake.in
+index 0c0d688..016ae2b 100644
+--- a/cmake/modules/BundleInstall.cmake.in
++++ b/cmake/modules/BundleInstall.cmake.in
+@@ -1,4 +1,4 @@
+-set(BUNDLE_NAME @BUNDLE_NAME@)
++set(BUNDLE_NAME "@BUNDLE_NAME@")
+ set(BUNDLE_PATH "${CMAKE_INSTALL_PREFIX}/${BUNDLE_NAME}")
+ set(BUNDLE_LIBS @BUNDLE_LIBS@)
+ set(BUNDLE_DIRS @BUNDLE_DIRS@)
+diff --git a/src/waveform/renderers/allshader/waveformrenderbeat.cpp b/src/waveform/renderers/allshader/waveformrenderbeat.cpp
+index 3f793ef..ed0f55e 100644
+--- a/src/waveform/renderers/allshader/waveformrenderbeat.cpp
++++ b/src/waveform/renderers/allshader/waveformrenderbeat.cpp
+@@ -13,6 +13,7 @@ namespace allshader {
+ WaveformRenderBeat::WaveformRenderBeat(WaveformWidgetRenderer* waveformWidget,
+         ::WaveformRendererAbstract::PositionSource type)
+         : WaveformRenderer(waveformWidget),
++          m_tickLength(10.0),
+           m_isSlipRenderer(type == ::WaveformRendererAbstract::Slip) {
+ }
+ 
+@@ -24,6 +25,12 @@ void WaveformRenderBeat::initializeGL() {
+ void WaveformRenderBeat::setup(const QDomNode& node, const SkinContext& context) {
+     m_color = QColor(context.selectString(node, "BeatColor"));
+     m_color = WSkinColor::getCorrectColor(m_color).toRgb();
++    m_downbeatColor = QColor(context.selectString(node, "DownbeatColor"));
++    if (!m_downbeatColor.isValid()) {
++        m_downbeatColor = QColor(QStringLiteral("#ff0000"));
++    }
++    m_downbeatColor = WSkinColor::getCorrectColor(m_downbeatColor).toRgb();
++    m_tickLength = std::max(1.0, context.selectDouble(node, "BeatTickLength", 10.0));
+ }
+ 
+ void WaveformRenderBeat::paintGL() {
+@@ -52,6 +59,7 @@ void WaveformRenderBeat::paintGL() {
+     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+ 
+     m_color.setAlphaF(alpha / 100.0f);
++    m_downbeatColor.setAlphaF(alpha / 100.0f);
+ 
+     const double trackSamples = m_waveformRenderer->getTrackSamples();
+     if (trackSamples <= 0) {
+@@ -73,8 +81,11 @@ void WaveformRenderBeat::paintGL() {
+     }
+ 
+     const float rendererBreadth = m_waveformRenderer->getBreadth();
++    const float usableBreadth = m_isSlipRenderer ? rendererBreadth / 2 : rendererBreadth;
++    const float tickLength = std::min(
++            static_cast<float>(m_tickLength * scaleFactor()), usableBreadth / 2.0f);
+ 
+-    const int numVerticesPerLine = 6; // 2 triangles
++    const int numVerticesPerBeat = 12; // 2 edge ticks, 2 triangles each
+ 
+     // Count the number of beats in the range to reserve space in the m_vertices vector.
+     // Note that we could also use
+@@ -87,13 +98,17 @@ void WaveformRenderBeat::paintGL() {
+         numBeatsInRange++;
+     }
+ 
+-    const int reserved = numBeatsInRange * numVerticesPerLine;
++    const int reserved = numBeatsInRange * numVerticesPerBeat;
+     m_vertices.clear();
+     m_vertices.reserve(reserved);
++    m_downbeatVertices.clear();
++    m_downbeatVertices.reserve(reserved);
+ 
+-    for (auto it = trackBeats->iteratorFrom(startPosition);
++    auto it = trackBeats->iteratorFrom(startPosition);
++    int beatIndex = it - trackBeats->cfirstmarker();
++    for (;
+             it != trackBeats->cend() && *it <= endPosition;
+-            ++it) {
++            ++it, ++beatIndex) {
+         double beatPosition = it->toEngineSamplePos();
+         double xBeatPoint =
+                 m_waveformRenderer->transformSamplePositionInRendererWorld(
+@@ -104,14 +119,13 @@ void WaveformRenderBeat::paintGL() {
+         const float x1 = static_cast<float>(xBeatPoint);
+         const float x2 = x1 + 1.f;
+ 
+-        m_vertices.addRectangle(x1,
+-                0.f,
+-                x2,
+-                m_isSlipRenderer ? rendererBreadth / 2 : rendererBreadth);
++        VertexData& vertices = ((beatIndex % 4) + 4) % 4 == 0
++                ? m_downbeatVertices
++                : m_vertices;
++        vertices.addRectangle(x1, 0.f, x2, tickLength);
++        vertices.addRectangle(x1, usableBreadth - tickLength, x2, usableBreadth);
+     }
+ 
+-    DEBUG_ASSERT(reserved == m_vertices.size());
+-
+     const int positionLocation = m_shader.positionLocation();
+     const int matrixLocation = m_shader.matrixLocation();
+     const int colorLocation = m_shader.colorLocation();
+@@ -121,14 +135,18 @@ void WaveformRenderBeat::paintGL() {
+ 
+     const QMatrix4x4 matrix = matrixForWidgetGeometry(m_waveformRenderer, false);
+ 
++    m_shader.setUniformValue(matrixLocation, matrix);
++
+     m_shader.setAttributeArray(
+             positionLocation, GL_FLOAT, m_vertices.constData(), 2);
+-
+-    m_shader.setUniformValue(matrixLocation, matrix);
+     m_shader.setUniformValue(colorLocation, m_color);
+-
+     glDrawArrays(GL_TRIANGLES, 0, m_vertices.size());
+ 
++    m_shader.setAttributeArray(
++            positionLocation, GL_FLOAT, m_downbeatVertices.constData(), 2);
++    m_shader.setUniformValue(colorLocation, m_downbeatColor);
++    glDrawArrays(GL_TRIANGLES, 0, m_downbeatVertices.size());
++
+     m_shader.disableAttributeArray(positionLocation);
+     m_shader.release();
+ }
+diff --git a/src/waveform/renderers/allshader/waveformrenderbeat.h b/src/waveform/renderers/allshader/waveformrenderbeat.h
+index d3b2b79..d32186d 100644
+--- a/src/waveform/renderers/allshader/waveformrenderbeat.h
++++ b/src/waveform/renderers/allshader/waveformrenderbeat.h
+@@ -27,7 +27,10 @@ class allshader::WaveformRenderBeat final : public allshader::WaveformRenderer {
+   private:
+     mixxx::UnicolorShader m_shader;
+     QColor m_color;
++    QColor m_downbeatColor;
++    double m_tickLength;
+     VertexData m_vertices;
++    VertexData m_downbeatVertices;
+ 
+     bool m_isSlipRenderer;
+ 
+diff --git a/src/waveform/renderers/waveformrenderbeat.cpp b/src/waveform/renderers/waveformrenderbeat.cpp
+index f9c48e3..b5c14c4 100644
+--- a/src/waveform/renderers/waveformrenderbeat.cpp
++++ b/src/waveform/renderers/waveformrenderbeat.cpp
+@@ -10,8 +10,10 @@
+ class QPaintEvent;
+ 
+ WaveformRenderBeat::WaveformRenderBeat(WaveformWidgetRenderer* waveformWidgetRenderer)
+-        : WaveformRendererAbstract(waveformWidgetRenderer) {
+-    m_beats.resize(128);
++        : WaveformRendererAbstract(waveformWidgetRenderer),
++          m_tickLength(10.0) {
++    m_beats.resize(256);
++    m_downbeats.resize(64);
+ }
+ 
+ WaveformRenderBeat::~WaveformRenderBeat() {
+@@ -20,6 +22,12 @@ WaveformRenderBeat::~WaveformRenderBeat() {
+ void WaveformRenderBeat::setup(const QDomNode& node, const SkinContext& context) {
+     m_beatColor = QColor(context.selectString(node, "BeatColor"));
+     m_beatColor = WSkinColor::getCorrectColor(m_beatColor).toRgb();
++    m_downbeatColor = QColor(context.selectString(node, "DownbeatColor"));
++    if (!m_downbeatColor.isValid()) {
++        m_downbeatColor = QColor(QStringLiteral("#ff0000"));
++    }
++    m_downbeatColor = WSkinColor::getCorrectColor(m_downbeatColor).toRgb();
++    m_tickLength = std::max(1.0, context.selectDouble(node, "BeatTickLength", 10.0));
+ }
+ 
+ void WaveformRenderBeat::draw(QPainter* painter, QPaintEvent* /*event*/) {
+@@ -43,8 +51,10 @@ void WaveformRenderBeat::draw(QPainter* painter, QPaintEvent* /*event*/) {
+     // drawing with QPainter on the QOpenGLWindow: instead of individual lines
+     // a large rectangle encompassing all beatlines is drawn.
+     m_beatColor.setAlphaF(1.f);
++    m_downbeatColor.setAlphaF(1.f);
+ #else
+     m_beatColor.setAlphaF(alpha/100.0);
++    m_downbeatColor.setAlphaF(alpha/100.0);
+ #endif
+ 
+     const double trackSamples = m_waveformRenderer->getTrackSamples();
+@@ -78,35 +88,55 @@ void WaveformRenderBeat::draw(QPainter* painter, QPaintEvent* /*event*/) {
+ 
+     painter->setRenderHint(QPainter::Antialiasing);
+ 
+-    QPen beatPen(m_beatColor);
+-    beatPen.setWidthF(std::max(1.0, scaleFactor()));
+-    painter->setPen(beatPen);
+-
+     const Qt::Orientation orientation = m_waveformRenderer->getOrientation();
+     const float rendererWidth = m_waveformRenderer->getWidth();
+     const float rendererHeight = m_waveformRenderer->getHeight();
++    const float rendererBreadth = orientation == Qt::Horizontal
++            ? rendererHeight
++            : rendererWidth;
++    const float tickLength = std::min(
++            static_cast<float>(m_tickLength * scaleFactor()), rendererBreadth / 2.0f);
+ 
+     int beatCount = 0;
++    int downbeatCount = 0;
++    int beatIndex = it - trackBeats->cfirstmarker();
+ 
+-    for (; it != trackBeats->cend() && *it <= endPosition; ++it) {
++    for (; it != trackBeats->cend() && *it <= endPosition; ++it, ++beatIndex) {
+         double beatPosition = it->toEngineSamplePos();
+         double xBeatPoint =
+                 m_waveformRenderer->transformSamplePositionInRendererWorld(beatPosition);
+ 
+         xBeatPoint = qRound(xBeatPoint * devicePixelRatio) / devicePixelRatio;
+ 
+-        // If we don't have enough space, double the size.
+-        if (beatCount >= m_beats.size()) {
+-            m_beats.resize(m_beats.size() * 2);
++        const bool isDownbeat = ((beatIndex % 4) + 4) % 4 == 0;
++        QVector<QLineF>& ticks = isDownbeat ? m_downbeats : m_beats;
++        int& tickCount = isDownbeat ? downbeatCount : beatCount;
++
++        // Each beat is represented by one short tick at either edge.
++        if (tickCount + 2 > ticks.size()) {
++            ticks.resize(std::max(
++                    ticks.size() * 2, static_cast<qsizetype>(tickCount + 2)));
+         }
+ 
+         if (orientation == Qt::Horizontal) {
+-            m_beats[beatCount++].setLine(xBeatPoint, 0.0f, xBeatPoint, rendererHeight);
++            ticks[tickCount++].setLine(xBeatPoint, 0.0f, xBeatPoint, tickLength);
++            ticks[tickCount++].setLine(
++                    xBeatPoint, rendererHeight - tickLength, xBeatPoint, rendererHeight);
+         } else {
+-            m_beats[beatCount++].setLine(0.0f, xBeatPoint, rendererWidth, xBeatPoint);
++            ticks[tickCount++].setLine(0.0f, xBeatPoint, tickLength, xBeatPoint);
++            ticks[tickCount++].setLine(
++                    rendererWidth - tickLength, xBeatPoint, rendererWidth, xBeatPoint);
+         }
+     }
+ 
+     // Make sure to use constData to prevent detaches!
++    QPen beatPen(m_beatColor);
++    beatPen.setWidthF(std::max(1.0, scaleFactor()));
++    painter->setPen(beatPen);
+     painter->drawLines(m_beats.constData(), beatCount);
++
++    QPen downbeatPen(m_downbeatColor);
++    downbeatPen.setWidthF(std::max(1.0, scaleFactor()));
++    painter->setPen(downbeatPen);
++    painter->drawLines(m_downbeats.constData(), downbeatCount);
+ }
+diff --git a/src/waveform/renderers/waveformrenderbeat.h b/src/waveform/renderers/waveformrenderbeat.h
+index 439b23c..4c35cb6 100644
+--- a/src/waveform/renderers/waveformrenderbeat.h
++++ b/src/waveform/renderers/waveformrenderbeat.h
+@@ -16,7 +16,10 @@ class WaveformRenderBeat : public WaveformRendererAbstract {
+ 
+   private:
+     QColor m_beatColor;
++    QColor m_downbeatColor;
++    double m_tickLength;
+     QVector<QLineF> m_beats;
++    QVector<QLineF> m_downbeats;
+ 
+     DISALLOW_COPY_AND_ASSIGN(WaveformRenderBeat);
+ };

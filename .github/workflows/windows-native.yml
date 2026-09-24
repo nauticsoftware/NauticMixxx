@@ -1,0 +1,35 @@
+name: NauticMixxx Windows x64
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build, test and package NauticMixxx 1.0.0
+        shell: powershell
+        run: ./scripts/build-mixxx-rx3-windows.ps1 -WorkRoot C:\rx3-build -Jobs 4
+      - name: Installer and checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: NauticMixxx-1.0.0-Windows-x64
+          path: |
+            build/NauticMixxx-1.0.0-Windows-x64.zip
+            build/NauticMixxx-1.0.0-Windows-x64.zip.sha256
+          if-no-files-found: error
+      - name: Native test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RX3-native-test-results
+          path: C:/rx3-build/build/rx3-tests.xml
+          if-no-files-found: ignore

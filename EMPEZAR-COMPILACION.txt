@@ -1,0 +1,51 @@
+PREPARACION NATIVA NAUTICMIXXX 1.0.0 PARA WINDOWS
+
+ESTE PAQUETE CONTIENE LOS FUENTES Y EL PROCESO DE COMPILACION.
+TODAVIA NO ES EL INSTALADOR FINAL Y NO CONTIENE mixxx.exe.
+
+Los cambios de MASTER, compases, tiempos y escalado requieren compilar la
+aplicacion RX3 para Windows. Mixxx oficial no incorpora estas extensiones.
+La compilacion se hace una sola vez; el ZIP resultante sirve en las dos laptops.
+
+OPCION A: GENERAR EL ZIP EN GITHUB ACTIONS
+1. Sube el contenido de esta carpeta a un repositorio propio, incluyendo
+   .github/workflows/rx3-windows-native.yml (carpeta oculta en algunos sistemas).
+   No hace falta subir tus pistas, biblioteca, contrasenas ni el perfil del Mac.
+2. Abre Actions > NauticMixxx Windows x64 > Run workflow.
+3. Espera a que terminen compilacion y pruebas. Si falla, conserva el registro;
+   no se publica un ZIP incompleto ni se sustituye por Mixxx oficial.
+4. Descarga el artefacto NauticMixxx-1.0.0-Windows-x64. Dentro esta el ZIP final:
+   NauticMixxx-1.0.0-Windows-x64.zip.
+5. Extrae ese ZIP en cada laptop y ejecuta INSTALL-WINDOWS.cmd.
+
+OPCION B: COMPILAR EN UNA LAPTOP WINDOWS X64
+Preparacion del equipo de compilacion, una sola vez:
+- Visual Studio Build Tools 2022, con Desarrollo para escritorio con C++,
+  herramientas MSVC v143 x64, CMake y un Windows SDK.
+  https://visualstudio.microsoft.com/downloads/
+- Git para Windows: https://git-scm.com/downloads/win
+- Python 3.12 o posterior, disponible en PATH: https://www.python.org/downloads/windows/
+- Conexion a Internet y espacio para fuentes, dependencias y compilacion.
+  Reserva unos 25 GB libres; las dependencias descargadas son voluminosas.
+Acepta personalmente los terminos de los asistentes de esos proveedores.
+
+1. Extrae esta carpeta en una ruta corta, por ejemplo C:\RX3-kit.
+2. Abre BUILD-WINDOWS.cmd. El trabajo se guarda en C:\rx3-build.
+3. Se descargan fuentes y dependencias oficiales con SHA-256 verificado,
+   se aplican nueve parches, se compila y se ejecutan las pruebas nativas.
+4. Al finalizar, el ZIP instalable queda en la carpeta build de este kit.
+5. Copia ese ZIP a ambas laptops. Ya no necesitan compilador, Git ni Python.
+
+Si necesitas otra carpeta temporal, desde PowerShell en este kit:
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build-mixxx-rx3-windows.ps1 -WorkRoot D:\rx3-build -Jobs 4
+
+ALCANCE DE LA VERIFICACION
+En el Mac se verificaron la sintaxis PowerShell, los XML y las protecciones del
+empaquetador. La compilacion y ejecucion real de Windows siguen pendientes
+hasta ejecutar este proceso en un equipo Windows o en GitHub Actions.
+
+No se modifica la instalacion del Mac. El mapping del Hercules es el mismo.
+El instalador final crea un perfil propio RX3 y conserva respaldos de Windows.
+
+Documentacion de compilacion oficial:
+https://github.com/mixxxdj/mixxx/wiki/Compiling-On-Windows

@@ -1,0 +1,972 @@
+diff --git a/src/library/tabledelegates/coverartdelegate.cpp b/src/library/tabledelegates/coverartdelegate.cpp
+--- a/src/library/tabledelegates/coverartdelegate.cpp
++++ b/src/library/tabledelegates/coverartdelegate.cpp
+@@ -65,6 +65,7 @@
+         const CoverInfo& coverInfo,
+         int width,
+         int row) const {
++    if (m_pTableView->property("rx3Browser").toBool() && m_rx3FailedCovers.contains(coverInfo.cacheKey())) return;
+     if (coverInfo.imageDigest().isEmpty()) {
+         // This happens if we have the legacy hash
+         // The CoverArtCache will take care of the update
+@@ -113,6 +114,10 @@
+     QList<int> refreshRows = m_pendingCacheRows.values(requestedImageHash);
+     m_pendingCacheRows.remove(requestedImageHash);
+     if (pixmap.isNull()) {
++        if(m_pTableView->property("rx3Browser").toBool()) {
++            if(m_rx3FailedCovers.size()>=256) m_rx3FailedCovers.clear();
++            m_rx3FailedCovers.insert(requestedImageHash);
++        }
+         kLogger.warning() << "Failed to load cover" << coverInfo;
+     } else {
+         // Only refresh the rows if loading succeeded, otherwise
+diff --git a/src/library/tabledelegates/coverartdelegate.h b/src/library/tabledelegates/coverartdelegate.h
+--- a/src/library/tabledelegates/coverartdelegate.h
++++ b/src/library/tabledelegates/coverartdelegate.h
+@@ -61,6 +61,7 @@
+             int width,
+             int row) const;
+ 
++    mutable QSet<mixxx::cache_key_t> m_rx3FailedCovers;
+     CoverArtCache* const m_pCache;
+     bool m_inhibitLazyLoading;
+     int m_column;
+diff --git a/src/skin/legacy/legacyskinparser.cpp b/src/skin/legacy/legacyskinparser.cpp
+--- a/src/skin/legacy/legacyskinparser.cpp
++++ b/src/skin/legacy/legacyskinparser.cpp
+@@ -1,3 +1,4 @@
++#include "widget/wrx3browser.h"
+ #include "skin/legacy/legacyskinparser.h"
+ 
+ #include <QDir>
+@@ -633,6 +634,12 @@
+         result = wrapWidget(parseRecordingDuration(node));
+     } else if (nodeName == "Splitter") {
+         result = wrapWidget(parseSplitter(node));
++    } else if (nodeName == "Rx3Browser") {
++        auto* sidebar = qobject_cast<WLibrarySidebar*>(parseLibrarySidebar(node));
++        auto* library = qobject_cast<WLibrary*>(parseLibrary(node));
++        auto* browser = new WRx3Browser(library, sidebar, m_pLibrary, m_pParent);
++        commonWidgetSetup(node, browser, false);
++        result = wrapWidget(browser);
+     } else if (nodeName == "LibrarySidebar") {
+         result = wrapWidget(parseLibrarySidebar(node));
+     } else if (nodeName == "Library") {
+diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
+--- a/src/test/rx3display_test.cpp
++++ b/src/test/rx3display_test.cpp
+@@ -114,3 +114,70 @@
+     EXPECT_EQ(0, ControlObject::get(ConfigKey("[Channel1]", "sync_leader")));
+     EXPECT_EQ(122, ControlObject::get(ConfigKey("[Channel1]", "visual_bpm")));
+ }
++
++#include "skin/legacy/skincontext.h"
++#include "waveform/renderers/waveformmark.h"
++#include "waveform/renderers/waveformsignalcolors.h"
++class Rx3HotcueTest : public MixxxTest {};
++TEST_F(Rx3HotcueTest, PairedBadgesLeaveSignalTransparentAtBothPixelRatios) {
++    ControlObject position(ConfigKey("[Channel1]","hotcue_1_position"));
++    SkinContext context(config(), QString());
++    QDomDocument doc;
++    ASSERT_TRUE(doc.setContent(QStringLiteral("<DefaultMark><Rx3Hotcue>true</Rx3Hotcue><Color>#00ff00</Color><TextColor>#000000</TextColor></DefaultMark>")));
++    WaveformSignalColors colors;
++    for(float ratio : {1.f,2.f}) {
++        WaveformMark mark("[Channel1]",doc.documentElement(),context,0,colors,0);
++        mark.setBreadth(200);
++        EXPECT_TRUE(mark.rx3Hotcue()); EXPECT_EQ(QStringLiteral("A"),mark.rx3Label());
++        const auto image=mark.generateImage(ratio);
++        EXPECT_EQ(255,image.pixelColor(qRound(2*ratio),qRound(20*ratio)).alpha());
++        EXPECT_EQ(255,image.pixelColor(qRound(2*ratio),qRound(170*ratio)).alpha());
++        for(int x=0;x<image.width();++x) EXPECT_EQ(0,image.pixelColor(x,qRound(100*ratio)).alpha());
++    }
++}
++TEST_F(Rx3HotcueTest, StandardSkinsRetainContinuousMarkerAndNumericLabels) {
++    ControlObject position(ConfigKey("[Channel1]","hotcue_2_position"));
++    SkinContext context(config(), QString()); QDomDocument doc;
++    ASSERT_TRUE(doc.setContent(QStringLiteral("<DefaultMark><Color>#00ffff</Color><TextColor>#000000</TextColor></DefaultMark>")));
++    WaveformSignalColors colors;
++    WaveformMark mark("[Channel1]",doc.documentElement(),context,0,colors,1);
++    mark.setBreadth(200); EXPECT_FALSE(mark.rx3Hotcue());
++    const auto image=mark.generateImage(1);
++    EXPECT_GT(image.pixelColor(qRound(mark.m_linePosition),100).alpha(),0);
++}
++TEST_F(Rx3HotcueTest, LabelsMatchPadsAndTrackColorChanges) {
++    SkinContext context(config(), QString()); QDomDocument doc;
++    ASSERT_TRUE(doc.setContent(QStringLiteral("<DefaultMark><Rx3Hotcue>true</Rx3Hotcue><Color>#00ff00</Color></DefaultMark>")));
++    WaveformSignalColors colors;
++    WaveformMark mark("[Channel1]",doc.documentElement(),context,0,colors,7);
++    EXPECT_EQ(QStringLiteral("H"),mark.rx3Label());
++    mark.setBreadth(200); mark.setBaseColor(QColor("#cc00ff"),128);
++    const auto image=mark.generateImage(1);
++    EXPECT_EQ(QColor("#cc00ff"),image.pixelColor(2,20));
++}
++
++#include "widget/rx3waveform.h"
++TEST(Rx3Overview, MeasuredBandsRiseFromBlueBaselineToWhiteEnvelope) {
++    QImage image(8, 120, QImage::Format_ARGB32_Premultiplied);
++    image.fill(Qt::transparent);
++    QPainter painter(&image);
++    rx3::drawSummaryColumn(&painter, 3, 110, 1, 90, 30, 30, 30);
++    painter.end();
++    EXPECT_EQ(QColor("#0055e1"), image.pixelColor(3, 100));
++    EXPECT_EQ(QColor("#f0a000"), image.pixelColor(3, 65));
++    EXPECT_EQ(QColor("#ffffff"), image.pixelColor(3, 25));
++    EXPECT_EQ(0, image.pixelColor(3, 10).alpha());
++    EXPECT_EQ(0, image.pixelColor(3, 115).alpha());
++}
++TEST(Rx3Overview, SilenceIsTransparentAndBandOnlyAudioKeepsItsColor) {
++    QImage image(8, 120, QImage::Format_ARGB32_Premultiplied);
++    image.fill(Qt::transparent);
++    QPainter painter(&image);
++    rx3::drawSummaryColumn(&painter, 1, 110, 1, 0, 0, 0, 0);
++    rx3::drawSummaryColumn(&painter, 3, 110, 1, 90, 90, 0, 0);
++    rx3::drawSummaryColumn(&painter, 5, 110, 1, 90, 0, 0, 90);
++    painter.end();
++    for (int y=0; y<image.height(); ++y) EXPECT_EQ(0, image.pixelColor(1,y).alpha());
++    EXPECT_EQ(QColor("#0055e1"), image.pixelColor(3, 25));
++    EXPECT_EQ(QColor("#ffffff"), image.pixelColor(5, 100));
++}
+diff --git a/src/waveform/renderers/waveformmark.cpp b/src/waveform/renderers/waveformmark.cpp
+--- a/src/waveform/renderers/waveformmark.cpp
++++ b/src/waveform/renderers/waveformmark.cpp
+@@ -105,6 +105,7 @@
+           m_iPriority(priority),
+           m_iHotCue(hotCue),
+           m_showUntilNext{} {
++    m_rx3Hotcue = context.selectBool(node, "Rx3Hotcue", false);
+     QString positionControl;
+     QString endPositionControl;
+     QString typeControl;
+@@ -339,6 +340,27 @@
+ 
+     if (m_breadth == 0.0f) {
+         return {};
++    }
++
++    if (rx3Hotcue()) {
++        const qreal badge = 15;
++        const qreal inset = 18;
++        QImage image(QSize(qCeil(17 * devicePixelRatio), qCeil(m_breadth * devicePixelRatio)), QImage::Format_ARGB32_Premultiplied);
++        image.setDevicePixelRatio(devicePixelRatio);
++        image.fill(Qt::transparent);
++        QPainter painter(&image);
++        m_linePosition = 8.5f;
++        QFont font("Arial"); font.setPixelSize(12); font.setBold(true);
++        painter.setFont(font);
++        const QRectF top(1, inset, badge, badge);
++        const QRectF bottom(1, m_breadth - inset - badge, badge, badge);
++        m_label.setAreaRect(top);
++        for (const auto& rect : {top, bottom}) {
++            painter.fillRect(rect, fillColor());
++            painter.setPen(Qt::black);
++            painter.drawText(rect, Qt::AlignCenter, rx3Label());
++        }
++        return image;
+     }
+ 
+     // Load the pixmap from file.
+diff --git a/src/waveform/renderers/waveformmark.h b/src/waveform/renderers/waveformmark.h
+--- a/src/waveform/renderers/waveformmark.h
++++ b/src/waveform/renderers/waveformmark.h
+@@ -152,6 +152,8 @@
+ 
+     QImage generateImage(float devicePixelRatio);
+ 
++    bool rx3Hotcue() const { return m_rx3Hotcue && m_iHotCue >= 0; }
++    QString rx3Label() const { return m_iHotCue < 8 ? QString(QChar('A' + m_iHotCue)) : QString::number(m_iHotCue + 1); }
+     QColor m_textColor;
+     QString m_text;
+     Qt::Alignment m_align;
+@@ -181,6 +183,7 @@
+ 
+     // Whether this marker is used in the show beats/time until next marker display.
+     bool m_showUntilNext;
++    bool m_rx3Hotcue = false;
+ 
+     QColor m_fillColor;
+     QColor m_borderColor;
+diff --git a/src/widget/wnumberpos.cpp b/src/widget/wnumberpos.cpp
+--- a/src/widget/wnumberpos.cpp
++++ b/src/widget/wnumberpos.cpp
+@@ -100,8 +100,12 @@
+         m_dOldTimeElapsed = dTimeElapsed;
+         return;
+     }
+-    if (m_rx3Format == QStringLiteral("deck") || m_rx3Format == QStringLiteral("transport")) {
++    if (m_rx3Format == QStringLiteral("deck") || m_rx3Format == QStringLiteral("transport") || m_rx3Format == QStringLiteral("browse")) {
+         const bool transport = m_rx3Format == QStringLiteral("transport");
++        if (m_rx3Format == QStringLiteral("browse")) {
++            setText(rx3::time(std::abs(dTimeRemaining)).section('.',0,0));
++            return;
++        }
+         double seconds = transport || m_displayMode != TrackTime::DisplayMode::ELAPSED
+                 ? dTimeRemaining : dTimeElapsed;
+         const bool negative = !transport && m_displayMode == TrackTime::DisplayMode::ELAPSED && seconds < 0;
+diff --git a/src/widget/woverview.cpp b/src/widget/woverview.cpp
+--- a/src/widget/woverview.cpp
++++ b/src/widget/woverview.cpp
+@@ -1,3 +1,4 @@
++#include "widget/rx3waveform.h"
+ #include "woverview.h"
+ 
+ #include <QBrush>
+@@ -120,6 +121,7 @@
+ 
+ void WOverview::setup(const QDomNode& node, const SkinContext& context) {
+     m_scaleFactor = context.getScaleFactor();
++    m_rx3Overview = context.selectBool(node, "Rx3Overview", false);
+     m_signalColors.setup(node, context);
+ 
+     m_backgroundColor = m_signalColors.getBgColor();
+@@ -746,7 +748,16 @@
+             m_diffGain = diffGain;
+         }
+ 
+-        pPainter->drawImage(rect(), m_waveformImageScaled);
++        if (m_rx3Overview && m_orientation == Qt::Horizontal) {
++            const qreal inset = 10 * m_scaleFactor;
++            // The RX3 overview rises from a baseline, with cue lanes above
++            // and below it. The RX3 source contains the measured three-band signal here.
++            const QRectF target(0, inset, width(), qMax(qreal(1), height()-2*inset));
++            const QRectF source(0, 0, m_waveformImageScaled.width(), m_waveformImageScaled.height()/2.0);
++            pPainter->drawImage(target, m_waveformImageScaled, source);
++            pPainter->setPen(QPen(QColor("#ddd"), m_scaleFactor));
++            pPainter->drawLine(target.bottomLeft(), target.bottomRight());
++        } else pPainter->drawImage(rect(), m_waveformImageScaled);
+     }
+ }
+ 
+@@ -907,6 +918,13 @@
+                 0.0f,
+                 static_cast<float>(width()));
+         pMark->m_linePosition = markPosition;
++
++        if (pMark->rx3Hotcue() && m_orientation == Qt::Horizontal) {
++            const qreal badge = 8 * m_scaleFactor;
++            const QRectF top(qBound(qreal(0), markPosition - badge / 2, qMax(qreal(0), width()-badge)), 0, badge, badge);
++            pMark->m_label.setAreaRect(top);
++            continue;
++        }
+ 
+         QLineF line;
+         QLineF bgLine;
+@@ -1215,6 +1233,20 @@
+ 
+     // Draw WaveformMark labels
+     for (const auto& pMark : std::as_const(m_marks)) {
++        if (pMark->rx3Hotcue() && m_orientation == Qt::Horizontal) {
++            PainterScope scope(pPainter);
++            const qreal badge = 8 * m_scaleFactor;
++            const qreal x = qBound(qreal(0), pMark->m_linePosition - badge / 2, qMax(qreal(0), width()-badge));
++            QFont font("Arial"); font.setPixelSize(qMax(6, qRound(7 * m_scaleFactor))); font.setBold(true);
++            pPainter->setFont(font);
++            for (qreal y : {qreal(0), height() - badge}) {
++                const QRectF rect(x, y, badge, badge);
++                pPainter->fillRect(rect, pMark->fillColor());
++                pPainter->setPen(Qt::black);
++                pPainter->drawText(rect, Qt::AlignCenter, pMark->rx3Label());
++            }
++            continue;
++        }
+         if (m_pHoveredMark != nullptr && pMark != m_pHoveredMark) {
+             if (pMark->m_label.intersects(m_pHoveredMark->m_label)) {
+                 continue;
+@@ -1339,7 +1371,17 @@
+     QPainter painter(&m_waveformSourceImage);
+     painter.translate(0.0, static_cast<double>(m_waveformSourceImage.height()) / 2.0);
+ 
+-    if (m_type == Type::Filtered) {
++    if (m_rx3Overview && m_orientation == Qt::Horizontal) {
++        for (int i = m_actualCompletion; i + 1 < nextCompletion; i += 2) {
++            const int peak = qMax(pWaveform->getAll(i), pWaveform->getAll(i + 1));
++            rx3::drawSummaryColumn(&painter, i / 2, 0, 1, peak,
++                    qMax(pWaveform->getLow(i), pWaveform->getLow(i + 1)),
++                    qMax(pWaveform->getMid(i), pWaveform->getMid(i + 1)),
++                    qMax(pWaveform->getHigh(i), pWaveform->getHigh(i + 1)));
++            m_waveformPeak = qMax(m_waveformPeak, static_cast<float>(peak));
++        }
++        m_actualCompletion = nextCompletion;
++    } else if (m_type == Type::Filtered) {
+         drawNextPixmapPartLMH(&painter, pWaveform, nextCompletion);
+     } else if (m_type == Type::HSV) {
+         drawNextPixmapPartHSV(&painter, pWaveform, nextCompletion);
+diff --git a/src/widget/woverview.h b/src/widget/woverview.h
+--- a/src/widget/woverview.h
++++ b/src/widget/woverview.h
+@@ -23,6 +23,7 @@
+ class WOverview : public WWidget, public TrackDropTarget {
+     Q_OBJECT
+   public:
++    bool m_rx3Overview = false;
+     void setReferenceScale(double scale) { m_scaleFactor = scale; update(); }
+     WOverview(
+             const QString& group,
+diff --git a/src/widget/wtracktableview.cpp b/src/widget/wtracktableview.cpp
+--- a/src/widget/wtracktableview.cpp
++++ b/src/widget/wtracktableview.cpp
+@@ -1,6 +1,11 @@
++#include "widget/rx3waveform.h"
+ #include "widget/wtracktableview.h"
+ 
+ #include <QDrag>
++#include <QPainter>
++#include <QStyledItemDelegate>
++#include <QTimer>
++#include "waveform/waveformfactory.h"
+ #include <QModelIndex>
+ #include <QScrollBar>
+ #include <QShortcut>
+@@ -38,6 +43,110 @@
+         QStringLiteral("[Library]"),
+         QStringLiteral("VScrollBarPos")};
+ 
++
++class Rx3TrackHeader : public WTrackTableViewHeader {
++  public:
++    using WTrackTableViewHeader::WTrackTableViewHeader;
++  protected:
++    void paintSection(QPainter* painter, const QRect& rect, int column) const override {
++        if (!parent()->property("rx3Browser").toBool()) {
++            WTrackTableViewHeader::paintSection(painter, rect, column);
++            return;
++        }
++        const QString field = model()->headerData(column, Qt::Horizontal, TrackModel::kHeaderNameRole).toString();
++        QString label = field.toUpper();
++        if (field == "preview") label = "PREVIEW";
++        else if (field == "coverart") label.clear();
++        else if (field == "tracknumber") label = "#";
++        else if (field == "title") label = "TRACK";
++        painter->save();
++        painter->fillRect(rect, QColor("#303030"));
++        painter->setPen(QColor("#101010")); painter->drawLine(rect.topRight(), rect.bottomRight());
++        QFont font("Arial"); font.setPixelSize(qMax(10, rect.height() / 3)); painter->setFont(font);
++        painter->setPen(QColor("#b7b7b7"));
++        painter->drawText(rect.adjusted(9, 0, -4, 0), Qt::AlignLeft | Qt::AlignVCenter, label);
++        painter->restore();
++    }
++};
++
++class Rx3TrackDelegate : public QStyledItemDelegate {
++  public:
++    Rx3TrackDelegate(WTrackTableView* view, AnalysisDao* dao)
++            : QStyledItemDelegate(view), m_view(view), m_dao(dao), m_cache(256) {}
++    void paint(QPainter* p, const QStyleOptionViewItem& option, const QModelIndex& index) const override {
++        p->save();
++        const bool selected = option.state & QStyle::State_Selected;
++        p->fillRect(option.rect, selected ? QColor("#008bea") : QColor(index.row() % 2 ? "#262626" : "#000000"));
++        const QString field = m_view->columnNameOfIndex(index);
++        if (field == "preview") {
++            auto* model = dynamic_cast<TrackModel*>(m_view->model());
++            ConstWaveformPointer wave;
++            const auto id = model ? model->getTrackId(index) : TrackId();
++            if (m_cache.contains(id)) wave = *m_cache.object(id);
++            if (!wave && id.isValid() && !m_cache.contains(id) && !m_pending.contains(id)) {
++                m_pending.insert(id);
++                // Read stored summaries only: getTrack() can hydrate cloud
++                // audio and emit metadata changes, causing a repaint loop.
++                QTimer::singleShot(0, const_cast<Rx3TrackDelegate*>(this), [this, id] {
++                    ConstWaveformPointer summary;
++                    const auto analyses = m_dao->getAnalysesForTrackByType(id, AnalysisDao::TYPE_WAVESUMMARY);
++                    for (const auto& analysis : analyses) {
++                        if (WaveformFactory::waveformSummaryVersionToVersionClass(analysis.version) == WaveformFactory::VC_USE) {
++                            summary = ConstWaveformPointer(WaveformFactory::loadWaveformFromAnalysis(analysis));
++                            break;
++                        }
++                    }
++                    m_cache.insert(id, new ConstWaveformPointer(summary));
++                    m_pending.remove(id);
++                    m_view->viewport()->update();
++                });
++            }
++            const QRect r = option.rect.adjusted(6, 6, -6, -4);
++            p->setPen(QColor("#aaa")); p->drawLine(r.bottomLeft(), r.bottomRight());
++            if (wave && wave->getCompletion() > 1) {
++                const int count = qMin(wave->getCompletion(), wave->getDataSize());
++                for (int x = 0; x < r.width(); ++x) {
++                    int all = 0, low = 0, mid = 0, high = 0;
++                    const int first = x * count / r.width();
++                    const int last = qMin(count, qMax(first + 1, (x + 1) * count / r.width()));
++                    for (int i = first; i < last; ++i) {
++                        all = qMax(all, int(wave->getAll(i)));
++                        low = qMax(low, int(wave->getLow(i)));
++                        mid = qMax(mid, int(wave->getMid(i)));
++                        high = qMax(high, int(wave->getHigh(i)));
++                    }
++                    rx3::drawSummaryColumn(p, r.x()+x, r.bottom(),
++                            r.height()/255.0, all, low, mid, high);
++                }
++            }
++        } else {
++            QString label = field == "tracknumber" ? QString::number(index.row()+1).rightJustified(3, '0') : index.data().toString();
++            if (field == "title") label.prepend(QString::fromUtf8("♪  "));
++
++            QFont font("Arial"); font.setPixelSize(qMax(12, option.rect.height()/2)); p->setFont(font);
++            p->setPen(Qt::white);
++            QRect r = option.rect.adjusted(7, 0, -6, 0);
++            if (field == "artist") {
++                const qreal unit = option.rect.height()/48.0;
++                const QPointF c(r.x()+9*unit, r.center().y()-5*unit);
++                p->setRenderHint(QPainter::Antialiasing);
++                p->setPen(QPen(Qt::white,unit)); p->setBrush(Qt::NoBrush);
++                p->drawEllipse(c,4*unit,4*unit);
++                p->drawArc(QRectF(c.x()-9*unit,c.y()+6*unit,18*unit,12*unit),0,180*16);
++                r.adjust(qRound(26*unit),0,0,0);
++            }
++            p->drawText(r, Qt::AlignLeft | Qt::AlignVCenter, QFontMetrics(font).elidedText(label, Qt::ElideRight, r.width()));
++        }
++        p->restore();
++    }
++    QWidget* createEditor(QWidget*, const QStyleOptionViewItem&, const QModelIndex&) const override { return nullptr; }
++  private:
++    WTrackTableView* m_view;
++    AnalysisDao* m_dao;
++    mutable QCache<TrackId, ConstWaveformPointer> m_cache;
++    mutable QSet<TrackId> m_pending;
++};
++
+ } // anonymous namespace
+ 
+ WTrackTableView::WTrackTableView(QWidget* pParent,
+@@ -211,6 +320,8 @@
+         if (restoreState) {
+             restoreCurrentViewState();
+         }
++        if(m_rx3Browser) applyRx3Columns();
++        emit rx3ModelChanged();
+         return;
+     } else if (pCurrModel) {
+         pCurrModel->maybeStopModelPopulation();
+@@ -230,7 +341,7 @@
+     // header. Also, for some reason the WTrackTableView has to be hidden or
+     // else problems occur. Since we parent the WtrackTableViewHeader's to the
+     // WTrackTableView, they are automatically deleted.
+-    auto* header = new WTrackTableViewHeader(Qt::Horizontal, this);
++    auto* header = new Rx3TrackHeader(Qt::Horizontal, this);
+ 
+     // WTF(rryan) The following saves on unnecessary work on the part of
+     // WTrackTableHeaderView. setHorizontalHeader() calls setModel() on the
+@@ -369,6 +480,8 @@
+         restoreCurrentViewState();
+     }
+     initTrackMenu();
++    if (m_rx3Browser) setRx3Browser(true);
++    emit rx3ModelChanged();
+ }
+ 
+ void WTrackTableView::initTrackMenu() {
+@@ -1236,7 +1349,54 @@
+     QTableView::keyPressEvent(event);
+ }
+ 
++void WTrackTableView::setRx3Browser(bool enabled) {
++    m_rx3Browser = enabled;
++    setProperty("rx3Browser", enabled);
++    if (!enabled || !model()) return;
++    const auto* tm = getTrackModel();
++    if (!tm) return;
++    for (const auto& field : {LIBRARYTABLE_PREVIEW, LIBRARYTABLE_TRACKNUMBER, LIBRARYTABLE_TITLE, LIBRARYTABLE_ARTIST}) {
++        const int column = tm->fieldIndex(field);
++        if (column < 0) continue;
++        if (!dynamic_cast<Rx3TrackDelegate*>(itemDelegateForColumn(column))) {
++            auto* old = itemDelegateForColumn(column);
++            setItemDelegateForColumn(column, new Rx3TrackDelegate(this, &m_pLibrary->trackCollectionManager()->internalCollection()->getAnalysisDAO()));
++            if (old && old != itemDelegate()) old->deleteLater();
++        }
++    }
++    setShowGrid(false);
++    setAlternatingRowColors(true);
++    verticalHeader()->hide();
++    horizontalHeader()->setStretchLastSection(true);
++    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
++    applyRx3Columns();
++}
++
++void WTrackTableView::applyRx3Columns() {
++    if (!m_rx3Browser || !model()) return;
++    const auto* tm = getTrackModel();
++    if (!tm) return;
++    const QStringList fields = {LIBRARYTABLE_PREVIEW, LIBRARYTABLE_COVERART, LIBRARYTABLE_TRACKNUMBER, LIBRARYTABLE_TITLE, LIBRARYTABLE_ARTIST};
++    for (int c = 0; c < model()->columnCount(); ++c) {
++        setColumnHidden(c, !fields.contains(model()->headerData(c, Qt::Horizontal, TrackModel::kHeaderNameRole).toString()));
++    }
++    const double scale = qMax(0.6, double(height()) / 638.0);
++    const int row = qRound(48 * scale);
++    verticalHeader()->setMinimumSectionSize(row);
++    verticalHeader()->setDefaultSectionSize(row);
++    horizontalHeader()->setFixedHeight(row);
++    int position = 0;
++    for (const auto& field : fields) {
++        const int c = tm->fieldIndex(field);
++        if (c < 0) continue;
++        horizontalHeader()->moveSection(horizontalHeader()->visualIndex(c), position++);
++        int w = field == "preview" ? qRound(208*scale) : field == "coverart" ? row : field == "tracknumber" ? qRound(54*scale) : qMax(100, (viewport()->width()-qRound(310*scale))/2);
++        horizontalHeader()->resizeSection(c, w);
++    }
++}
++
+ void WTrackTableView::resizeEvent(QResizeEvent* event) {
++    if (m_rx3Browser) { QTableView::resizeEvent(event); applyRx3Columns(); return; }
+     // When the tracks view shrinks in height, e.g. when other skin regions expand,
+     // and if the row was visible before resizing, scroll to it afterwards.
+ 
+diff --git a/src/widget/wtracktableview.h b/src/widget/wtracktableview.h
+--- a/src/widget/wtracktableview.h
++++ b/src/widget/wtracktableview.h
+@@ -31,6 +31,9 @@
+ #ifdef __LINUX__
+     void currentChanged(const QModelIndex& current, const QModelIndex& previous) override;
+ #endif
++    void setRx3Browser(bool enabled);
++    void applyRx3Columns();
++    bool m_rx3Browser = false;
+     void contextMenuEvent(QContextMenuEvent * event) override;
+     QString columnNameOfIndex(const QModelIndex& index) const;
+     void onSearch(const QString& text) override;
+@@ -101,6 +104,7 @@
+     }
+ 
+   signals:
++    void rx3ModelChanged();
+     void trackMenuVisible(bool visible);
+     void focusBorderColorChanged(QColor col);
+     void trackPlayedColorChanged(QColor col);
+diff --git a/src/widget/wrx3browser.h b/src/widget/wrx3browser.h
+new file mode 100644
+--- /dev/null
++++ b/src/widget/wrx3browser.h
+@@ -0,0 +1,404 @@
++#pragma once
++
++#include <QLabel>
++#include <QLineEdit>
++#include <QListWidget>
++#include <QPushButton>
++#include <QStackedWidget>
++#include <QTreeWidget>
++#include <QVBoxLayout>
++#include <QHBoxLayout>
++#include <QTimer>
++#include <QKeyEvent>
++#include <QSqlQuery>
++#include <QStorageInfo>
++#include <QPainter>
++#include <QStyledItemDelegate>
++#include "library/library.h"
++#include "library/trackcollectionmanager.h"
++#include "library/trackcollection.h"
++#include <QPersistentModelIndex>
++#include <functional>
++#include <memory>
++#include <vector>
++#include "control/controlobject.h"
++#include "library/sidebarmodel.h"
++#include "widget/wlibrary.h"
++#include "widget/wlibrarysidebar.h"
++#include "widget/wtracktableview.h"
++
++class Rx3CategoryDelegate : public QStyledItemDelegate {
++  public:
++    using QStyledItemDelegate::QStyledItemDelegate;
++    void paint(QPainter* p, const QStyleOptionViewItem& option, const QModelIndex& index) const override {
++        p->save();
++        const bool selected=option.state & QStyle::State_Selected;
++        p->fillRect(option.rect, QColor(selected?"#006f88":"#202020"));
++        if(selected) p->fillRect(QRect(option.rect.topLeft(),QSize(4,option.rect.height())),Qt::white);
++        const QString label=index.data().toString().section('\n',1);
++        const qreal scale=option.rect.height()/65.0;
++        const qreal cx=option.rect.center().x(), cy=option.rect.y()+22*scale;
++        p->setRenderHint(QPainter::Antialiasing);
++        p->setPen(QPen(Qt::white,1.5*scale));p->setBrush(Qt::NoBrush);
++        if(label=="ARTIST") {
++            p->drawEllipse(QPointF(cx,cy-6*scale),5*scale,5*scale);
++            p->drawArc(QRectF(cx-11*scale,cy+2*scale,22*scale,15*scale),0,180*16);
++        } else if(label=="ALBUMS") {
++            p->drawRect(QRectF(cx-11*scale,cy-11*scale,22*scale,22*scale));
++            p->drawEllipse(QPointF(cx,cy),7*scale,7*scale);
++            p->drawEllipse(QPointF(cx,cy),1*scale,1*scale);
++        } else {
++            QFont icon("Arial");icon.setPixelSize(qRound(28*scale));p->setFont(icon);
++            p->drawText(QRectF(option.rect.x(),option.rect.y()+2*scale,option.rect.width(),36*scale),Qt::AlignCenter,index.data().toString().section('\n',0,0));
++        }
++        QFont font("Arial");font.setPixelSize(qMax(9,qRound(11*scale)));p->setFont(font);
++        p->drawText(option.rect.adjusted(4,qRound(37*scale),-4,-4),Qt::AlignHCenter|Qt::AlignTop,label);
++        p->restore();
++    }
++};
++
++// A presentation layer over the real library and sidebar models. It keeps
++// native loading, search, playlists and USB discovery; no duplicate database.
++class WRx3Browser : public QWidget, public WBaseWidget {
++  public:
++    WRx3Browser(WLibrary* library, WLibrarySidebar* sidebar, Library* backend, QWidget* parent)
++            : QWidget(parent), WBaseWidget(this), m_library(library), m_backend(backend), m_sidebar(sidebar) {
++        setObjectName("RX3NativeBrowser");
++        auto* layout = new QVBoxLayout(this);
++        layout->setContentsMargins(0,0,0,0); layout->setSpacing(0);
++        auto* header = new QWidget(this); header->setObjectName("RX3BrowserHeader");
++        auto* h = new QHBoxLayout(header); h->setContentsMargins(0,0,8,0); h->setSpacing(12);
++        m_source = new QPushButton("▣  SOURCE", header); m_source->setObjectName("RX3SourceButton");
++        h->addWidget(m_source);
++        m_breadcrumb = new QLabel("COLLECTION", header); h->addWidget(m_breadcrumb, 1);
++        m_search = new QLineEdit(header); m_search->setPlaceholderText("SEARCH"); m_search->hide(); h->addWidget(m_search);
++        auto* search = new QPushButton("SEARCH", header); h->addWidget(search);
++        auto* info = new QPushButton("◀  INFO", header); h->addWidget(info);
++        layout->addWidget(header);
++        m_pages = new QStackedWidget(this); layout->addWidget(m_pages, 1);
++        auto* browse = new QWidget(m_pages); auto* b = new QHBoxLayout(browse);
++        b->setContentsMargins(0,0,0,0); b->setSpacing(2);
++        m_categories = new QListWidget(browse); m_categories->setObjectName("RX3BrowserCategories");
++        m_categories->setItemDelegate(new Rx3CategoryDelegate(m_categories));
++        m_categories->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff); b->addWidget(m_categories);
++        m_sidebar->setParent(browse); m_sidebar->setObjectName("RX3BrowserFolders");
++        m_sidebar->setHeaderHidden(true); m_sidebar->setAlternatingRowColors(true);
++        b->addWidget(m_sidebar);
++        m_facets=new QListWidget(browse);m_facets->setObjectName("RX3BrowserFacets");m_facets->hide();b->addWidget(m_facets);
++        connect(m_facets,&QListWidget::itemClicked,this,[this](QListWidgetItem*){chooseFacet();});
++        m_facets->installEventFilter(this);
++        m_loading=new QLabel("Reading USB…",browse);m_loading->setObjectName("RX3BrowserLoading");m_loading->setAlignment(Qt::AlignCenter);m_loading->hide();b->addWidget(m_loading,1);
++        m_library->setParent(browse); m_library->setObjectName("RX3BrowserTracks"); b->addWidget(m_library, 1);
++        m_trackInfo=new QLabel(browse);m_trackInfo->setObjectName("RX3TrackInfo");
++        m_trackInfo->setTextFormat(Qt::PlainText);m_trackInfo->setWordWrap(true);
++        m_trackInfo->setAlignment(Qt::AlignTop|Qt::AlignLeft);m_trackInfo->hide();b->addWidget(m_trackInfo);
++        m_pages->addWidget(browse);
++        auto* sourcePage = new QWidget(m_pages); auto* sl = new QHBoxLayout(sourcePage);
++        sl->setContentsMargins(0,0,0,0); sl->setSpacing(0);
++        m_sources = new QTreeWidget(sourcePage); m_sources->setObjectName("RX3BrowserSources");
++        m_sources->setHeaderLabels({"DEVICE NAME"}); m_sources->setRootIsDecorated(false);
++        sl->addWidget(m_sources, 3);
++        m_info = new QLabel(sourcePage); m_info->setObjectName("RX3SourceInfo"); m_info->setAlignment(Qt::AlignTop | Qt::AlignLeft);
++        m_info->setText("INFO");
++        sl->addWidget(m_info, 2); m_pages->addWidget(sourcePage);
++        connect(m_source, &QPushButton::clicked, this, [this]{ showSources(); });
++        connect(search, &QPushButton::clicked, this, [this]{ m_search->setVisible(!m_search->isVisible()); if(m_search->isVisible()) m_search->setFocus(); });
++        connect(m_search, &QLineEdit::textChanged, m_library, [this](const QString& query){ m_library->search(query); });
++        connect(info, &QPushButton::clicked, this, [this]{
++            if(m_pages->currentIndex()==0) {m_trackInfo->setVisible(!m_trackInfo->isVisible());updateTrackInfo();}
++        });
++        connect(m_categories, &QListWidget::itemClicked, this, [this](QListWidgetItem*){ m_focus=0; enter(); });
++        connect(m_sources,&QTreeWidget::currentItemChanged,this,[this](QTreeWidgetItem* item,QTreeWidgetItem*){updateSourceInfo(m_sources->indexOfTopLevelItem(item));});
++        connect(m_sources, &QTreeWidget::itemDoubleClicked, this, [this](QTreeWidgetItem*, int){ chooseSource(); });
++        connect(m_sidebar, &QTreeView::clicked, this, [this](const QModelIndex& index){
++            m_breadcrumb->setText(index.data().toString()); m_focus=1; refreshTable();
++        });
++        connect(m_library, &QStackedWidget::currentChanged, this, [this](int){ refreshTable(); });
++        for (QWidget* w : {static_cast<QWidget*>(m_categories), static_cast<QWidget*>(m_sidebar), static_cast<QWidget*>(m_sources)}) w->installEventFilter(this);
++        makeControl("enabled", [](double){}, true)->set(1);
++        makeControl("move", [this](double value){ if(value != 0) move(qRound(value)); });
++        makeControl("enter", [this](double value){ if(value > 0) enter(); });
++        makeControl("back", [this](double value){ if(value > 0) back(); });
++        makeControl("source", [this](double value){ if(value > 0) showSources(); });
++        makeControl("open", [this](double value){ if(value > 0) { m_search->clear(); m_search->hide(); refreshTable(); } });
++        QTimer::singleShot(0, this, [this]{ populateCategories(); refreshTable(); });
++        connect(m_sidebar->model(), &QAbstractItemModel::rowsInserted, this, [this]{ if(m_pages->currentIndex()==1) refreshSources(); });
++        connect(m_sidebar->model(), &QAbstractItemModel::rowsRemoved, this, [this]{ if(m_pages->currentIndex()==1) refreshSources(); });
++        connect(m_sidebar->model(), &QAbstractItemModel::dataChanged, this, [this]{ if(m_pages->currentIndex()==1) refreshSources(); });
++    }
++    ~WRx3Browser() override = default;
++  protected:
++    void resizeEvent(QResizeEvent* event) override {
++        QWidget::resizeEvent(event);
++        const double scale = qMax(0.6, height()/690.0);
++        m_categories->setFixedWidth(qRound(96*scale));
++        m_sidebar->setFixedWidth(qRound(280*scale));
++        m_facets->setFixedWidth(qRound(280*scale));
++        m_source->setFixedSize(qRound(100*scale), qRound(46*scale));
++        m_search->setMaximumWidth(qRound(240*scale));
++        m_trackInfo->setFixedWidth(qRound(280*scale));
++        for(int i=0;i<m_categories->count();++i) m_categories->item(i)->setSizeHint(QSize(qRound(92*scale),qRound(65*scale)));
++        refreshTable();
++    }
++    bool eventFilter(QObject* watched, QEvent* event) override {
++        if(event->type() == QEvent::FocusIn || event->type() == QEvent::MouseButtonPress) {
++            if(watched==m_categories) m_focus=0;
++            else if(watched==m_sidebar) m_focus=1;
++            else if(watched==m_sources) m_focus=3;
++            else if(watched==m_facets) m_focus=4;
++            else m_focus=2;
++        }
++        if(event->type() == QEvent::KeyPress) {
++            auto* key = static_cast<QKeyEvent*>(event);
++            if (key->key()==Qt::Key_Return || key->key()==Qt::Key_Enter) { enter(); return true; }
++            if (key->key()==Qt::Key_Left || key->key()==Qt::Key_Escape) { back(); return true; }
++        }
++        return QWidget::eventFilter(watched,event);
++    }
++  private:
++    ControlObject* makeControl(const QString& name, std::function<void(double)> handler, bool ignoreNops=false) {
++        auto control = std::make_unique<ControlObject>(ConfigKey("[RX3Browser]", name), ignoreNops);
++        auto* ptr = control.get();
++        connect(ptr, &ControlObject::valueChanged, this, [handler](double value){handler(value);});
++        m_controls.push_back(std::move(control)); return ptr;
++    }
++    SidebarModel* model() const { return qobject_cast<SidebarModel*>(m_sidebar->model()); }
++    void populateCategories() {
++        const int selected = qMax(0,m_categories->currentRow());
++        m_categories->clear(); m_roots.clear();m_facetFields.clear();
++        auto* sm = model(); if(!sm) return;
++        if(m_selectedDevice.isValid()) {
++            for(const auto& label : {QString("♪\nTRACK"),QString("♫\nPLAYLIST")}) {
++                auto* item=new QListWidgetItem(label,m_categories);
++                item->setTextAlignment(Qt::AlignCenter);item->setSizeHint(QSize(94,65));
++                m_roots.push_back(m_selectedDevice);m_facetFields.push_back(QString());
++            }
++            m_categories->setCurrentRow(qMin(selected,1));
++            selectCategory(m_categories->currentRow());
++            return;
++        }
++        for(int i=0;i<sm->rowCount();++i) {
++            const auto index = sm->index(i,0);
++            const QString feature=index.data(SidebarModel::IconNameRole).toString();
++            const QMap<QString,QString> labels={{"tracks","TRACK"},{"playlist","PLAYLIST"},{"crates","CRATES"},{"computer","FOLDER"},{"recordings","REC"},{"history","HISTORY"},{"rekordbox","REKORDBOX"}};
++            if(!labels.contains(feature)) continue;
++            const QString name=labels.value(feature);
++            QString icon = "♪";
++            if(feature=="playlist") icon="♫";
++            else if(feature=="computer") icon="▱";
++            else if(feature=="history") icon="◷";
++            else if(feature=="recordings") icon="◎";
++            auto* item = new QListWidgetItem(icon+"\n"+name.toUpper(),m_categories);
++            item->setTextAlignment(Qt::AlignCenter); item->setSizeHint(QSize(94,65));
++            m_roots.push_back(index);m_facetFields.push_back(QString());
++            if(feature=="tracks") {
++                for(const auto& field : {QString("artist"),QString("album"),QString("key")}) {
++                    auto* facet=new QListWidgetItem(field=="album"?"▣\nALBUMS":field=="artist"?"♙\nARTIST":"♭\nKEY",m_categories);
++                    facet->setTextAlignment(Qt::AlignCenter);facet->setSizeHint(QSize(94,65));
++                    m_roots.push_back(index);m_facetFields.push_back(field);
++                }
++            }
++        }
++        m_categories->setCurrentRow(qMin(selected,m_categories->count()-1));
++        if(!m_roots.empty()) selectCategory(m_categories->currentRow());
++    }
++    void refreshTable() {
++        if(auto* table=m_library->getCurrentTrackTableView()) {
++            table->setRx3Browser(true);table->viewport()->installEventFilter(this);
++            if(!table->property("rx3ModelConnected").toBool()) {
++                table->setProperty("rx3ModelConnected",true);
++                connect(table,&WTrackTableView::rx3ModelChanged,this,[this]{m_loading->hide();m_library->show();refreshTable();updateTrackInfo();});
++                connect(table->selectionModel(),&QItemSelectionModel::currentRowChanged,this,[this]{updateTrackInfo();});
++            }
++        }
++    }
++    void updateTrackInfo() {
++        if(!m_trackInfo->isVisible()) return;
++        QString text="INFO";
++        if(auto* table=m_library->getCurrentTrackTableView()) {
++            const int row=table->currentIndex().row();
++            if(row>=0) for(int col=0;col<table->model()->columnCount();++col) {
++                const QString name=table->model()->headerData(col,Qt::Horizontal,TrackModel::kHeaderNameRole).toString();
++                if(QStringList{"title","artist","album","genre","bpm","key"}.contains(name))
++                    text+="\n\n"+name.toUpper()+"\n"+table->model()->index(row,col).data().toString();
++            }
++        }
++        m_trackInfo->setText(text);
++    }
++    void activate(const QModelIndex& index) {
++        if(!index.isValid()) return;
++        m_sidebar->selectIndex(index);
++        model()->clicked(index);
++        m_breadcrumb->setText(index.data(SidebarModel::IconNameRole).toString() == "tracks" ? "COLLECTION / TRACK" : index.data().toString());
++        QTimer::singleShot(0,this,[this]{refreshTable();});
++    }
++    void selectCategory(int row) {
++        if(row<0 || row>=int(m_roots.size())) return;
++        const QModelIndex root=m_roots[row]; if(!root.isValid()) return;
++        m_loading->hide();m_library->show();
++        m_library->search(QString());m_facets->hide();m_facetField.clear();
++        if(!m_facetFields[row].isEmpty()) {showFacet(m_facetFields[row],root);return;}
++        m_pages->setCurrentIndex(0); m_sidebar->setRootIndex(root);
++        m_sidebar->setVisible(m_selectedDevice.isValid() ? row==1 :
++                root.data(SidebarModel::IconNameRole).toString() != "tracks" && model()->hasChildren(root));
++        activate(root);
++        m_focus=m_sidebar->isVisible()?1:2;
++        if(m_focus==2) focusTracks(); else {
++            m_sidebar->setFocus();
++            if(model()->rowCount(root)>0) activate(model()->index(0,0,root));
++        }
++    }
++    void showFacet(const QString& field,const QModelIndex& root) {
++        // Field comes only from the fixed ARTIST/ALBUM/KEY category list.
++        m_facetField=field;m_sidebar->hide();m_facets->clear();m_facets->show();
++        m_pages->setCurrentIndex(0);activate(root);
++        QSqlQuery query(m_backend->trackCollectionManager()->internalCollection()->database());
++        if(query.exec(QString("SELECT DISTINCT \"%1\" FROM library WHERE mixxx_deleted=0 AND \"%1\" IS NOT NULL AND \"%1\"<>'' ORDER BY \"%1\" COLLATE NOCASE").arg(field))) {
++            while(query.next()) {auto* item=new QListWidgetItem(query.value(0).toString(),m_facets);item->setSizeHint(QSize(260,44));}
++        }
++        m_breadcrumb->setText(field.toUpper());m_focus=4;m_facets->setFocus();
++        if(m_facets->count()) {m_facets->setCurrentRow(0);filterFacet();}
++    }
++    void filterFacet() {
++        if(!m_facets->currentItem()) return;
++        QString value=m_facets->currentItem()->text();
++        value.replace("\""," ");
++        m_library->search(m_facetField+":\""+value+"\"");
++        m_breadcrumb->setText(m_facetField.toUpper()+" / "+m_facets->currentItem()->text());
++        refreshTable();
++    }
++    void chooseFacet() {filterFacet();focusTracks();}
++    void focusTracks() {
++        refreshTable(); m_focus=2;
++        if(auto* table=m_library->getCurrentTrackTableView()) {
++            table->setFocus();
++            if(!table->currentIndex().isValid() && table->model()->rowCount()>0) table->setCurrentIndex(table->model()->index(0,0));
++        }
++    }
++    void showSources() {
++        m_pages->setCurrentIndex(1);m_breadcrumb->setText("SOURCE");m_focus=3;
++        refreshSources();
++        // Device discovery is lazy in Mixxx. Entering SOURCE must request it,
++        // even when the user has never selected the native Rekordbox feature.
++        for(int i=0;i<model()->rowCount();++i) {
++            const auto root=model()->index(i,0);
++            if(root.data(SidebarModel::IconNameRole).toString()=="rekordbox") {model()->clicked(root);break;}
++        }
++        m_sources->setFocus();
++    }
++    void refreshSources() {
++        if(m_refreshingSources) return;
++        m_refreshingSources=true;
++        const int previous=qMax(0,m_sources->indexOfTopLevelItem(m_sources->currentItem()));
++        m_sources->clear();m_devices.clear();
++        new QTreeWidgetItem(m_sources,{"▣   SOFTWARE CONTROL                  ›"});
++        m_devices.push_back(QPersistentModelIndex());
++        // Enumerate current feature indexes, since a provider may have reset
++        // its child model during discovery.
++        for(int i=0;i<model()->rowCount();++i) {
++            const auto root=model()->index(i,0);
++            if(root.data(SidebarModel::IconNameRole).toString()!="rekordbox") continue;
++            for(int r=0;r<model()->rowCount(root);++r) {
++                const auto device=model()->index(r,0,root);
++                new QTreeWidgetItem(m_sources,{"▣   "+device.data().toString()+"                  ›"});
++                m_devices.push_back(device);
++            }
++        }
++        m_sources->setCurrentItem(m_sources->topLevelItem(qMin(previous,m_sources->topLevelItemCount()-1)));
++        m_refreshingSources=false;
++        updateSourceInfo(qMin(previous,m_sources->topLevelItemCount()-1));
++    }
++    void updateSourceInfo(int row) {
++        if(m_refreshingSources) return;
++        QString songs="—",playlists="—",total="—",available="—";
++        QString source="SOFTWARE CONTROL";
++        if(row==0) {
++            QSqlQuery query(m_backend->trackCollectionManager()->internalCollection()->database());
++            if(query.exec("SELECT count(*) FROM library WHERE mixxx_deleted=0") && query.next()) songs=query.value(0).toString();
++            if(query.exec("SELECT count(*) FROM Playlists WHERE hidden=0") && query.next()) playlists=query.value(0).toString();
++        } else if(row>0 && row<int(m_devices.size())) {
++            source=m_devices[row].data().toString();
++            const auto data=m_devices[row].data(SidebarModel::DataRole).toList();
++            if(!data.isEmpty()) {
++                QStorageInfo volume(data.first().toString());
++                if(volume.isValid() && volume.isReady()) {
++                    total=QString::number(volume.bytesTotal()/1e9,'f',1);
++                    available=QString::number(volume.bytesAvailable()/1e9,'f',1);
++                }
++            }
++        }
++        m_info->setText("INFO\n\n"+source+"\n\nSongs                 "+songs+"\n\nPlaylists              "+playlists+"\n\nTotal                   "+total+" GB\n\nAvailable             "+available+" GB\n\nBackground Color    ○ Default");
++    }
++    void chooseSource() {
++        const int row=m_sources->indexOfTopLevelItem(m_sources->currentItem());
++        if(row<0 || row>=int(m_devices.size())) return;
++        m_pages->setCurrentIndex(0);
++        if(row==0) {m_selectedDevice=QPersistentModelIndex();m_source->setText("▣  SOURCE");populateCategories();selectCategory(0);}
++        else {
++            const QModelIndex device=m_devices[row]; if(!device.isValid()) {showSources();return;}
++            m_selectedDevice=device;
++            m_source->setText("▣  SOURCE");m_facets->hide();
++            populateCategories();
++            m_categories->setCurrentRow(1);
++            m_sidebar->setRootIndex(device);m_sidebar->show();
++            m_focus=1;m_sidebar->setFocus();
++            if(model()->rowCount(device)==0) {
++                m_library->hide();m_loading->setText("Reading USB…");m_loading->show();
++            }
++            QTimer::singleShot(15000,this,[this]{if(m_loading->isVisible()) m_loading->setText("USB unavailable. Open SOURCE to retry.");});
++        }
++    }
++    void move(int delta) {
++        if(m_focus==4) {m_facets->setCurrentRow(qBound(0,m_facets->currentRow()+delta,m_facets->count()-1));filterFacet();return;}
++        if(m_focus==3) {int row=m_sources->indexOfTopLevelItem(m_sources->currentItem()); m_sources->setCurrentItem(m_sources->topLevelItem(qBound(0,row+delta,m_sources->topLevelItemCount()-1)));return;}
++        if(m_focus==0) {m_categories->setCurrentRow(qBound(0,m_categories->currentRow()+delta,m_categories->count()-1));return;}
++        if(m_focus==2) {if(auto* table=m_library->getCurrentTrackTableView()) table->moveSelection(delta);return;}
++        QModelIndex index=m_sidebar->currentIndex();
++        if(!index.isValid() || index==m_sidebar->rootIndex()) index=model()->index(0,0,m_sidebar->rootIndex());
++        for(int n=0;n<qAbs(delta);++n) {
++            const auto next=delta>0?m_sidebar->indexBelow(index):m_sidebar->indexAbove(index);
++            if(next.isValid()) index=next;
++        }
++        activate(index);
++    }
++    void enter() {
++        if(m_focus==4) {chooseFacet();return;}
++        if(m_focus==3) {chooseSource();return;}
++        if(m_focus==0) {selectCategory(m_categories->currentRow());return;}
++        if(m_focus==2) {back();return;}
++        const auto index=m_sidebar->currentIndex();
++        if(index.isValid() && model()->hasChildren(index)) {m_sidebar->setExpanded(index,!m_sidebar->isExpanded(index)); if(m_sidebar->isExpanded(index)) activate(model()->index(0,0,index));}
++        else focusTracks();
++    }
++    void back() {
++        if(m_focus==3) {m_pages->setCurrentIndex(0); m_focus=0; m_categories->setFocus();return;}
++        if(m_focus==2 && m_facets->isVisible()) {m_focus=4;m_facets->setFocus();return;}
++        if(m_focus==2 && m_sidebar->isVisible()) {m_focus=1; m_sidebar->setFocus();return;}
++        if(m_focus==1) {
++            const auto parent=m_sidebar->currentIndex().parent();
++            if(parent.isValid() && parent!=m_sidebar->rootIndex()) {activate(parent);m_sidebar->collapse(parent);return;}
++        }
++        if(m_focus!=0) {m_focus=0;m_categories->setFocus();return;}
++        showSources();
++    }
++    QLabel* m_trackInfo;
++    QLabel* m_loading;
++    WLibrary* m_library;
++    Library* m_backend;
++    QListWidget* m_facets;
++    QString m_facetField;
++    std::vector<QString> m_facetFields;
++    WLibrarySidebar* m_sidebar;
++    QPushButton* m_source;
++    QLabel* m_breadcrumb;
++    QLabel* m_info;
++    QLineEdit* m_search;
++    QListWidget* m_categories;
++    QStackedWidget* m_pages;
++    QTreeWidget* m_sources;
++    QPersistentModelIndex m_selectedDevice;
++    std::vector<QPersistentModelIndex> m_roots, m_devices;
++    std::vector<std::unique_ptr<ControlObject>> m_controls;
++    int m_focus=0;
++    bool m_refreshingSources=false;
++};
+diff --git a/src/widget/rx3waveform.h b/src/widget/rx3waveform.h
+new file mode 100644
+--- /dev/null
++++ b/src/widget/rx3waveform.h
+@@ -0,0 +1,26 @@
++#pragma once
++
++#include <QPainter>
++
++namespace rx3 {
++// One-sided, three-band summary: measured low frequencies at the baseline,
++// mids above them, highs at the envelope. Never invent signal for silence.
++inline void drawSummaryColumn(QPainter* painter, qreal x, qreal baseline,
++        qreal scale, int all, int low, int mid, int high) {
++    if (all <= 0 || scale <= 0) return;
++    const int sum = low + mid + high;
++    const qreal peak = qBound(0, all, 255) * scale;
++    const qreal orange = sum > 0 ? peak * (low + mid) / sum : 0;
++    const qreal blue = sum > 0 ? peak * low / sum : 0;
++    painter->setPen(QColor("#ffffff"));
++    painter->drawLine(QPointF(x, baseline), QPointF(x, baseline - peak));
++    if (orange > 0) {
++        painter->setPen(QColor("#f0a000"));
++        painter->drawLine(QPointF(x, baseline), QPointF(x, baseline - orange));
++    }
++    if (blue > 0) {
++        painter->setPen(QColor("#0055e1"));
++        painter->drawLine(QPointF(x, baseline), QPointF(x, baseline - blue));
++    }
++}
++} // namespace rx3

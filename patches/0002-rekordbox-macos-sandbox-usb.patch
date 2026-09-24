@@ -1,0 +1,244 @@
+diff --git a/src/library/rekordbox/rekordboxfeature.cpp b/src/library/rekordbox/rekordboxfeature.cpp
+index 174cc59ac9..d251ca28e7 100644
+--- a/src/library/rekordbox/rekordboxfeature.cpp
++++ b/src/library/rekordbox/rekordboxfeature.cpp
+@@ -1,17 +1,23 @@
+ #include "library/rekordbox/rekordboxfeature.h"
+ 
++#include <algorithm>
++
+ #include <mp3guessenc.h>
+ #include <rekordbox_anlz.h>
+ #include <rekordbox_pdb.h>
+ 
++#include <QDir>
++#include <QFileDialog>
+ #include <QMap>
+ #include <QMessageBox>
+ #include <QSettings>
+ #include <QString>
++#include <QStringList>
+ #include <QTextCodec>
+ #include <QtDebug>
+ 
+ #include "engine/engine.h"
++#include "library/dao/settingsdao.h"
+ #include "library/dao/trackschema.h"
+ #include "library/library.h"
+ #include "library/queryutil.h"
+@@ -41,8 +47,37 @@ const QString kRekordboxLibraryTable = QStringLiteral("rekordbox_library");
+ const QString kRekordboxPlaylistsTable = QStringLiteral("rekordbox_playlists");
+ const QString kRekordboxPlaylistTracksTable = QStringLiteral("rekordbox_playlist_tracks");
+ 
+-const QString kPdbPath = QStringLiteral("PIONEER/rekordbox/export.pdb");
++const QStringList kPdbPaths = {
++        QStringLiteral("PIONEER/rekordbox/export.pdb"),
++        QStringLiteral(".PIONEER/rekordbox/export.pdb"),
++};
+ const QString kPLaylistPathDelimiter = QStringLiteral("-->");
++const QString kSandboxUsbRootsSettingsKey =
++        QStringLiteral("mixxx.rekordboxfeature.sandboxed_usb_roots");
++
++QString findRekordboxPdbPath(const QString& devicePath) {
++    const QDir deviceDir(devicePath);
++    for (const auto& pdbPath : kPdbPaths) {
++        const QFileInfo pdbFileInfo(deviceDir.filePath(pdbPath));
++        if (pdbFileInfo.exists() && pdbFileInfo.isFile()) {
++            return pdbFileInfo.filePath();
++        }
++    }
++    return {};
++}
++
++QString rekordboxDeviceRootFromSelection(const QString& selectedPath) {
++    QDir candidate(selectedPath);
++    for (int level = 0; level < 3; ++level) {
++        if (!findRekordboxPdbPath(candidate.absolutePath()).isEmpty()) {
++            return candidate.absolutePath();
++        }
++        if (!candidate.cdUp()) {
++            break;
++        }
++    }
++    return {};
++}
+ 
+ enum class IDForColor : uint8_t {
+     Pink = 1,
+@@ -165,7 +200,8 @@ bool dropTable(QSqlDatabase& database, const QString& tableName) {
+ // The returned list owns the pointers, but we can't use a unique_ptr because
+ // the result is passed by a const reference inside QFuture and than copied
+ // to the main thread requiring a copy-able object.
+-QList<TreeItem*> findRekordboxDevices() {
++QList<TreeItem*> findRekordboxDevices(
++        const QStringList& manuallyAuthorizedDevicePaths = QStringList()) {
+     QThread* thisThread = QThread::currentThread();
+     thisThread->setPriority(QThread::LowPriority);
+ 
+@@ -185,9 +221,7 @@ QList<TreeItem*> findRekordboxDevices() {
+         // drive.filePath() doesn't make any access to the filesystem and consequently
+         // shorten the delay
+ 
+-        QFileInfo rbDBFileInfo(drive.filePath() + kPdbPath);
+-
+-        if (rbDBFileInfo.exists() && rbDBFileInfo.isFile()) {
++        if (!findRekordboxPdbPath(drive.filePath()).isEmpty()) {
+             QString displayPath = drive.filePath();
+             if (displayPath.endsWith("/")) {
+                 displayPath.chop(1);
+@@ -220,9 +254,7 @@ QList<TreeItem*> findRekordboxDevices() {
+             QDir::AllDirs | QDir::NoDotAndDotDot);
+ 
+     foreach (QFileInfo device, devices) {
+-        QFileInfo rbDBFileInfo(device.filePath() + QStringLiteral("/") + kPdbPath);
+-
+-        if (rbDBFileInfo.exists() && rbDBFileInfo.isFile()) {
++        if (!findRekordboxPdbPath(device.filePath()).isEmpty()) {
+             auto* pFoundDevice = new TreeItem(
+                     device.fileName(),
+                     QVariant(QList<QString>{device.filePath(), IS_RECORDBOX_DEVICE}));
+@@ -232,10 +264,22 @@ QList<TreeItem*> findRekordboxDevices() {
+ #else // __APPLE__
+     QFileInfoList devices = QDir(QStringLiteral("/Volumes")).entryInfoList(QDir::AllDirs | QDir::NoDotAndDotDot);
+ 
+-    foreach (QFileInfo device, devices) {
+-        QFileInfo rbDBFileInfo(device.filePath() + QStringLiteral("/") + kPdbPath);
++    for (const QString& devicePath : manuallyAuthorizedDevicePaths) {
++        if (devicePath.isEmpty()) {
++            continue;
++        }
++        const auto alreadyListed = std::find_if(devices.cbegin(),
++                devices.cend(),
++                [&devicePath](const QFileInfo& device) {
++                    return device.absoluteFilePath() == devicePath;
++                });
++        if (alreadyListed == devices.cend()) {
++            devices.append(QFileInfo(devicePath));
++        }
++    }
+ 
+-        if (rbDBFileInfo.exists() && rbDBFileInfo.isFile()) {
++    foreach (QFileInfo device, devices) {
++        if (!findRekordboxPdbPath(device.filePath()).isEmpty()) {
+             QList<QString> data;
+             data << device.filePath();
+             data << IS_RECORDBOX_DEVICE;
+@@ -445,9 +489,9 @@ QString parseDeviceDB(mixxx::DbConnectionPoolPtr dbConnectionPool, TreeItem* dev
+ 
+     qDebug() << "parseDeviceDB device: " << device << " devicePath: " << devicePath;
+ 
+-    QString dbPath = devicePath + QStringLiteral("/") + kPdbPath;
++    const QString dbPath = findRekordboxPdbPath(devicePath);
+ 
+-    if (!QFile(dbPath).exists()) {
++    if (dbPath.isEmpty()) {
+         return devicePath;
+     }
+ 
+@@ -1486,8 +1530,83 @@ void RekordboxFeature::refreshLibraryModels() {
+ void RekordboxFeature::activate() {
+     qDebug() << "RekordboxFeature::activate()";
+ 
++    QStringList manuallyAuthorizedDevicePaths;
++
++#if defined(Q_OS_MACOS)
++    if (Sandbox::enabled()) {
++        SettingsDAO settings(m_pTrackCollection->database());
++        const QString savedRoots = settings.getValue(kSandboxUsbRootsSettingsKey);
++        const QStringList storedRoots = savedRoots.isEmpty()
++                ? QStringList()
++                : savedRoots.split(QChar(';'), Qt::SkipEmptyParts);
++
++        m_rekordboxSecurityTokens.clear();
++        QStringList rootsToPersist;
++        for (const QString& storedRoot : storedRoots) {
++            const QDir rootDir(storedRoot);
++            auto token = Sandbox::openSecurityTokenForDir(rootDir, false);
++            if (!token.isNull() &&
++                    !findRekordboxPdbPath(rootDir.absolutePath()).isEmpty()) {
++                m_rekordboxSecurityTokens.append(token);
++                manuallyAuthorizedDevicePaths.append(rootDir.absolutePath());
++                rootsToPersist.append(rootDir.absolutePath());
++            }
++        }
++
++        bool automaticallyDiscoverable = false;
++        const QFileInfoList mountedVolumes =
++                QDir(QStringLiteral("/Volumes"))
++                        .entryInfoList(QDir::AllDirs | QDir::NoDotAndDotDot);
++        for (const QFileInfo& volume : mountedVolumes) {
++            if (!findRekordboxPdbPath(volume.absoluteFilePath()).isEmpty()) {
++                automaticallyDiscoverable = true;
++                break;
++            }
++        }
++
++        if (!automaticallyDiscoverable &&
++                manuallyAuthorizedDevicePaths.isEmpty()) {
++            const QString selectedPath = QFileDialog::getExistingDirectory(nullptr,
++                    tr("Select your Rekordbox USB drive"),
++                    QStringLiteral("/Volumes"),
++                    QFileDialog::ShowDirsOnly |
++                            QFileDialog::DontResolveSymlinks);
++            if (!selectedPath.isEmpty()) {
++                const QString deviceRoot =
++                        rekordboxDeviceRootFromSelection(selectedPath);
++                if (deviceRoot.isEmpty()) {
++                    QMessageBox::warning(nullptr,
++                            tr("Invalid Rekordbox USB drive"),
++                            tr("The selected folder does not contain "
++                               "PIONEER/rekordbox/export.pdb."));
++                } else {
++                    const QDir rootDir(deviceRoot);
++                    if (Sandbox::createSecurityTokenForDir(rootDir)) {
++                        auto token =
++                                Sandbox::openSecurityTokenForDir(rootDir, false);
++                        if (!token.isNull()) {
++                            m_rekordboxSecurityTokens.append(token);
++                            manuallyAuthorizedDevicePaths.append(deviceRoot);
++                            if (!rootsToPersist.contains(deviceRoot)) {
++                                rootsToPersist.append(deviceRoot);
++                            }
++                        }
++                    }
++                }
++            }
++        }
++
++        if (!rootsToPersist.isEmpty()) {
++            settings.setValue(kSandboxUsbRootsSettingsKey,
++                    rootsToPersist.join(QChar(';')));
++        }
++    }
++#endif
++
+     // Let a worker thread do the XML parsing
+-    m_devicesFuture = QtConcurrent::run(findRekordboxDevices);
++    m_devicesFuture =
++            QtConcurrent::run(findRekordboxDevices,
++                    manuallyAuthorizedDevicePaths);
+     m_devicesFutureWatcher.setFuture(m_devicesFuture);
+     m_title = tr("(loading) Rekordbox");
+     //calls a slot in the sidebar model such that 'Rekordbox (isLoading)' is displayed.
+diff --git a/src/library/rekordbox/rekordboxfeature.h b/src/library/rekordbox/rekordboxfeature.h
+index 2f1987cb9f..09134f2b45 100644
+--- a/src/library/rekordbox/rekordboxfeature.h
++++ b/src/library/rekordbox/rekordboxfeature.h
+@@ -35,6 +35,7 @@
+ #include "library/baseexternaltrackmodel.h"
+ #include "library/treeitemmodel.h"
+ #include "util/parented_ptr.h"
++#include "util/sandbox.h"
+ 
+ class TrackCollectionManager;
+ class BaseExternalPlaylistModel;
+@@ -90,5 +91,9 @@ class RekordboxFeature : public BaseExternalLibraryFeature {
+     QFuture<QString> m_tracksFuture;
+     QString m_title;
+ 
++    // Keep security-scoped bookmarks active while Rekordbox metadata and
++    // audio files are accessed from a removable volume on sandboxed macOS.
++    QList<SecurityTokenPointer> m_rekordboxSecurityTokens;
++
+     QSharedPointer<BaseTrackCache> m_trackSource;
+ };
