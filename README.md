@@ -1,6 +1,6 @@
 # NauticMixxx 1.0.0
 
-![NauticMixxx](branding/NauticMixxx.png)
+![NauticMixxx](branding/NauticMixxx2.png)
 
 NauticMixxx is a community and open source edition of Mixxx 2.5.6,
 Designed to offer a visual flow of two decks inspired by a cabin
