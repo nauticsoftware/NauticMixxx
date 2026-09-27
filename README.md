@@ -23,16 +23,18 @@ Verifiable distribution.
 
 ## Download and install
 
-Publicisable files are generated in `release/1.0.0/`:
+The public stable release contains:
 
 - `NauticMixxx-1.0.0-macOS-arm64.dmg`
 - `NauticMixxx-1.0.0-Windows-x64.zip`
 - `NauticMixxx-1.0.0-source.tar.gz`
-- `SHA256SUMS.txt` y `release-manifest.json`
+- `SHA256SUMS.txt`
 
-In macOS, open the DMG, drag **NauticMixxx.app** to Applications and open it.
-The local compilation is signed ad hoc; a general publication must
-Sign and notarise with an Apple Developer account. Consultation
+On macOS, open the DMG and drag **NauticMixxx.app** to Applications. The
+community build is signed ad hoc and is not notarised. On first launch, try to
+open it once and, if macOS blocks it, use **System Settings → Privacy &
+Security → Open Anyway**. An Apple Developer account is not required.
+Consult
 [`docs/INSTALLATION.md`](docs/INSTALLATION.md).
 
 On Windows 10/11 x64, fully extract the ZIP and run only

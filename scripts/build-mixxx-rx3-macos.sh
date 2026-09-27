@@ -67,6 +67,7 @@ cp "$project/THIRD_PARTY_NOTICES.md" "$app/Contents/Resources/licenses/THIRD_PAR
 "$project/scripts/build-app-icon-macos.sh" "$app/Contents/Resources/application.icns"
 # Mixxx also installs a secondary copy under Resources/osx. Keep both copies
 # identical, while CFBundleIconFile resolves the root Resources copy.
+mkdir -p "$app/Contents/Resources/osx"
 cp "$app/Contents/Resources/application.icns" "$app/Contents/Resources/osx/application.icns"
 plutil -replace CFBundleDisplayName -string NauticMixxx "$app/Contents/Info.plist"
 plutil -replace CFBundleName -string NauticMixxx "$app/Contents/Info.plist"

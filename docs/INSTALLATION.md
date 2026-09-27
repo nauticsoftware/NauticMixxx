@@ -16,9 +16,10 @@ RX3 and automatically assign the Inpulse 500 before opening the app.
 5. You can also use `install-nauticmixxx-macos.sh`; the installer applies the
 Profile and retains at most a previous version.
 
-6. If macOS warns that it is an unnotarised community build, use right-click
-
-→ **Open** in the first execution.
+6. This community build is ad-hoc signed and not notarised. If macOS blocks the
+first launch, try to open NauticMixxx once, then open **System Settings →
+Privacy & Security** and choose **Open Anyway** next to the NauticMixxx warning.
+Confirm **Open** when prompted. An Apple Developer account is not required.
 
 NauticMixxx should not open the music folder selector: the wizard, the
 Scan and the registration of directories from the local library are blocked. If
