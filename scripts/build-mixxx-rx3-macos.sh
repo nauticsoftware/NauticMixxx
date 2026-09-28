@@ -26,7 +26,7 @@ if [ ! -d "$source_tree" ]; then
   tar -xzf "$work/mixxx-2.5.6.tar.gz" -C "$work"
 fi
 if [ -f "$patch_marker" ] && [ "$(cat "$patch_marker")" != "$patch_digest" ]; then
-  printf 'La carpeta fuente no coincide con los diez parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
+  printf 'La carpeta fuente no coincide con los once parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
   exit 1
 fi
 if [ ! -f "$patch_signature" ]; then
@@ -39,7 +39,7 @@ if [ ! -f "$patch_signature" ]; then
   printf '%s\n' "$patch_digest" > "$patch_marker"
 fi
 if [ ! -f "$patch_marker" ] || [ ! -f "$patch_signature" ] || [ "$(cat "$patch_marker")" != "$patch_digest" ]; then
-  printf 'La carpeta fuente no coincide con los diez parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
+  printf 'La carpeta fuente no coincide con los once parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
   exit 1
 fi
 deps="$work/buildenv/$deps_name"
@@ -67,12 +67,11 @@ cp "$project/THIRD_PARTY_NOTICES.md" "$app/Contents/Resources/licenses/THIRD_PAR
 "$project/scripts/build-app-icon-macos.sh" "$app/Contents/Resources/application.icns"
 # Mixxx also installs a secondary copy under Resources/osx. Keep both copies
 # identical, while CFBundleIconFile resolves the root Resources copy.
-mkdir -p "$app/Contents/Resources/osx"
 cp "$app/Contents/Resources/application.icns" "$app/Contents/Resources/osx/application.icns"
 plutil -replace CFBundleDisplayName -string NauticMixxx "$app/Contents/Info.plist"
 plutil -replace CFBundleName -string NauticMixxx "$app/Contents/Info.plist"
-plutil -replace CFBundleShortVersionString -string 1.0.0 "$app/Contents/Info.plist"
-plutil -replace CFBundleVersion -string 1.0.0 "$app/Contents/Info.plist"
+plutil -replace CFBundleShortVersionString -string "$(cat "$project/VERSION")" "$app/Contents/Info.plist"
+plutil -replace CFBundleVersion -string "$(cat "$project/VERSION")" "$app/Contents/Info.plist"
 plutil -replace NSHumanReadableCopyright -string 'NauticMixxx contributors and Mixxx Development Team' "$app/Contents/Info.plist"
 signing_identity=${NAUTIC_SIGNING_IDENTITY:--}
 codesign --force --deep --sign "$signing_identity" --entitlements "$project/packaging/macos/mixxx-entitlements.plist" "$app"

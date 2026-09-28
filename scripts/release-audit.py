@@ -28,7 +28,8 @@ PUBLIC_INPUTS = [
     ROOT / "skins/XDJ_RX3_Mixxx",
     ROOT / "controllers/Hercules_DJControl_Inpulse_500_RX3",
     ROOT / "effects",
-    ROOT / "packaging/DMG_PROJECT/iCon-macOS-Dark-1024x1024@1x.png",
+    ROOT / "branding/iCon-macOS-Dark-1024x1024@1x.png",
+    ROOT / "packaging/DMG_PROJECT/DMG_BG.jpg",
     ROOT / "packaging/macos",
     ROOT / "packaging/windows",
 ]
@@ -82,12 +83,12 @@ def validate_metadata() -> list[str]:
         errors.append("el título de la skin no es NauticMixxx")
     if skin.findtext("manifest/version") != VERSION:
         errors.append("la versión de la skin no coincide con VERSION")
-    if len(list((ROOT / "patches").glob("00[0-9][0-9]-*.patch"))) != 10:
-        errors.append("deben existir exactamente diez parches numerados")
+    if len(list((ROOT / "patches").glob("00[0-9][0-9]-*.patch"))) != 11:
+        errors.append("deben existir exactamente once parches numerados")
     required = [
         ROOT / "branding/iCon.icon/icon.json",
         ROOT / "branding/NauticMixxx.png",
-        ROOT / "packaging/DMG_PROJECT/iCon-macOS-Dark-1024x1024@1x.png",
+        ROOT / "branding/iCon-macOS-Dark-1024x1024@1x.png",
         ROOT / "skins/XDJ_RX3_Mixxx/LICENSE",
     ]
     # The monorepo keeps Mixxx's license one level above `nautic/`; the

@@ -4,9 +4,15 @@ set -eu
 
 project=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 version=$(cat "$project/VERSION")
-release_dir=${1:-"$project/release/$version"}
+release_dir=${1:-"$project/build/release-candidate/$version"}
 archive="$release_dir/NauticMixxx-$version-macOS-arm64.zip"
 output="$release_dir/NauticMixxx-$version-macOS-arm64.dmg"
+background="$project/packaging/DMG_PROJECT/DMG_BG.jpg"
+if [ -f "$background" ]; then
+  set -- --background "$background"
+else
+  set --
+fi
 
 command -v create-dmg >/dev/null 2>&1 || {
   printf 'Falta create-dmg. Instálalo con: brew install create-dmg\n' >&2
@@ -33,17 +39,18 @@ icon="$temp/NauticMixxx.icns"
 dmg_root="$temp/dmg-root"
 mkdir -p "$dmg_root"
 ditto "$app" "$dmg_root/NauticMixxx.app"
+cp "$source_dir/README.md" "$dmg_root/README.md"
+cp "$source_dir/DDJ-FLX6-EN.md" "$dmg_root/DDJ-FLX6-EN.md"
 
 if [ -e "$output" ]; then
   mv "$output" "$temp/previous.dmg"
 fi
 
-# Keep the Finder window deliberately background-free. This avoids resolution
-# and scaling differences between Finder versions while preserving the simple
-# drag-to-Applications layout.
+# Keep the DMG usable when the optional 600×360 background is unavailable.
 create-dmg \
   --volname "NauticMixxx $version" \
   --volicon "$icon" \
+  "$@" \
   --window-pos 200 120 \
   --window-size 600 360 \
   --icon-size 112 \

@@ -31,7 +31,7 @@
 - `ModeConfigKey` no oficial reemplazado por `NumberPos` y controles globales oficiales.
 - Estilos QSS añadidos para reproducir la jerarquía, contraste y paleta de la pantalla XDJ-RX3.
 - Script de instalación para la ruta sandbox de Mixxx en macOS.
-- Preview reemplazado por la referencia XDJ-RX3 entregada para el proyecto; el preview original se conserva como `skin_preview_upstream.png`.
+- Preview reemplazado por la referencia XDJ-RX3 entregada para el proyecto; el preview original puede recuperarse del commit Git `7f73982` como `archive/skin-legacy/XDJ_RX3_Mixxx/skin_preview_upstream.png`.
 - Arquitectura contrastada con BiteDJ/DeckShark 1.0, basado en Mixxx 2.5.6.
 - `SHIFT + ASSISTANT` alterna STATUS / BEAT FX desde el Hercules Inpulse 500; el mapping publica además el PAD MODE activo de cada deck para sincronizar la pantalla.
 - Mapping RX3 de ocho capas de pads con segundo toque: `1↔5`, `2↔6`, `3↔7`, `4↔8`.

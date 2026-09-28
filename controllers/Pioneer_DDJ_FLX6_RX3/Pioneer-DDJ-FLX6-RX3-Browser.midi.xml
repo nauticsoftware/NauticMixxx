@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MixxxMIDIPreset schemaVersion="1" mixxxVersion="2.5">
+    <info>
+        <name>Pioneer DDJ-FLX6 - NauticMixxx RX3 browser only</name>
+        <author>NauticMixxx contributors</author>
+        <description>Optional menu controls only; no transport, mixer, jog or FX mapping.</description>
+    </info>
+    <controller id="DDJ-FLX6">
+        <scriptfiles>
+            <file functionprefix="NauticFLX6Browser" filename="Pioneer-DDJ-FLX6-RX3-Browser.js"/>
+        </scriptfiles>
+        <controls>
+            <control><description>VIEW: toggle browse/performance</description><group>[Library]</group><key>NauticFLX6Browser.view</key><status>0x96</status><midino>0x7A</midino><options><Script-Binding/></options></control>
+            <control><description>SHIFT + VIEW: source list</description><group>[Library]</group><key>NauticFLX6Browser.source</key><status>0x96</status><midino>0x68</midino><options><Script-Binding/></options></control>
+            <control><description>BROWSE: turn to move</description><group>[Library]</group><key>NauticFLX6Browser.turn</key><status>0xB6</status><midino>0x40</midino><options><Script-Binding/></options></control>
+            <control><description>BROWSE: press to open or enter</description><group>[Library]</group><key>NauticFLX6Browser.enter</key><status>0x96</status><midino>0x41</midino><options><Script-Binding/></options></control>
+            <control><description>BACK: previous level</description><group>[Library]</group><key>NauticFLX6Browser.back</key><status>0x96</status><midino>0x65</midino><options><Script-Binding/></options></control>
+            <control><description>LOAD 1: load selected track to deck 1</description><group>[Channel1]</group><key>LoadSelectedTrack</key><status>0x96</status><midino>0x46</midino><options><Normal/></options></control>
+            <control><description>LOAD 2: load selected track to deck 2</description><group>[Channel2]</group><key>LoadSelectedTrack</key><status>0x96</status><midino>0x47</midino><options><Normal/></options></control>
+        </controls>
+        <outputs/>
+    </controller>
+</MixxxMIDIPreset>

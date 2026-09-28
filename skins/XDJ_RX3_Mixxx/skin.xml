@@ -2,7 +2,7 @@
 	<manifest>
 		<title>NauticMixxx</title>
 		<author>Sven Boekelder, Bence Juhasz, ntamas94; RX3 adaptation by NauticBoy</author>
-		<version>1.0.0</version>
+		<version>1.1.0</version>
 		<description>NauticMixxx two-deck performance interface for Mixxx</description>
 		<language>*</language>
 		<license>GPL</license>
@@ -38,6 +38,7 @@
 	<!-- Reference design canvas: 1280 x 800 (16:10). -->
 	<MinimumSize>1280,800</MinimumSize>
 	<ReferenceSize>1280,800</ReferenceSize>
+	<ReferenceFill>true</ReferenceFill>
     <Rx3DisplayState>true</Rx3DisplayState>
 	<SizePolicy>me,me</SizePolicy>
 	<Layout>vertical</Layout>
@@ -96,8 +97,8 @@
 
 		<WidgetGroup>
 			<ObjectName>SkinContainer</ObjectName>
-			<!-- Fixed reference canvas: spare window space stays black. -->
-			<Size>1280f,800f</Size>
+			<!-- Fill the viewport; fixed metrics scale from the 1280 x 800 design. -->
+			<Size>0me,0me</Size>
 			<Layout>vertical</Layout>
 			<SizePolicy>me,me</SizePolicy>
 			<Children>
@@ -105,7 +106,7 @@
 					<Layout>vertical</Layout>
 					<SizePolicy>me,me</SizePolicy>
 					<Children>
-						<WidgetGroup><ObjectName>RX3TopbarWrapper</ObjectName><Size>0me,34f</Size><Layout>vertical</Layout><Children>
+						<WidgetGroup><ObjectName>RX3TopbarWrapper</ObjectName><Size>0me,48f</Size><Layout>vertical</Layout><Children>
                         <SingletonContainer><ObjectName>Topbar_Singleton</ObjectName></SingletonContainer>
                         </Children><Connection><ConfigKey>[Tab],library</ConfigKey><BindProperty>visible</BindProperty><Transform><Not/></Transform></Connection></WidgetGroup>
 						<WidgetStack currentpage="[Tab],current">

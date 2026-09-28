@@ -17,7 +17,7 @@
             <BgColor>#050607</BgColor><AxesColor>#00000000</AxesColor>
             <SignalColor>#1d6fe0</SignalColor><SignalLowColor>#0055e1</SignalLowColor><SignalMidColor>#f0a000</SignalMidColor><SignalHighColor>#ffffff</SignalHighColor>
             <SignalRGBLowColor>#0055e1</SignalRGBLowColor><SignalRGBMidColor>#f0a000</SignalRGBMidColor><SignalRGBHighColor>#ffffff</SignalRGBHighColor>
-            <PlayedOverlayColor>#99000000</PlayedOverlayColor><PlayPosColor>#ffffffff</PlayPosColor><DefaultMark><Rx3Hotcue>true</Rx3Hotcue><Align>bottom</Align><Color>#00c6ee</Color><TextColor>#000000</TextColor></DefaultMark>
+            <PlayedOverlayColor>#99000000</PlayedOverlayColor><PlayPosColor>#ff0000</PlayPosColor><PlayPosWidth>2</PlayPosWidth><DefaultMark><Rx3Hotcue>true</Rx3Hotcue><Align>bottom</Align><Color>#00c6ee</Color><TextColor>#000000</TextColor></DefaultMark>
             <Connection><ConfigKey>[Channel<Variable name="channel"/>],playposition</ConfigKey></Connection>
           </Overview>
           <WidgetGroup><ObjectName>RX3LibraryDeckBpmBox<Variable name="channel"/></ObjectName><Connection><ConfigKey>[RX3Display],master<Variable name="channel"/></ConfigKey><BindProperty>highlight</BindProperty></Connection><Layout>vertical</Layout><Size>88f,0me</Size><SizePolicy>f,me</SizePolicy><Children>

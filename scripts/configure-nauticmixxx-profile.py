@@ -18,6 +18,10 @@ CONTROLLER_FILES = (
     "Hercules-DJControl-Inpulse-500-RX3-script.js",
     "midi-components-0.0.js",
 )
+OPTIONAL_CONTROLLER_FILES = (
+    "Pioneer-DDJ-FLX6-RX3-Browser.midi.xml",
+    "Pioneer-DDJ-FLX6-RX3-Browser.js",
+)
 EFFECT_CHAIN_FILES = (
     "RX3 REVERB.xml",
     "RX3 PING PONG.xml",
@@ -114,20 +118,20 @@ def validate_app(app: Path) -> tuple[Path, Path]:
     plist_path = app / "Contents/Info.plist"
     resources = app / "Contents/Resources"
     if not plist_path.is_file():
-        raise ValueError(f"No es una aplicación válida: {app}")
+        raise ValueError(f"Not a valid application: {app}")
     with plist_path.open("rb") as handle:
         bundle_id = plistlib.load(handle).get("CFBundleIdentifier")
     if bundle_id != "org.mixxx.mixxx":
-        raise ValueError(f"Bundle inesperado ({bundle_id!r}): {app}")
+        raise ValueError(f"Unexpected bundle ID ({bundle_id!r}): {app}")
     template = resources / "profiles/XDJ_RX3_Mixxx.profile.cfg"
     if not template.is_file():
-        raise ValueError(f"Falta el perfil RX3 dentro de la app: {template}")
-    for filename in CONTROLLER_FILES:
+        raise ValueError(f"RX3 profile is missing from the app: {template}")
+    for filename in CONTROLLER_FILES + OPTIONAL_CONTROLLER_FILES:
         if not (resources / "controllers" / filename).is_file():
-            raise ValueError(f"Falta el archivo del controlador: {filename}")
+            raise ValueError(f"Controller file is missing: {filename}")
     for filename in EFFECT_CHAIN_FILES:
         if not (resources / "effects/chains" / filename).is_file():
-            raise ValueError(f"Falta la cadena de efectos: {filename}")
+            raise ValueError(f"Effect chain is missing: {filename}")
     return resources, template
 
 
@@ -188,12 +192,13 @@ def configure(app: Path, profile_dir: Path, dry_run: bool = False) -> list[str]:
     current = config_path.read_text(encoding="utf-8") if config_path.is_file() else ""
     merged = merge_settings(current, updates)
     changes = [
-        "perfil RX3 actualizado",
-        "mapping Inpulse 500 instalado y asignado",
-        "cadenas Sound Color FX instaladas",
-        "FX1–FX4 ordenados como Reverb, Ping Pong, Noise y Filter",
-        "playhead ubicado al 25 % desde la izquierda",
-        "biblioteca local bloqueada; navegación limitada a USB Rekordbox",
+        "RX3 profile updated",
+        "Inpulse 500 mapping installed and selected",
+        "optional DDJ-FLX6 browser mapping installed but not selected",
+        "Sound Color FX chains installed",
+        "FX1–FX4 ordered as Reverb, Ping Pong, Noise and Filter",
+        "playhead positioned 25% from the left",
+        "local music library disabled; browsing limited to Rekordbox USB",
     ]
     if dry_run:
         return changes
@@ -203,7 +208,7 @@ def configure(app: Path, profile_dir: Path, dry_run: bool = False) -> list[str]:
     effects_chain_dir.mkdir(parents=True, exist_ok=True)
     if config_path.is_file() and current != merged:
         shutil.copy2(config_path, profile_dir / "mixxx.cfg.previous")
-    for filename in CONTROLLER_FILES:
+    for filename in CONTROLLER_FILES + OPTIONAL_CONTROLLER_FILES:
         shutil.copy2(resources / "controllers" / filename, controllers_dir / filename)
     for filename in EFFECT_CHAIN_FILES:
         shutil.copy2(resources / "effects/chains" / filename, effects_chain_dir / filename)
@@ -228,16 +233,16 @@ def configure(app: Path, profile_dir: Path, dry_run: bool = False) -> list[str]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Configura NauticMixxx como un sistema de dos decks tipo XDJ-RX3."
+        description="Configure NauticMixxx as an XDJ-RX3-style two-deck system."
     )
     parser.add_argument("--app", type=Path, required=True)
     parser.add_argument("--profile-dir", type=Path, default=default_profile_dir())
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     changes = configure(args.app.resolve(), args.profile_dir.resolve(), args.dry_run)
-    prefix = "Se aplicarían" if args.dry_run else "Aplicados"
+    prefix = "Would apply" if args.dry_run else "Applied"
     print(f"{prefix}: " + "; ".join(changes) + ".")
-    print(f"Perfil: {args.profile_dir.resolve()}")
+    print(f"Profile: {args.profile_dir.resolve()}")
 
 
 if __name__ == "__main__":

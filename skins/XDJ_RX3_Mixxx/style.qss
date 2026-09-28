@@ -2911,7 +2911,7 @@ WEffectSelector#RX3BeatFxSelector {
 #RX3Clock { font-family: "Arial"; font-size: 13px; }
 #RX3InfoLabel { background: #000; border: 0; font-size: 17px; font-weight: normal; min-width: 76px; max-width: 76px; }
 #RX3PerformanceArea { border: 0; qproperty-layoutSpacing: 8; }
-#WaveformsContent { qproperty-layoutSpacing: 12; }
+#WaveformsContent { qproperty-layoutSpacing: 18; }
 #WaveformInfo { background: #181818; margin: 0 8px 0 0; border: 1px solid #343434; }
 #WaveformInfoDeckTitle { background: #303030; color: #b8b8b8; font-size: 14px; font-weight: normal; padding-left: 17px; border-bottom: 2px solid #007da7; }
 #WaveformInfo_Header { background: #202020; border-bottom: 1px solid #383838; padding: 0 16px; qproperty-layoutAlignment: 'AlignLeft | AlignVCenter'; qproperty-layoutSpacing: 8; }
@@ -2922,8 +2922,8 @@ WEffectSelector#RX3BeatFxSelector {
 #WaveformInfoCaption { color: #bcbcbc; font-size: 16px; font-weight: normal; min-width: 22px; max-width: 22px; qproperty-alignment: 'AlignLeft | AlignVCenter'; }
 #WaveformInfo_Key, #WaveformInfoJump { font-size: 23px; font-weight: normal; color: #eeeeee; qproperty-alignment: 'AlignLeft | AlignVCenter'; }
 #WaveformInfo_Jump_Container #WaveformInfoCaption, #WaveformInfoJump { color: #ff7800; }
-#SidePanel_Container { background: #000; margin: 0; padding: 0; border: 0; }
-#SidePanelBody { qproperty-layoutAlignment: 'AlignTop'; qproperty-layoutSpacing: 0; }
+#SidePanel_Container { background: #000; margin: 0; padding: 0; border: 0; qproperty-layoutAlignment: 'AlignJustify'; }
+#SidePanelBody { qproperty-layoutAlignment: 'AlignJustify'; qproperty-layoutSpacing: 0; }
 #RX3FxBezel { background: #202020; padding: 0 9px 10px 9px; qproperty-layoutSpacing: 8; }
 #RX3BeatFxTitle { background: #303030; min-height: 28px; max-height: 28px; font-size: 14px; font-weight: normal; }
 #RX3BeatFxSelector, WEffectSelector#RX3BeatFxSelector { background: #000; border: 0; font-size: 20px; font-weight: normal; padding-left: 5px; }
@@ -3040,9 +3040,10 @@ WEffectSelector#RX3BeatFxSelector {
 #WaveformInfo_Bars[highlight="1"], #WaveformInfoJump[highlight="1"], #WaveformInfo_Jump_Container #WaveformInfoCaption[highlight="1"] { color: #ff7800; }
 #RX3StatusTabs { margin: 0; padding: 2px; min-height: 50px; max-height: 50px; border: 1px solid #777; }
 #RX3StatusTabs #RX3StatusTab { min-height: 42px; max-height: 42px; margin: 0; padding: 0; }
-#RX3FxSpacer { min-height: 14px; max-height: 14px; }
+#RX3FxSpacer { min-height: 14px; max-height: 16777215px; }
 #RX3ZoomControls { min-height: 36px; max-height: 36px; }
-#RX3SideBottomSpace { min-height: 12px; }
+#RX3TopbarWrapper { qproperty-layoutAlignment: 'AlignTop'; }
+#RX3ModeStripContainer { padding-top: 10px; }
 #RX3LibraryDeckBpmBox1, #RX3LibraryDeckBpmBox2 { border-color: #ddd; }
 #RX3LibraryDeckBpm1, #RX3LibraryDeckBpm2 { color: #fff; }
 #RX3LibraryDeckBpmBox1[highlight="1"], #RX3LibraryDeckBpmBox2[highlight="1"] { border-color: #ff7800; }

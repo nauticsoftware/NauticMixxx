@@ -29,7 +29,7 @@
         </Children>
       </WidgetGroup>
       </Children></WidgetGroup>
-      <WidgetGroup><ObjectName>RX3FxSpacer</ObjectName><Size>0me,14f</Size></WidgetGroup>
+      <WidgetGroup><ObjectName>RX3FxSpacer</ObjectName><Size>0me,0me</Size></WidgetGroup>
       <WidgetGroup>
         <ObjectName>RX3ZoomControls</ObjectName><Connection><ConfigKey>[RX3Controller],grid_mode</ConfigKey><BindProperty>highlight</BindProperty></Connection><Layout>horizontal</Layout><Size>0me,36f</Size>
         <Children>
@@ -55,7 +55,6 @@
           </PushButton>
         </Children>
       </WidgetGroup>
-      <WidgetGroup><ObjectName>RX3SideBottomSpace</ObjectName><Size>0me,0me</Size></WidgetGroup>
     </Children>
   </WidgetGroup>
 </Template>

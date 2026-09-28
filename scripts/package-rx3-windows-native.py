@@ -11,8 +11,15 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '1.0.0'
+VERSION = (ROOT / 'VERSION').read_text(encoding='utf-8').strip()
 NAME = f'NauticMixxx-{VERSION}-Windows-x64'
+
+
+def patch_state():
+    patches = sorted((ROOT / 'patches').glob('00[0-9][0-9]-*.patch'))
+    if len(patches) != 11:
+        raise ValueError('Expected eleven NauticMixxx patches')
+    return ','.join(digest(p).upper() for p in patches)
 
 
 def portable_profile(source, destination):
@@ -65,7 +72,8 @@ def validate_runtime(runtime):
     info = json.loads((runtime / 'rx3-build.json').read_text(encoding='utf-8-sig'))
     if (info.get('version') != VERSION or info.get('platform') != 'windows-x64'
             or info.get('product') != 'NauticMixxx' or info.get('baseMixxxVersion') != '2.5.6'
-            or info.get('testsPassed') is not True or info.get('executableSha256', '').lower() != digest(exe)):
+            or info.get('testsPassed') is not True or info.get('executableSha256', '').lower() != digest(exe)
+            or info.get('patches', '').upper() != patch_state()):
         raise ValueError('Runtime has no matching successful RX3 build/test record')
     result = ET.parse(runtime / 'rx3-tests.xml').getroot()
     if int(result.get('failures', '-1')) != 0 or int(result.get('errors', '0')) != 0 or int(result.get('tests', '0')) < 75:
@@ -85,57 +93,69 @@ def package(runtime, source, output, settings_file=None):
     if destination.exists():
         raise ValueError(f'Output exists; move it aside first: {destination}')
     destination.mkdir(parents=True)
-    shutil.copytree(runtime, destination / 'runtime', ignore=shutil.ignore_patterns('*.pdb', 'mixxx-test.exe'))
+    launcher_source = ROOT / 'packaging/windows/INSTALL-NATIVE.bat'
+    if not launcher_source.is_file():
+        launcher_source = ROOT.parent / 'INSTALL-WINDOWS.bat'
+    launcher = launcher_source.read_text(encoding='utf-8')
+    (destination / 'INSTALL-WINDOWS.bat').write_bytes(
+        launcher.replace('@VERSION@', VERSION).replace('\n', '\r\n').encode('ascii')
+    )
+    files_root = destination / 'NauticMixxx-Files'
+    files_root.mkdir()
+    shutil.copytree(runtime, files_root / 'runtime', ignore=shutil.ignore_patterns('*.pdb', 'mixxx-test.exe'))
     for directory in ['skins/XDJ_RX3_Mixxx', 'controllers/Hercules_DJControl_Inpulse_500_RX3', 'effects/chains']:
-        shutil.copytree(ROOT / directory, destination / directory, ignore=shutil.ignore_patterns('.DS_Store', '__pycache__'))
+        shutil.copytree(ROOT / directory, files_root / directory, ignore=shutil.ignore_patterns('.DS_Store', '__pycache__'))
     for original, target in {
-        'packaging/windows/install-native-rx3.ps1': 'install-mixxx-rx3-windows.ps1',
-        'packaging/windows/INSTALL-NATIVE.cmd': 'INSTALL-WINDOWS.cmd',
-        'packaging/windows/README-NATIVE.txt': 'EMPEZAR-AQUI.txt',
+        'packaging/windows/install-native-rx3.ps1': 'install-native-rx3.ps1',
+        'packaging/windows/README-NATIVE.txt': 'README.txt',
         'packaging/windows/rx3-install-common.ps1': 'windows/rx3-install-common.ps1',
         'packaging/windows/install-hercules-driver.ps1': 'windows/install-hercules-driver.ps1',
-        'DRIVER-HERCULES.cmd': 'DRIVER-HERCULES.cmd',
     }.items():
-        target_path = destination / target
+        target_path = files_root / target
         target_path.parent.mkdir(parents=True, exist_ok=True)
         text = (ROOT / original).read_text(encoding='utf-8-sig')
         target_path.write_bytes(text.replace('\r\n', '\n').replace('\n', '\r\n').encode('utf-8-sig' if target_path.suffix == '.ps1' else 'utf-8'))
-    portable_profile(settings_file, destination / 'profile/XDJ_RX3_Mixxx.profile.cfg')
+    portable_profile(settings_file, files_root / 'profile/XDJ_RX3_Mixxx.profile.cfg')
     # Complete corresponding source and build recipe travel with the binary.
-    source_dir = destination / 'source'
+    source_dir = files_root / 'source'
     source_dir.mkdir()
     def source_filter(member):
         if any(part in {'.git', '__pycache__', '.DS_Store'} for part in Path(member.name).parts):
             return None
         return member
-    with tarfile.open(source_dir / 'NauticMixxx-1.0.0-source.tar.gz', 'w:gz') as tar:
+    with tarfile.open(source_dir / f'NauticMixxx-{VERSION}-source.tar.gz', 'w:gz') as tar:
         tar.add(source, arcname='mixxx-2.5.6', filter=source_filter)
     # Keep the recipe at the same relative paths it uses in the project.
-    shutil.copytree(ROOT / 'patches', destination / 'patches')
+    shutil.copytree(ROOT / 'patches', files_root / 'patches')
     for name in ['build-mixxx-rx3-windows.ps1', 'build-app-icon-windows.py', 'package-rx3-windows-native.py']:
-        (destination / 'scripts').mkdir(exist_ok=True)
-        shutil.copy2(ROOT / 'scripts' / name, destination / 'scripts' / name)
-    icon_source = destination / 'packaging/DMG_PROJECT/iCon-macOS-Dark-1024x1024@1x.png'
+        (files_root / 'scripts').mkdir(exist_ok=True)
+        shutil.copy2(ROOT / 'scripts' / name, files_root / 'scripts' / name)
+    shutil.copy2(ROOT / 'VERSION', files_root / 'VERSION')
+    branding = files_root / 'branding/iCon-macOS-Dark-1024x1024@1x.png'
+    branding.parent.mkdir(parents=True)
+    shutil.copy2(ROOT / 'branding/iCon-macOS-Dark-1024x1024@1x.png', branding)
+    icon_source = files_root / 'packaging/DMG_PROJECT/iCon-macOS-Dark-1024x1024@1x.png'
     icon_source.parent.mkdir(parents=True)
-    shutil.copy2(ROOT / 'packaging/DMG_PROJECT/iCon-macOS-Dark-1024x1024@1x.png', icon_source)
-    for name in ['install-native-rx3.ps1', 'INSTALL-NATIVE.cmd', 'README-NATIVE.txt']:
-        shutil.copy2(ROOT / 'packaging/windows' / name, destination / 'windows' / name)
-    for name in ['BUILD-WINDOWS.cmd', 'EMPEZAR-COMPILACION.txt']:
-        shutil.copy2(ROOT / name, destination / name)
+    shutil.copy2(ROOT / 'branding/iCon-macOS-Dark-1024x1024@1x.png', icon_source)
+    for name in ['install-native-rx3.ps1', 'rx3-install-common.ps1', 'install-hercules-driver.ps1', 'README-NATIVE.txt']:
+        recipe = files_root / 'packaging/windows' / name
+        recipe.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / 'packaging/windows' / name, recipe)
     shutil.copy2(source / 'LICENSE', source_dir)
-    files = sorted(p for p in destination.rglob('*') if p.is_file())
+    files = sorted(p for p in files_root.rglob('*') if p.is_file())
     manifest = {
         'product': 'NauticMixxx',
         'version': VERSION,
         'platform': 'windows-x64',
         'baseMixxxVersion': '2.5.6',
-        'entryPoint': 'INSTALL-WINDOWS.cmd',
+        'patches': patch_state(),
+        'entryPoint': 'INSTALL-WINDOWS.bat',
         'installModes': ['parallel', 'replace'],
         'files': [
-            {'path': p.relative_to(destination).as_posix(), 'sha256': digest(p)} for p in files
+            {'path': p.relative_to(files_root).as_posix(), 'sha256': digest(p)} for p in files
         ],
     }
-    (destination / 'payload-sha256.json').write_text(json.dumps(manifest, indent=2) + '\n')
+    (files_root / 'payload-sha256.json').write_text(json.dumps(manifest, indent=2) + '\n')
     archive = output / (NAME + '.zip')
     with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as z:
         for path in sorted(p for p in destination.rglob('*') if p.is_file()):

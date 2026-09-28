@@ -192,7 +192,7 @@
                     <SignalRGBMidColor>#b4690a</SignalRGBMidColor>
                     <SignalRGBHighColor>#f5ebd7</SignalRGBHighColor>
                     <PlayedOverlayColor>#99000000</PlayedOverlayColor>
-                    <PlayPosColor>#ffffffff</PlayPosColor>
+                    <PlayPosColor>#ff0000</PlayPosColor><PlayPosWidth>2</PlayPosWidth>
                     <Mark><Control>cue_point</Control><Text>CUE</Text><Color>#c85d21</Color><TextColor>#c85d21</TextColor><Align>top</Align></Mark>
                     
                     

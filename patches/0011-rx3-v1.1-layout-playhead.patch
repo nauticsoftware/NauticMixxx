@@ -1,0 +1,239 @@
+diff --git a/src/skin/legacy/legacyskinparser.cpp b/src/skin/legacy/legacyskinparser.cpp
+--- a/src/skin/legacy/legacyskinparser.cpp
++++ b/src/skin/legacy/legacyskinparser.cpp
+@@ -453,7 +453,8 @@
+         const int width = dimensions[0].toInt(&widthOk);
+         const int height = dimensions[1].toInt(&heightOk);
+         if (widthOk && heightOk && width > 0 && height > 0) {
+-            auto* viewport = new WReferenceScaler(widgets[0], QSize(width, height), pParent);
++            auto* viewport = new WReferenceScaler(widgets[0], QSize(width, height), pParent,
++                    m_pContext->selectBool(skinDocument, "ReferenceFill", false));
+             if (rx3State) rx3State.release()->setParent(viewport);
+             return viewport;
+         }
+diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
+--- a/src/test/rx3display_test.cpp
++++ b/src/test/rx3display_test.cpp
+@@ -2,6 +2,7 @@
+ #include <QCoreApplication>
+ #include <QLabel>
+ #include <QPointer>
++#include <QVBoxLayout>
+ #include "util/fpclassify.h"
+ #include "test/mixxxtest.h"
+ #include "widget/rx3displayformat.h"
+@@ -69,6 +70,32 @@
+ }
+ 
+ #include "widget/rx3displaystate.h"
++TEST_F(Rx3ReferenceScaleTest, FillWindowUsesEveryPixelAcrossAspectRatios) {
++    auto* canvas = new QWidget;
++    canvas->setMinimumSize(1280, 800);
++    auto* layout = new QVBoxLayout(canvas);
++    layout->setContentsMargins(0, 0, 0, 0);
++    QPointer<QLabel> label = new QLabel(QStringLiteral("120.0"), canvas);
++    label->setFixedHeight(40);
++    label->setProperty("testControlValue", 7);
++    layout->addWidget(label);
++    WReferenceScaler viewport(canvas, QSize(1280, 800), nullptr, true);
++    viewport.show();
++    for (int repeat = 0; repeat < 3; ++repeat) {
++        // The first two sizes deliberately have the same scale factor.
++        for (QSize size : {QSize(1280, 800), QSize(1440, 800),
++                     QSize(1920, 1080), QSize(1024, 640), QSize(1280, 800)}) {
++            viewport.resize(size);
++            QCoreApplication::processEvents();
++            EXPECT_EQ(size, canvas->size());
++            EXPECT_EQ(QPoint(0, 0), canvas->pos());
++            EXPECT_EQ(size.width(), label->width());
++            EXPECT_EQ(qRound(40 * viewport.scale()), label->height());
++            EXPECT_EQ(7, label->property("testControlValue").toInt());
++        }
++    }
++}
++
+ TEST(Rx3Display, LoopSizesIncludeFractions) {
+     EXPECT_EQ(QStringLiteral("2"), rx3::loop(2));
+     EXPECT_EQ(QStringLiteral("1/2"), rx3::loop(0.5));
+@@ -166,6 +193,26 @@
+ #include "waveform/renderers/waveformmark.h"
+ #include "waveform/renderers/waveformsignalcolors.h"
+ class Rx3HotcueTest : public MixxxTest {};
++TEST_F(Rx3HotcueTest, PlayheadWidthIsOptInAndRejectsInvalidValues) {
++    SkinContext context(config(), QString());
++    WaveformSignalColors colors;
++    for (const QString& value : {QStringLiteral("2"), QStringLiteral(""),
++                 QStringLiteral("invalid"), QStringLiteral("-1"), QStringLiteral("99")}) {
++        QDomDocument doc;
++        ASSERT_TRUE(doc.setContent(QStringLiteral(
++                "<Visual><PlayPosColor>#ff0000</PlayPosColor>"
++                "<PlayPosWidth>%1</PlayPosWidth></Visual>").arg(value)));
++        colors.setup(doc.documentElement(), context);
++        EXPECT_EQ(QColor("#ff0000"), colors.getPlayPosColor());
++        const int expected = value == "2" ? 2 : value == "99" ? 4 : 1;
++        EXPECT_EQ(expected, colors.getPlayPosWidth());
++    }
++    QDomDocument legacy;
++    ASSERT_TRUE(legacy.setContent(QStringLiteral("<Visual/>")));
++    colors.setup(legacy.documentElement(), context);
++    EXPECT_EQ(1, colors.getPlayPosWidth());
++}
++
+ TEST_F(Rx3HotcueTest, PairedBadgesLeaveSignalTransparentAtBothPixelRatios) {
+     ControlObject position(ConfigKey("[Channel1]","hotcue_1_position"));
+     SkinContext context(config(), QString());
+@@ -200,7 +247,7 @@
+     EXPECT_EQ(QStringLiteral("H"),mark.rx3Label());
+     mark.setBreadth(200); mark.setBaseColor(QColor("#cc00ff"),128);
+     const auto image=mark.generateImage(1);
+-    EXPECT_EQ(QColor("#c3af04"),image.pixelColor(1,18));
++    EXPECT_EQ(QColor("#c3af04"),image.pixelColor(2,20));
+ }
+ 
+ #include "widget/rx3waveform.h"
+diff --git a/src/waveform/renderers/allshader/waveformrendermark.cpp b/src/waveform/renderers/allshader/waveformrendermark.cpp
+--- a/src/waveform/renderers/allshader/waveformrendermark.cpp
++++ b/src/waveform/renderers/allshader/waveformrendermark.cpp
+@@ -437,7 +437,8 @@
+         drawTriangle(&painter, bgColor, baseL, baseR, tip);
+     }
+     // draw colored play position indicators
+-    painter.setPen(fgColor);
++    painter.setPen(QPen(fgColor,
++            m_waveformRenderer->getWaveformSignalColors()->getPlayPosWidth() * scaleFactor()));
+     painter.setOpacity(1.0);
+     // play position line
+     painter.drawLine(QLineF(lineX, 0.f, lineX, imgHeight));
+diff --git a/src/waveform/renderers/waveformsignalcolors.cpp b/src/waveform/renderers/waveformsignalcolors.cpp
+--- a/src/waveform/renderers/waveformsignalcolors.cpp
++++ b/src/waveform/renderers/waveformsignalcolors.cpp
+@@ -80,6 +80,9 @@
+     if (!m_playPosColor.isValid()) {
+         m_playPosColor = m_axesColor;
+     }
++    bool widthOk = false;
++    const int playPosWidth = context.selectInt(node, "PlayPosWidth", &widthOk);
++    m_playPosWidth = widthOk ? qBound(1, playPosWidth, 4) : 1;
+ 
+     // This color is used to draw an overlay over the played part the overview-waveforms
+     m_playedOverlayColor = context.selectColor(node, "PlayedOverlayColor");
+diff --git a/src/waveform/renderers/waveformsignalcolors.h b/src/waveform/renderers/waveformsignalcolors.h
+--- a/src/waveform/renderers/waveformsignalcolors.h
++++ b/src/waveform/renderers/waveformsignalcolors.h
+@@ -48,6 +48,10 @@
+     inline const QColor& getPlayPosColor() const {
+         return m_playPosColor;
+     }
++    // Width in reference pixels; skins that omit PlayPosWidth keep one pixel.
++    inline int getPlayPosWidth() const {
++        return m_playPosWidth;
++    }
+     inline const QColor& getPlayedOverlayColor() const {
+         return m_playedOverlayColor;
+     }
+@@ -83,6 +87,7 @@
+     QColor m_rgbHighFilteredColor;
+     QColor m_axesColor;
+     QColor m_playPosColor;
++    int m_playPosWidth = 1;
+     QColor m_playedOverlayColor;
+     QColor m_passthroughOverlayColor;
+     QColor m_passthroughLabelColor;
+diff --git a/src/waveform/renderers/waveformwidgetrenderer.cpp b/src/waveform/renderers/waveformwidgetrenderer.cpp
+--- a/src/waveform/renderers/waveformwidgetrenderer.cpp
++++ b/src/waveform/renderers/waveformwidgetrenderer.cpp
+@@ -296,7 +296,8 @@
+ 
+     // draw colored play position indicators
+     painter->setOpacity(1.0);
+-    painter->setPen(m_colors.getPlayPosColor());
++    painter->setPen(QPen(m_colors.getPlayPosColor(),
++            m_colors.getPlayPosWidth() * m_scaleFactor));
+     QBrush fgFill = m_colors.getPlayPosColor();
+     if (m_orientation == Qt::Horizontal) {
+         // play position line
+diff --git a/src/widget/woverview.cpp b/src/widget/woverview.cpp
+--- a/src/widget/woverview.cpp
++++ b/src/widget/woverview.cpp
+@@ -806,7 +806,8 @@
+         } else {
+             line.setLine(0.0, m_iPlayPos, width(), m_iPlayPos);
+         }
+-        pPainter->setPen(QPen(m_playPosColor, m_scaleFactor));
++        pPainter->setPen(QPen(m_playPosColor,
++                m_signalColors.getPlayPosWidth() * m_scaleFactor));
+         pPainter->setOpacity(0.5);
+         pPainter->drawLine(line);
+     }
+@@ -1141,7 +1142,8 @@
+     pPainter->drawLine(m_iPickupPos - 1, 0, m_iPickupPos - 1, breadth());
+ 
+     // draw colored play position line
+-    pPainter->setPen(QPen(m_playPosColor, m_scaleFactor));
++    pPainter->setPen(QPen(m_playPosColor,
++            m_signalColors.getPlayPosWidth() * m_scaleFactor));
+     pPainter->setOpacity(1.0);
+     pPainter->drawLine(m_iPickupPos, 0, m_iPickupPos, breadth());
+ 
+diff --git a/src/widget/wreferencescaler.cpp b/src/widget/wreferencescaler.cpp
+--- a/src/widget/wreferencescaler.cpp
++++ b/src/widget/wreferencescaler.cpp
+@@ -43,8 +43,10 @@
+ }
+ }
+ 
+-WReferenceScaler::WReferenceScaler(QWidget* canvas, QSize referenceSize, QWidget* parent)
+-        : QWidget(parent), m_canvas(canvas), m_referenceSize(referenceSize) {
++WReferenceScaler::WReferenceScaler(QWidget* canvas, QSize referenceSize, QWidget* parent,
++        bool fillWindow)
++        : QWidget(parent), m_canvas(canvas), m_referenceSize(referenceSize),
++          m_fillWindow(fillWindow) {
+     setObjectName(QStringLiteral("RX3ReferenceViewport"));
+     setAutoFillBackground(true);
+     QPalette colors = palette();
+@@ -80,8 +82,9 @@
+     const double factor = std::min(width() / double(m_referenceSize.width()),
+             height() / double(m_referenceSize.height()));
+     if (factor <= 0) return;
+-    const QSize target(qRound(m_referenceSize.width() * factor),
+-            qRound(m_referenceSize.height() * factor));
++    const QSize target = m_fillWindow ? size() :
++            QSize(qRound(m_referenceSize.width() * factor),
++                    qRound(m_referenceSize.height() * factor));
+     if (std::abs(m_scale - factor) > 0.0001) {
+         m_scale = factor;
+         m_canvas->setUpdatesEnabled(false);
+@@ -111,9 +114,11 @@
+             }
+             widget->updateGeometry();
+         }
+-        m_canvas->setFixedSize(target);
+         m_canvas->setUpdatesEnabled(true);
+         setProperty("referenceScale", factor);
+     }
++    // A wider window may keep the same scale. Resize the flexible layout even
++    // then, so waveforms use the whole viewport without stretching the fonts.
++    m_canvas->setFixedSize(target);
+     m_canvas->move((width() - target.width()) / 2, (height() - target.height()) / 2);
+ }
+diff --git a/src/widget/wreferencescaler.h b/src/widget/wreferencescaler.h
+--- a/src/widget/wreferencescaler.h
++++ b/src/widget/wreferencescaler.h
+@@ -8,7 +8,8 @@
+ // resized in place; no controls, decks, or skin pages are recreated.
+ class WReferenceScaler : public QWidget {
+   public:
+-    WReferenceScaler(QWidget* canvas, QSize referenceSize, QWidget* parent);
++    WReferenceScaler(QWidget* canvas, QSize referenceSize, QWidget* parent,
++            bool fillWindow = false);
+     QSize sizeHint() const override { return m_referenceSize; }
+     double scale() const { return m_scale; }
+ 
+@@ -26,6 +27,7 @@
+     void applyScale();
+     QWidget* m_canvas;
+     QSize m_referenceSize;
++    bool m_fillWindow;
+     std::vector<Metrics> m_metrics;
+     double m_scale = -1;
+     bool m_pending = false;

@@ -11,7 +11,7 @@
       <WidgetGroup>
         <ObjectName>WaveformInfo</ObjectName>
         <Layout>vertical</Layout>
-        <Size>160f,0me</Size>
+        <Size>176f,0me</Size>
         <Children>
           <Label>
             <ObjectName>WaveformInfoDeckTitle</ObjectName>
@@ -124,7 +124,7 @@
         <BeatColor>#787C78</BeatColor>
         <DownbeatColor>#ff0000</DownbeatColor>
         <BeatTickLength>10</BeatTickLength>
-        <PlayPosColor>#fff</PlayPosColor>
+        <PlayPosColor>#ff0000</PlayPosColor><PlayPosWidth>2</PlayPosWidth>
         <!-- rekordbox draws no centre line. Mixxx's filtered renderer paints one
              last, over the bands, and with AxesColor unset it defaults to
              #f5f5f5: invisible inside a cream core, a white seam across every

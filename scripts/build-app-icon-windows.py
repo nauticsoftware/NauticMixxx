@@ -10,7 +10,7 @@ from PIL import Image
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "packaging/DMG_PROJECT/iCon-macOS-Dark-1024x1024@1x.png"
+SOURCE = ROOT / "branding/iCon-macOS-Dark-1024x1024@1x.png"
 SOURCE_SHA256 = "ac61e30ddad3b9a05b1972906855863a0e4d0e2e1130c6cb88a998925f45a44f"
 SIZES = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
 

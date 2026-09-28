@@ -1,41 +1,36 @@
-# Informe de validación — NauticMixxx 1.0.0
+# Informe de validación — NauticMixxx 1.1.0
 
-Fecha: 2026-09-23  
-Plataforma de compilación: macOS Apple Silicon  
-Motor base: Mixxx 2.5.6
+Fecha: 2026-09-28. Base: Mixxx 2.5.6.
 
-## Resultado automático
+## macOS ARM64
 
-- Diez parches aplicados en orden sobre el tarball oficial 2.5.6: **OK**.
-- XML de skin, mapping y efectos: **OK**.
-- Mapping AUTOLOOP, IN/OUT ADJUST, Sound Color FX y controles de transporte:
-  **4/4 suites OK**.
-- Los seis fixes del Inpulse 500 (SLIP, Sound Color FX, LOOP IN largo, LED SYNC,
-  rango de tempo y SHIFT + SYNC): **OK en pruebas automatizadas**.
-- Suite nativa seleccionada: **46 pruebas superadas, 0 fallos**.
-- Fixtures USB externos opcionales: **5 omitidos** porque no forman parte del
-  repositorio público.
-- Firma ad hoc, integridad del bundle y ejecutable ARM64: **OK**.
-- Nombre, versión, icono, recursos estándar y skin predeterminada: **OK**.
-- Checksums SHA-256 de todos los artefactos: **OK**.
-- Auditoría de rutas privadas, credenciales, bases de datos y logs: **OK**.
-- Instalador de perfil RX3 no destructivo y asignación persistente del mapping:
-  **OK en prueba automatizada**.
-- Contrato USB-only (sin asistente, escaneo, alta de rutas ni SOFTWARE CONTROL):
-  **10/10 controles estáticos OK**.
+- Aplicación nativa 1.1.0 compilada, firmada de forma ad hoc y verificada con
+  `codesign --verify --deep --strict`.
+- Display y controles: **111 pruebas aprobadas, 0 fallidas, 5 omitidas**. Las
+  omitidas requieren fixtures externos de USB rekordbox.
+- Once parches aplicados al código oficial con hash verificado; las fuentes
+  resultantes coinciden con los cambios nativos incluidos en el proyecto.
+- Capturas de 1280×800 y pantalla maximizada revisadas. La prueba se hizo con
+  pistas sintéticas en un perfil aislado.
+- XML de skin, mapping y efectos, y pruebas JavaScript de controles: correctos.
+- Preset DDJ-FLX6 validado con mensajes MIDI documentados y pruebas simuladas
+  de navegación tanto nativa RX3 como estándar Mixxx. Hardware FLX6 pendiente.
+- Instalador macOS, configurador del perfil y documentación de acceso en inglés.
 
-Filtro nativo utilizado:
+## Windows x64
 
-```text
-LibraryTableViewStateTest.*
-Rx3*
-RekordboxUsbSessionTest.*
-RekordboxRuntimeTrackModelTest.*
-TrackCapabilityPolicyTest.*
-```
+- El paquete 1.1.0 distribuye **skin y BAT**, sin un ejecutable nativo nuevo.
+- Contrato del ZIP, archivos y hashes SHA-256: correcto.
+- Instalador: **20 comprobaciones aprobadas**, incluida la detección de
+  NauticMixxx 1.0 y la validación del payload.
+- Desinstalador: **16 comprobaciones aprobadas**, incluida la eliminación de
+  varias versiones simuladas y la conservación del perfil compartido de Mixxx.
+- Los scripts PowerShell se analizaron sintácticamente. La instalación y
+  desinstalación reales en Windows, MIDI y audio requieren prueba en un equipo
+  Windows.
 
-## Alcance pendiente de la comunidad
+## Alcance
 
-La prueba física de los seis fixes debe completarse con un Inpulse 500 siguiendo
-`docs/HARDWARE_TEST.md`. La build Windows x64 debe generarse en su workflow y
-superar allí la suite nativa antes de adjuntarse al release.
+No se probó físicamente el Hercules DJControl Inpulse 500 ni un USB rekordbox
+real en esta validación. La firma ad hoc de macOS no sustituye una firma
+Developer ID ni la notarización de Apple.

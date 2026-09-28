@@ -5,7 +5,7 @@ set -eu
 project=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 # This is the canonical NauticMixxx application icon. Keep the exact source
 # path in the release inputs so builds never fall back to Mixxx's native icon.
-source_png="$project/packaging/DMG_PROJECT/iCon-macOS-Dark-1024x1024@1x.png"
+source_png="$project/branding/iCon-macOS-Dark-1024x1024@1x.png"
 output=${1:-"$project/build/NauticMixxx.icns"}
 
 if [ ! -f "$source_png" ]; then

@@ -18,7 +18,7 @@ else
 fi
 
 printf '%s\n' '4/6 XML de skin, mapping y efectos'
-find skins/XDJ_RX3_Mixxx controllers/Hercules_DJControl_Inpulse_500_RX3 effects \
+find skins/XDJ_RX3_Mixxx controllers/Hercules_DJControl_Inpulse_500_RX3 controllers/Pioneer_DDJ_FLX6_RX3 effects \
   -type f -name '*.xml' -exec xmllint --noout {} +
 
 printf '%s\n' '5/6 JavaScript del controlador'
@@ -27,6 +27,7 @@ node scripts/test-rx3-autoloop.js
 node scripts/test-rx3-loop-adjust.js
 node scripts/test-rx3-sound-color-fx.js
 node scripts/test-rx3-transport-controls.js
+node scripts/test-flx6-browser.js
 
 printf '%s\n' '6/6 Pruebas nativas'
 native_test=../build/mixxx-test
@@ -35,11 +36,24 @@ if [ ! -x "$native_test" ] && [ -x tmp/mixxx-native-rebuild/build/mixxx-test ]; 
   native_test=tmp/mixxx-native-rebuild/build/mixxx-test
   native_test_dir=tmp/mixxx-native-rebuild/build
 fi
+if [ ! -x "$native_test" ] && [ -x tmp/v1.1/build/mixxx-test ]; then
+  native_test=tmp/v1.1/build/mixxx-test
+  native_test_dir=tmp/v1.1/build
+fi
 if [ -x "$native_test" ]; then
+  resource_path=$(CDPATH= cd -- "$project/../res" && pwd)
   (cd "$native_test_dir" && QT_QPA_PLATFORM=offscreen ./mixxx-test \
+    --resource-path "$resource_path" \
     --gtest_filter='LibraryTableViewStateTest.*:Rx3*:RekordboxUsbSessionTest.*:RekordboxRuntimeTrackModelTest.*:TrackCapabilityPolicyTest.*')
 else
-  printf '%s\n' 'mixxx-test no está compilado; se omitió la suite nativa local.'
+  printf '%s\n' 'mixxx-test no está compilado; reconstruye la app para ejecutar la suite nativa.'
 fi
 
-printf 'NauticMixxx %s listo para empaquetar.\n' "$(cat VERSION)"
+if [ -d tmp/mixxx-native-rebuild/stage/NauticMixxx.app ] ||
+   [ -d tmp/v1.1/stage/NauticMixxx.app ] ||
+   [ -d ../stage-v1/NauticMixxx.app ] ||
+   [ -d ../build/NauticMixxx.app ]; then
+  printf 'NauticMixxx %s listo para empaquetar.\n' "$(cat VERSION)"
+else
+  printf 'Fuentes NauticMixxx %s validadas; reconstruye la app antes de empaquetar.\n' "$(cat VERSION)"
+fi

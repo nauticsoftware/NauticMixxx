@@ -36,16 +36,19 @@ jobs:
             }
           }
           python scripts/test-windows-installer-contract.py
-      - name: Build, test and package NauticMixxx 1.0.0
+      - name: Build, test and package NauticMixxx 1.1.0
         shell: powershell
         run: ./scripts/build-mixxx-rx3-windows.ps1 -WorkRoot C:\rx3-build -Jobs 4
+      - name: Validate installer payload and Windows profile helpers
+        shell: powershell
+        run: ./tests/windows/installer-tests.ps1 -PackageRoot ./build/NauticMixxx-1.1.0-Windows-x64/NauticMixxx-Files
       - name: Installer and checksums
         uses: actions/upload-artifact@v4
         with:
-          name: NauticMixxx-1.0.0-Windows-x64
+          name: NauticMixxx-1.1.0-Windows-x64
           path: |
-            build/NauticMixxx-1.0.0-Windows-x64.zip
-            build/NauticMixxx-1.0.0-Windows-x64.zip.sha256
+            build/NauticMixxx-1.1.0-Windows-x64.zip
+            build/NauticMixxx-1.1.0-Windows-x64.zip.sha256
           if-no-files-found: error
       - name: Native test results
         if: always()

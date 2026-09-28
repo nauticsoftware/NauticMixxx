@@ -10,40 +10,40 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 function Invoke-Checked {
     param([string]$File, [string[]]$Arguments)
     & $File @Arguments
-    if ($LASTEXITCODE -ne 0) { throw "$File termino con codigo $LASTEXITCODE" }
+    if ($LASTEXITCODE -ne 0) { throw "$File exited with code $LASTEXITCODE" }
 }
 
 function Get-VerifiedDownload {
     param([string]$Url, [string]$Path, [string]$Sha256)
     if (-not (Test-Path -LiteralPath $Path)) {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        Write-Host "Descargando $Url"
+        Write-Host "Downloading $Url"
         Invoke-WebRequest -UseBasicParsing -Uri $Url -OutFile ($Path + '.partial')
         if ((Get-FileHash -LiteralPath ($Path + '.partial') -Algorithm SHA256).Hash -ne $Sha256) {
-            throw "SHA-256 incorrecto: $Url"
+            throw "Incorrect SHA-256: $Url"
         }
         Move-Item -LiteralPath ($Path + '.partial') -Destination $Path -Force
     }
-    if ((Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash -ne $Sha256) { throw "Cache corrupta: $Path" }
+    if ((Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash -ne $Sha256) { throw "Corrupted cache: $Path" }
 }
 
 try {
     if ($env:OS -ne 'Windows_NT' -or -not [Environment]::Is64BitOperatingSystem -or
         $env:PROCESSOR_ARCHITECTURE -eq 'ARM64' -or $env:PROCESSOR_ARCHITEW6432 -eq 'ARM64') {
-        throw 'La compilacion requiere Windows x64 Intel/AMD.'
+        throw 'Building requires Windows x64 on an Intel or AMD processor.'
     }
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
     if (-not (Test-Path $vswhere)) {
-        throw 'Instala Visual Studio Build Tools 2022 con Desarrollo para escritorio con C++, CMake y Windows SDK. Consulta EMPEZAR-COMPILACION.txt.'
+        throw 'Install Visual Studio Build Tools 2022 with Desktop development with C++, CMake and the Windows SDK.'
     }
     $vs = & $vswhere -latest -products '*' -version '[17.0,18.0)' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-    if (-not $vs) { throw 'No se encontro Visual Studio 2022 con herramientas C++ x64.' }
+    if (-not $vs) { throw 'Visual Studio 2022 with x64 C++ tools was not found.' }
     Import-Module (Join-Path $vs 'Common7\Tools\Microsoft.VisualStudio.DevShell.dll')
     Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64'
     $cmakeTools = Join-Path $vs 'Common7\IDE\CommonExtensions\Microsoft\CMake'
     $env:PATH = (Join-Path $cmakeTools 'CMake\bin') + ';' + (Join-Path $cmakeTools 'Ninja') + ';' + $env:PATH
     foreach ($command in @('cmake', 'ninja', 'git', 'python', 'tar')) {
-        if (-not (Get-Command $command -ErrorAction SilentlyContinue)) { throw "Falta $command. Consulta EMPEZAR-COMPILACION.txt." }
+        if (-not (Get-Command $command -ErrorAction SilentlyContinue)) { throw "Missing build tool: $command." }
     }
     Invoke-Checked -File python -Arguments @('--version')
     $WorkRoot = [IO.Path]::GetFullPath($WorkRoot)
@@ -58,15 +58,15 @@ try {
     $depsRoot = Join-Path $WorkRoot 'buildenv'
     $deps = Join-Path $depsRoot $depsName
     if (-not (Test-Path (Join-Path $deps '.rx3-extracted'))) {
-        if (Test-Path $deps) { throw 'Extraccion de dependencias incompleta. Mueve buildenv a otra carpeta antes de reintentar.' }
+        if (Test-Path $deps) { throw 'Dependency extraction is incomplete. Move buildenv elsewhere before retrying.' }
         New-Item -ItemType Directory -Path $depsRoot -Force | Out-Null
         Invoke-Checked -File tar -Arguments @('-xf', $depsArchive, '-C', $depsRoot)
-        if (-not (Test-Path (Join-Path $deps 'installed\x64-windows-release\bin\Qt6Core.dll'))) { throw 'Dependencias incompletas.' }
+        if (-not (Test-Path (Join-Path $deps 'installed\x64-windows-release\bin\Qt6Core.dll'))) { throw 'Dependencies are incomplete.' }
         Set-Content -LiteralPath (Join-Path $deps '.rx3-extracted') -Value $depsName
     }
     $source = Join-Path $WorkRoot 'mixxx-2.5.6'
     $patches = @(Get-ChildItem (Join-Path $projectRoot 'patches\00[0-9][0-9]-*.patch') | Sort-Object Name)
-    if ($patches.Count -ne 10) { throw 'Falta alguno de los diez parches NauticMixxx.' }
+    if ($patches.Count -ne 11) { throw 'One or more of the eleven NauticMixxx patches is missing.' }
     $patchState = ($patches | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash }) -join ','
     if (-not (Test-Path $source)) {
         Invoke-Checked -File tar -Arguments @('-xzf', $sourceArchive, '-C', $WorkRoot)
@@ -78,7 +78,7 @@ try {
     }
     $marker = Join-Path $source '.rx3-patched'
     if (-not (Test-Path $marker) -or (Get-Content $marker -Raw).Trim() -ne $patchState) {
-        throw 'Los fuentes en cache no coinciden con estos parches. Usa otro WorkRoot.'
+        throw 'Cached sources do not match these patches. Use another WorkRoot.'
     }
     $windowsIcon = Join-Path $source 'res\images\icons\ic_mixxx.ico'
     Invoke-Checked -File python -Arguments @((Join-Path $PSScriptRoot 'build-app-icon-windows.py'), $windowsIcon)
@@ -111,11 +111,11 @@ try {
     Invoke-Checked -File cmake -Arguments @('--install', $build, '--prefix', $stage)
     Copy-Item -LiteralPath (Join-Path $projectRoot 'skins\XDJ_RX3_Mixxx') -Destination (Join-Path $stage 'skins') -Recurse -Force
     Copy-Item -LiteralPath $testXml -Destination (Join-Path $stage 'rx3-tests.xml')
-    $info = @{ version = '1.0.0'; product = 'NauticMixxx'; platform = 'windows-x64'; baseMixxxVersion = '2.5.6'; testsPassed = $true; patches = $patchState;
+    $info = @{ version = (Get-Content -LiteralPath (Join-Path $projectRoot 'VERSION') -Raw).Trim(); product = 'NauticMixxx'; platform = 'windows-x64'; baseMixxxVersion = '2.5.6'; testsPassed = $true; patches = $patchState;
         executableSha256 = (Get-FileHash (Join-Path $stage 'mixxx.exe') -Algorithm SHA256).Hash.ToLowerInvariant() }
     $info | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $stage 'rx3-build.json') -Encoding UTF8
     Invoke-Checked -File python -Arguments @((Join-Path $PSScriptRoot 'package-rx3-windows-native.py'), '--runtime', $stage, '--source', $source)
-    Write-Host 'ZIP nativo NauticMixxx generado en build.' -ForegroundColor Green
+    Write-Host 'Native NauticMixxx ZIP generated in build.' -ForegroundColor Green
 } catch {
     Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red
     exit 1

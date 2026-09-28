@@ -1,57 +1,55 @@
 # Publicar una versión
 
-## 1. Validar
+El código activo vive en `dev/` y los paquetes publicados en `release/`, ambos
+en la raíz del workspace. Compilar o empaquetar dentro de `dev/` no publica una
+versión. La promoción requiere una orden explícita del mantenedor para actualizar
+la versión vigente.
+
+## 1. Validar y generar candidatos
+
+Desde `dev/nautic/`:
 
 ```bash
 ./scripts/validate-release.sh
+./scripts/build-mixxx-rx3-macos.sh
 python3 scripts/package-release.py
 ```
 
-En macOS, firma y notariza el bundle si dispones de una cuenta Apple Developer.
-Sin esa cuenta, la firma ad hoc permite publicar una build comunitaria, siempre
-que las notas indiquen claramente que no está notarizada y expliquen el flujo
-**Ajustes del Sistema → Privacidad y seguridad → Abrir igualmente**. La firma
-ad hoc no elimina la advertencia de Gatekeeper.
-
-## 2. Revisar los artefactos
-
-En `release/1.0.0/` deben existir el ZIP macOS, la skin, las fuentes completas,
-el DMG, el manifiesto y los checksums. Genera el DMG después del resto de los
-artefactos para incorporarlo al manifiesto:
+El segundo comando genera `build/release-candidate/<versión>/`. Si se necesita
+el DMG y está disponible `create-dmg`:
 
 ```bash
-./scripts/package-macos-dmg.sh release/1.0.0
+./scripts/package-macos-dmg.sh build/release-candidate/<versión>
 ```
 
-Ejecuta de nuevo:
+Firma y notariza el bundle antes de la distribución pública si dispones de una
+cuenta Apple Developer. La firma ad hoc solo sirve para pruebas.
 
-```bash
-cd release/1.0.0
-shasum -a 256 -c SHA256SUMS.txt
-```
+## 2. Revisar
 
-Extrae los ZIP en una carpeta temporal y abre la app desde ese contenido, no
-desde el árbol de compilación.
+Comprueba que el candidato tenga todos los artefactos prometidos por su
+manifiesto, ejecuta `shasum -a 256 -c SHA256SUMS.txt` en esa carpeta y prueba
+los ZIP extraídos en una carpeta temporal. Conserva las fuentes correspondientes
+mientras distribuyas binarios.
 
-Ejecuta el workflow **NauticMixxx Windows x64** y espera que terminen en verde
-la validación sintáctica del instalador y las pruebas nativas. Descarga y revisa
-`NauticMixxx-1.0.0-Windows-x64.zip` y comprueba su `.sha256`; el ZIP debe contener
-`INSTALL-WINDOWS.cmd` en la raíz. No publiques un ZIP creado con Mixxx stock ni
-uno que contenga sólo la skin.
+Para una aplicación Windows nativa, el workflow **NauticMixxx Windows x64**
+debe completar la compilación y las pruebas nativas. La edición Windows 1.1.0
+publicada es sólo skin: debe contener `INSTALL-WINDOWS.bat`,
+`UNINSTALL-WINDOWS.bat` y `NauticMixxx-Files/`, y dejar claro que no contiene
+`mixxx.exe` ni los parches nativos.
 
-## 3. GitHub
+## 3. Promover y comunicar
 
-1. Sube únicamente los fuentes admitidos por `.gitignore`.
-2. Crea el tag anotado `v1.0.0`.
-3. Crea un GitHub Release titulado `NauticMixxx 1.0.0`.
-4. Copia el contenido de `RELEASE_NOTES.md`.
-5. Adjunta únicamente el DMG y ZIP de macOS, el ZIP de Windows, las fuentes
-   correspondientes y un único `SHA256SUMS.txt` normalizado con esos cuatro
-   artefactos. No adjuntes el `.sha256` lateral de Windows ni archivos de una
-   compilación anterior.
-6. Documenta el hardware realmente validado y las combinaciones pendientes.
-   Usa prerelease para builds experimentales o incompletas, no sólo por carecer
-   de notarización de Apple.
+Tras una solicitud explícita, copia los artefactos aprobados a
+`../../../release/<versión>/`, verifica de nuevo manifiesto y checksums e informa
+qué archivos y plataforma se actualizaron. No reemplaces la versión anterior
+antes de preservar un punto de restauración.
 
-Nunca subas certificados, claves, perfiles personales, bases SQLite, música o
-logs. Conserva `NauticMixxx-1.0.0-source.tar.gz` mientras distribuyas binarios.
+Para GitHub, crea el tag y el Release de la versión validada, adjunta los
+artefactos aprobados y describe las pruebas físicas pendientes. Nunca incluyas
+certificados, claves, perfiles personales, bases SQLite, música ni logs.
+
+La release local 1.0.0 existente tiene cuatro paquetes y `SHA256SUMS.txt`;
+`NauticMixxx-1.0.0-skin.zip` y `release-manifest.json`, que se mencionaban en
+documentación anterior, no están en ese directorio. No se deben anunciar como
+archivos disponibles hasta generarlos y promoverlos.

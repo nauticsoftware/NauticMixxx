@@ -1,3 +1,31 @@
+# NauticMixxx 1.1.0 — 2026-09-28
+
+English: [installation guide](docs/INSTALLATION-EN.md) and [DDJ-FLX6 menu mapping](docs/DDJ-FLX6-EN.md). The macOS and Windows installers display English messages. The optional FLX6 browser preset has been checked in software; physical controller testing is pending.
+
+Ajustes visuales del display RX3 sobre Mixxx 2.5.6:
+
+- Uso completo del área cliente de la ventana, con referencia 1280×800.
+- Alineación del borde inferior del beatgrid con STATUS / BEAT FX.
+- Espacios revisados entre cabecera, ondas, panel lateral y controles inferiores.
+- Línea de reproducción roja de dos píxeles de referencia, también en BROWSE.
+
+La descarga macOS ARM64 incluye la aplicación nativa compilada con el parche
+0011 y la skin 1.1.0. Está firmada de forma ad hoc y puede mostrar la advertencia
+de macOS propia de una aplicación sin notarizar.
+
+La descarga Windows `NauticMixxx-1.1.0-Windows-x64-Skin.zip` incluye la skin,
+el mapping Inpulse 500 y dos BAT: instalación y desinstalación. Detecta
+NauticMixxx 1.0 y actualiza su skin en la misma carpeta; si no existe Mixxx,
+descarga la versión oficial 2.5.6. Esta edición no incluye un ejecutable nativo
+1.1 para Windows. Por ello, el cursor nativo de dos píxeles, el llenado
+automático de la ventana y las funciones del motor requieren una futura build
+nativa de Windows. La aplicación NauticMixxx 1.0 conserva su motor 1.0.
+
+Los artefactos 1.0.0 permanecen disponibles como versión anterior. Los hashes
+de todos los archivos de 1.1.0 están en `release/1.1.0/SHA256SUMS.txt`.
+
+---
+
 # NauticMixxx 1.0.0
 
 Primera versión estable pública de NauticMixxx, basada en Mixxx 2.5.6.
@@ -26,12 +54,12 @@ Primera versión estable pública de NauticMixxx, basada en Mixxx 2.5.6.
 - macOS ARM64 (recomendado): `NauticMixxx-1.0.0-macOS-arm64.dmg`
 - macOS ARM64: `NauticMixxx-1.0.0-macOS-arm64.zip`
 - Windows 10/11 x64: `NauticMixxx-1.0.0-Windows-x64.zip`
+- Skin: `NauticMixxx-1.0.0-skin.zip`
 - Fuentes correspondientes: `NauticMixxx-1.0.0-source.tar.gz`
 
-Verifica siempre `SHA256SUMS.txt`. La build macOS está firmada de forma ad hoc
-y no está notarizada. No requiere una cuenta Apple Developer, pero macOS puede
-bloquear el primer inicio: intenta abrirla una vez y luego usa **Ajustes del
-Sistema → Privacidad y seguridad → Abrir igualmente**.
+Verifica siempre `SHA256SUMS.txt`. La build macOS firmada de forma ad hoc está
+destinada a testing; para distribución sin advertencias debe usarse una build
+Developer ID notarizada.
 
 En Windows, extrae todo el ZIP y ejecuta `INSTALL-WINDOWS.cmd`. El instalador
 comprueba los archivos, detecta Mixxx y consulta la última versión estable. La

@@ -59,14 +59,26 @@ function Get-Rx3InterfaceScale {
 function Test-Rx3Payload {
     param([string]$PackageRoot)
     $manifestPath = Join-Path $PackageRoot "payload-sha256.json"
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+        throw 'The package manifest is missing. Extract the complete ZIP and try again.'
+    }
     $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    if (-not $manifest.files -or $manifest.files.Count -eq 0) {
+        throw 'The package manifest does not list any files.'
+    }
     $root = [IO.Path]::GetFullPath($PackageRoot).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+    $checked = 0
+    $total = $manifest.files.Count
     foreach ($entry in $manifest.files) {
         $path = [IO.Path]::GetFullPath((Join-Path $root $entry.path))
-        if (-not $path.StartsWith($root, [StringComparison]::OrdinalIgnoreCase)) { throw "Ruta invalida en el paquete." }
-        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Paquete incompleto: $($entry.path)" }
+        if (-not $path.StartsWith($root, [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid path in the package manifest.' }
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Incomplete package: $($entry.path)" }
         if ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ne $entry.sha256) {
-            throw "El archivo $($entry.path) no coincide con el paquete original. Extrae de nuevo el ZIP."
+            throw "File $($entry.path) does not match the original package. Extract the ZIP again."
+        }
+        $checked++
+        if ($checked -eq 1 -or $checked % 100 -eq 0 -or $checked -eq $total) {
+            Write-Host ("Verified {0}/{1} files" -f $checked, $total)
         }
     }
 }
@@ -74,7 +86,7 @@ function Test-Rx3Payload {
 function Start-Rx3Mixxx {
     param([string]$Executable, [string]$SettingsPath)
     # Start-Process joins ArgumentList: quote paths explicitly, including spaces.
-    if ($SettingsPath.Contains('"')) { throw "Ruta de configuracion invalida." }
+    if ($SettingsPath.Contains('"')) { throw 'Invalid settings path.' }
     Start-Process -FilePath $Executable -ArgumentList @("--settings-path", ('"' + $SettingsPath + '"')) | Out-Null
 }
 
@@ -90,23 +102,36 @@ function ConvertTo-MixxxVersion {
 function Get-MixxxInstallations {
     $candidates = New-Object System.Collections.ArrayList
 
+    $nauticParents = @()
+    if ($env:LOCALAPPDATA) { $nauticParents += (Join-Path $env:LOCALAPPDATA 'Programs\NauticMixxx') }
+    if ($env:ProgramFiles) { $nauticParents += (Join-Path $env:ProgramFiles 'NauticMixxx') }
+    foreach ($parent in $nauticParents) {
+        [void]$candidates.Add([pscustomobject]@{ Path = (Join-Path $parent 'mixxx.exe'); Source = 'NauticMixxx'; VersionHint = $null; Kind = 'NauticMixxx' })
+        if (Test-Path -LiteralPath $parent -PathType Container) {
+            foreach ($directory in Get-ChildItem -LiteralPath $parent -Directory -ErrorAction SilentlyContinue) {
+                [void]$candidates.Add([pscustomobject]@{ Path = (Join-Path $directory.FullName 'mixxx.exe'); Source = 'NauticMixxx'; VersionHint = $null; Kind = 'NauticMixxx' })
+            }
+        }
+    }
+
     if ($env:ProgramFiles) {
-        [void]$candidates.Add([pscustomobject]@{ Path = (Join-Path $env:ProgramFiles "Mixxx\mixxx.exe"); Source = 'Program Files'; VersionHint = $null })
+        [void]$candidates.Add([pscustomobject]@{ Path = (Join-Path $env:ProgramFiles "Mixxx\mixxx.exe"); Source = 'Program Files'; VersionHint = $null; Kind = 'Mixxx' })
     }
     if (${env:ProgramFiles(x86)}) {
-        [void]$candidates.Add([pscustomobject]@{ Path = (Join-Path ${env:ProgramFiles(x86)} "Mixxx\mixxx.exe"); Source = 'Program Files (x86)'; VersionHint = $null })
+        [void]$candidates.Add([pscustomobject]@{ Path = (Join-Path ${env:ProgramFiles(x86)} "Mixxx\mixxx.exe"); Source = 'Program Files (x86)'; VersionHint = $null; Kind = 'Mixxx' })
     }
     if ($env:LOCALAPPDATA) {
-        [void]$candidates.Add([pscustomobject]@{ Path = (Join-Path $env:LOCALAPPDATA "Programs\Mixxx\mixxx.exe"); Source = 'Usuario'; VersionHint = $null })
+        [void]$candidates.Add([pscustomobject]@{ Path = (Join-Path $env:LOCALAPPDATA "Programs\Mixxx\mixxx.exe"); Source = 'User'; VersionHint = $null; Kind = 'Mixxx' })
     }
 
     foreach ($registryRoot in @("HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall", "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")) {
         if (Test-Path $registryRoot) {
             foreach ($entry in Get-ChildItem $registryRoot) {
                 $values = Get-ItemProperty $entry.PSPath -ErrorAction SilentlyContinue
-                if ($values.PSObject.Properties["DisplayName"] -and $values.DisplayName -match "^Mixxx(?: |$)" -and $values.PSObject.Properties["InstallLocation"] -and $values.InstallLocation) {
+                if ($values.PSObject.Properties["DisplayName"] -and $values.DisplayName -match "^(?:Mixxx|NauticMixxx)(?: |$)" -and $values.PSObject.Properties["InstallLocation"] -and $values.InstallLocation) {
                     $versionHint = if ($values.PSObject.Properties['DisplayVersion']) { $values.DisplayVersion } else { $null }
-                    [void]$candidates.Add([pscustomobject]@{ Path = (Join-Path $values.InstallLocation "mixxx.exe"); Source = 'Registro'; VersionHint = $versionHint })
+                    $kind = if ($values.DisplayName -match '^NauticMixxx') { 'NauticMixxx' } else { 'Mixxx' }
+                    [void]$candidates.Add([pscustomobject]@{ Path = (Join-Path $values.InstallLocation "mixxx.exe"); Source = 'Registry'; VersionHint = $versionHint; Kind = $kind })
                 }
             }
         }
@@ -114,7 +139,7 @@ function Get-MixxxInstallations {
 
     $command = Get-Command "mixxx.exe" -ErrorAction SilentlyContinue
     if ($command) {
-        [void]$candidates.Add([pscustomobject]@{ Path = $command.Source; Source = 'PATH'; VersionHint = $null })
+        [void]$candidates.Add([pscustomobject]@{ Path = $command.Source; Source = 'PATH'; VersionHint = $null; Kind = 'Mixxx' })
     }
 
     $seen = @{}
@@ -126,12 +151,24 @@ function Get-MixxxInstallations {
         $versionText = (Get-Item -LiteralPath $fullPath).VersionInfo.ProductVersion
         $version = ConvertTo-MixxxVersion -Value $versionText
         if (-not $version) { $version = ConvertTo-MixxxVersion -Value $candidate.VersionHint }
+        $buildInfoPath = Join-Path (Split-Path -Parent $fullPath) 'rx3-build.json'
+        $nauticVersion = $null
+        if (Test-Path -LiteralPath $buildInfoPath -PathType Leaf) {
+            try {
+                $buildInfo = Get-Content -LiteralPath $buildInfoPath -Raw | ConvertFrom-Json
+                if ($buildInfo.product -eq 'NauticMixxx') {
+                    $nauticVersion = ConvertTo-MixxxVersion -Value $buildInfo.version
+                }
+            } catch {}
+        }
         [pscustomobject]@{
             Path = $fullPath
             InstallRoot = Split-Path -Parent $fullPath
             Version = $version
-            VersionText = if ($version) { $version.ToString() } elseif ($versionText) { $versionText } else { 'desconocida' }
+            VersionText = if ($version) { $version.ToString() } elseif ($versionText) { $versionText } else { 'unknown' }
             Source = $candidate.Source
+            Kind = $candidate.Kind
+            NauticVersion = $nauticVersion
         }
     }
 }
@@ -147,14 +184,14 @@ function Get-LatestStableMixxxVersion {
 
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        $headers = @{ 'User-Agent' = 'NauticMixxx-Installer/1.0.0' }
+        $headers = @{ 'User-Agent' = 'NauticMixxx-Installer/1.1.0' }
         $release = Invoke-RestMethod -UseBasicParsing -Uri 'https://api.github.com/repos/mixxxdj/mixxx/releases/latest' `
             -Headers $headers -TimeoutSec 8
         $version = ConvertTo-MixxxVersion -Value $release.tag_name
         if ($version) { return $version }
     }
     catch {
-        Write-Warning "No se pudo consultar la ultima version estable de Mixxx. Se usara la base validada $Fallback."
+        Write-Warning "The latest stable Mixxx version could not be checked. Using validated base $Fallback."
     }
     return $Fallback
 }
@@ -183,7 +220,7 @@ function Assert-SafeInstallRoot {
     $forbidden = @($root, $env:ProgramFiles, ${env:ProgramFiles(x86)}, $env:LOCALAPPDATA, $env:USERPROFILE, $env:WINDIR) |
         Where-Object { $_ } | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\') }
     if ($forbidden -contains $full -or $full.Length -lt 8) {
-        throw "Ruta de instalacion insegura: $full"
+        throw "Unsafe installation path: $full"
     }
     return $full
 }
@@ -201,27 +238,27 @@ function Test-DirectoryWritable {
 }
 
 function Backup-MixxxApplication {
-    param([string]$InstallRoot, [string]$VersionText = 'desconocida')
+    param([string]$InstallRoot, [string]$VersionText = 'unknown')
 
     $safeRoot = Assert-SafeInstallRoot -InstallRoot $InstallRoot
     if (-not (Test-Path -LiteralPath (Join-Path $safeRoot 'mixxx.exe') -PathType Leaf)) {
-        throw "No se encontro mixxx.exe en la instalacion que se quiere reemplazar: $safeRoot"
+        throw "mixxx.exe was not found in the installation to replace: $safeRoot"
     }
     $backupParent = Join-Path $env:LOCALAPPDATA 'NauticMixxx-Backups\Applications'
     $safeVersion = $VersionText -replace '[^0-9A-Za-z._-]', '_'
     $backupRoot = Join-Path $backupParent ("Mixxx-$safeVersion-" + (Get-Date -Format 'yyyyMMdd-HHmmssfff'))
     New-Item -ItemType Directory -Path $backupParent -Force | Out-Null
-    Write-Step "Respaldando la aplicacion completa en $backupRoot"
+    Write-Step "Backing up the complete application to $backupRoot"
     Copy-Item -LiteralPath $safeRoot -Destination $backupRoot -Recurse -Force
     if (-not (Test-Path -LiteralPath (Join-Path $backupRoot 'mixxx.exe') -PathType Leaf)) {
-        throw 'El respaldo de la aplicacion no se pudo verificar.'
+        throw 'The application backup could not be verified.'
     }
     return $backupRoot
 }
 
 function Install-OfficialMixxx {
     if (-not [Environment]::Is64BitOperatingSystem) {
-        throw "Mixxx 2.5.6 y este paquete requieren Windows de 64 bits."
+        throw 'Mixxx 2.5.6 and this package require 64-bit Windows.'
     }
 
     $mixxxVersion = "2.5.6"
@@ -238,7 +275,7 @@ function Install-OfficialMixxx {
         $existingHash = (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
         if ($existingHash -eq $expectedHash) {
             $downloadRequired = $false
-            Write-Step "Reutilizando una descarga oficial ya verificada"
+            Write-Step 'Reusing a verified official download'
         }
         else {
             Remove-Item -LiteralPath $installerPath -Force
@@ -246,14 +283,14 @@ function Install-OfficialMixxx {
     }
 
     if ($downloadRequired) {
-        Write-Step "Mixxx no esta instalado; descargando Mixxx $mixxxVersion oficial"
-        Write-Host "Origen: $downloadUrl"
-        Write-Host "Tamano aproximado: 115 MB. Esto puede tardar unos minutos." -ForegroundColor Yellow
+        Write-Step "Mixxx is not installed; downloading official Mixxx $mixxxVersion"
+        Write-Host "Source: $downloadUrl"
+        Write-Host 'Approximate size: 115 MB. This may take a few minutes.' -ForegroundColor Yellow
 
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         try {
             Import-Module BitsTransfer -ErrorAction Stop
-            Start-BitsTransfer -Source $downloadUrl -Destination $installerPath -DisplayName "Mixxx $mixxxVersion" -Description "Descarga oficial para XDJ-RX3"
+            Start-BitsTransfer -Source $downloadUrl -Destination $installerPath -DisplayName "Mixxx $mixxxVersion" -Description 'Official download for XDJ-RX3'
         }
         catch {
             Invoke-WebRequest -UseBasicParsing -Uri $downloadUrl -OutFile $installerPath
@@ -263,38 +300,38 @@ function Install-OfficialMixxx {
     $actualHash = (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($actualHash -ne $expectedHash) {
         Remove-Item -LiteralPath $installerPath -Force -ErrorAction SilentlyContinue
-        throw "La comprobacion SHA-256 del instalador de Mixxx fallo. No se ejecuto ningun archivo."
+        throw 'Mixxx installer SHA-256 verification failed. No downloaded file was executed.'
     }
 
     $signature = Get-AuthenticodeSignature -LiteralPath $installerPath
     if ($signature.Status -ne [System.Management.Automation.SignatureStatus]::Valid) {
-        throw "La firma digital del instalador oficial de Mixxx no es valida: $($signature.Status)."
+        throw "The official Mixxx installer signature is invalid: $($signature.Status)."
     }
 
-    Write-Step "Instalando Mixxx $mixxxVersion"
+    Write-Step "Installing Mixxx $mixxxVersion"
     $msiArguments = @("/i", "`"$installerPath`"", "/passive", "/norestart")
     $installerProcess = Start-Process -FilePath "msiexec.exe" -ArgumentList $msiArguments -Verb RunAs -Wait -PassThru
     if ($installerProcess.ExitCode -notin @(0, 3010)) {
-        throw "El instalador de Mixxx termino con el codigo $($installerProcess.ExitCode)."
+        throw "The Mixxx installer exited with code $($installerProcess.ExitCode)."
     }
 
-    if ($installerProcess.ExitCode -eq 3010) { Write-Host "Windows solicita reiniciar despues de la instalacion." -ForegroundColor Yellow }
+    if ($installerProcess.ExitCode -eq 3010) { Write-Host 'Windows requires a restart after installation.' -ForegroundColor Yellow }
     $mixxxExecutable = Find-MixxxExecutable
     if (-not $mixxxExecutable) {
-        throw "Mixxx se instalo, pero no se encontro mixxx.exe en una ruta estandar."
+        throw 'Mixxx was installed, but mixxx.exe was not found in a standard location.'
     }
 
-    Write-Host "Mixxx $mixxxVersion fue instalado correctamente." -ForegroundColor Green
+    Write-Host "Mixxx $mixxxVersion was installed successfully." -ForegroundColor Green
     return $mixxxExecutable
 }
 
 function Stop-RunningMixxx {
     $processes = @(Get-Process -Name "mixxx" -ErrorAction SilentlyContinue)
     if ($processes.Count -eq 0) { return }
-    Write-Host "Cierra Mixxx para continuar; no se forzara su cierre." -ForegroundColor Yellow
-    [void](Read-Host "Pulsa ENTER cuando Mixxx este cerrado")
+    Write-Host 'Close Mixxx to continue; setup will not force it to quit.' -ForegroundColor Yellow
+    [void](Read-Host 'Press ENTER after closing Mixxx')
     if (@(Get-Process -Name "mixxx" -ErrorAction SilentlyContinue).Count -gt 0) {
-        throw "Mixxx sigue abierto. Cierra la aplicacion y repite la instalacion."
+        throw 'Mixxx is still running. Close it and run setup again.'
     }
 }
 
@@ -303,13 +340,13 @@ function Backup-MixxxSettings {
 
     $settingsParent = Split-Path -Parent $SettingsPath
     if (-not $settingsParent) {
-        throw "No se pudo determinar una ubicacion externa para el respaldo de Mixxx."
+        throw 'An external location for the Mixxx backup could not be determined.'
     }
 
     $backupParent = Join-Path $settingsParent "Mixxx-XDJ-RX3-Backups"
-    $backupRoot = Join-Path $backupParent ("Mixxx-antes-de-XDJ-RX3-" + (Get-Date -Format "yyyyMMdd-HHmmssfff"))
+    $backupRoot = Join-Path $backupParent ("Mixxx-before-XDJ-RX3-" + (Get-Date -Format "yyyyMMdd-HHmmssfff"))
 
-    Write-Step "Respaldando todas las settings de Mixxx en $backupRoot"
+    Write-Step "Backing up all Mixxx settings to $backupRoot"
     New-Item -ItemType Directory -Path $backupRoot -Force | Out-Null
     foreach ($settingsItem in Get-ChildItem -LiteralPath $SettingsPath -Force) {
         Copy-Item -LiteralPath $settingsItem.FullName -Destination $backupRoot -Recurse -Force
@@ -373,7 +410,7 @@ function Apply-MixxxProfile {
     )
 
     if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf)) {
-        throw "No se encontro mixxx.cfg para aplicar el perfil RX3."
+        throw 'mixxx.cfg was not found while applying the RX3 profile.'
     }
 
     $lines = New-Object System.Collections.ArrayList
@@ -392,12 +429,12 @@ function Apply-MixxxProfile {
             continue
         }
         if (-not $currentSection) {
-            throw "El perfil RX3 contiene un valor fuera de una seccion: $line"
+            throw "The RX3 profile contains a value outside a section: $line"
         }
 
         $parts = $line -split "\s+", 2
         if ($parts.Count -ne 2) {
-            throw "El perfil RX3 contiene una linea invalida: $line"
+            throw "The RX3 profile contains an invalid line: $line"
         }
         Set-MixxxConfigValue -Lines $lines -Section $currentSection -Key $parts[0] -Value $parts[1]
     }
@@ -416,11 +453,11 @@ function Apply-MixxxProfile {
 
     $savedConfig = [System.IO.File]::ReadAllText($ConfigPath)
     if ($savedConfig -notmatch "(?m)^ResizableSkin\s+XDJ_RX3_Mixxx\s*$") {
-        throw "No se pudo activar la skin XDJ-RX3 en mixxx.cfg."
+        throw 'The XDJ-RX3 skin could not be enabled in mixxx.cfg.'
     }
     foreach ($deviceKey in $ControllerKeys) {
         if ($savedConfig -notmatch ("(?m)^" + [regex]::Escape($deviceKey) + "\s+1\s*$")) {
-            throw "No se pudo activar el controlador $deviceKey en mixxx.cfg."
+            throw "Controller $deviceKey could not be enabled in mixxx.cfg."
         }
     }
 }
@@ -431,7 +468,7 @@ function Set-Rx3QuickEffectOrder {
     [xml]$effectsDocument = [System.IO.File]::ReadAllText($EffectsConfig)
     $root = $effectsDocument.DocumentElement
     if (-not $root) {
-        throw "effects.xml no contiene un documento XML valido."
+        throw 'effects.xml does not contain a valid XML document.'
     }
 
     $presetList = $root.SelectSingleNode("QuickEffectPresetList")

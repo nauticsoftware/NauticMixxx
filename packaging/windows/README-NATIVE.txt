@@ -1,80 +1,54 @@
-NAUTICMIXXX 1.0.0 + HERCULES INPULSE 500
-Windows 10 (1809 o posterior) / 11, Intel/AMD de 64 bits
+NAUTICMIXXX 1.1.0 FOR WINDOWS X64
+Windows 10 version 1809 or later / Windows 11, Intel or AMD 64-bit
 
-INSTALAR EN CADA LAPTOP
-1. Extrae todo el ZIP en una carpeta. No ejecutes archivos dentro del ZIP.
-2. Cierra Mixxx y haz doble clic en INSTALL-WINDOWS.cmd. Es el unico archivo
-   que necesitas ejecutar.
-3. El instalador comprueba el paquete, detecta las instalaciones de Mixxx y
-   consulta cual es la ultima version estable disponible.
-4. Si encuentra Mixxx, elige:
-   - P: instalacion paralela (recomendada). Conserva Mixxx intacto.
-   - R: reemplazo avanzado. Selecciona la instalacion y escribe REEMPLAZAR.
-   - C: cancelar sin hacer cambios.
-5. Si falta el driver ASIO Hercules, el instalador ofrece descargarlo de forma
-   opcional y con respuesta predeterminada No. No lo instales si usas otro
-   controlador o dispositivo de audio.
-6. Usa el acceso directo NauticMixxx del escritorio o del menu Inicio.
+QUICK START
+1. Extract the entire ZIP. Do not run files from inside the ZIP viewer.
+2. Open the extracted NauticMixxx-1.1.0-Windows-x64 folder.
+3. Double-click INSTALL-WINDOWS.bat. This is the only file you need to run.
+   Keep the NauticMixxx-Files folder next to it.
+4. Wait while setup verifies the files. It shows a running file count.
+5. If another Mixxx installation is found, choose P for parallel installation
+   (recommended), R to replace it after backups, or C to cancel.
+6. Use the NauticMixxx desktop or Start menu shortcut.
 
-El ZIP contiene la aplicacion nativa NauticMixxx completa, no solamente la
-skin. Incluye los cambios del motor, el navegador USB, mapping, efectos y skin.
-El ejecutable y los accesos directos usan el icono NauticMixxx suministrado por
-el proyecto, no el icono original de Mixxx. No hace falta instalar Mixxx oficial
-ni compilar en la laptop.
+The package contains the complete native NauticMixxx application, skin,
+controller mapping and effects. You do not need an existing Mixxx installation,
+a compiler, Git, Python or an internet connection for the main installation.
 
-INSTALACION PARALELA (RECOMENDADA)
-NauticMixxx se instala en:
-%LOCALAPPDATA%\Programs\NauticMixxx\1.0.0
-
-Usa un perfil independiente:
+PARALLEL INSTALLATION
+Installs the application to:
+%LOCALAPPDATA%\Programs\NauticMixxx\1.1.0
+It uses a separate profile at:
 %LOCALAPPDATA%\Mixxx-RX3
+If an existing Mixxx profile uses base version 2.5.6 or earlier, setup backs
+it up and copies its library and settings to the separate profile. A profile
+from a newer Mixxx version is not migrated backward.
 
-Si existe un perfil Mixxx 2.5.6 o anterior, se copia una vez al perfil RX3
-para conservar biblioteca y ajustes. El original no se modifica. Un perfil
-posterior a la base 2.5.6 no se migra hacia atras: NauticMixxx crea uno limpio.
+ADVANCED REPLACEMENT
+Choose R only if you want to replace a detected Mixxx installation. Setup
+requires the exact word REPLACE. It backs up the complete application and
+profile before copying. Windows requests administrator permission only when
+the selected installation needs it. A Mixxx version newer than the bundled
+base cannot be replaced.
+Application backups: %LOCALAPPDATA%\NauticMixxx-Backups\Applications
+Profile backups: %LOCALAPPDATA%\Mixxx-XDJ-RX3-Backups
 
-REEMPLAZO AVANZADO
-Esta opcion sustituye los archivos de la instalacion de Mixxx elegida, pero
-mantiene el perfil NauticMixxx separado. Antes de borrar nada, el instalador:
-- verifica que la ruta pertenezca a una instalacion detectada;
-- solicita la confirmacion literal REEMPLAZAR;
-- copia y verifica el ejecutable en un respaldo completo;
-- respalda el perfil del usuario;
-- solicita permisos de administrador solamente si la ruta los requiere.
+AUDIO AND CONTROLLER
+Select the appropriate audio device and channels in Preferences > Sound
+Hardware. For Hercules Inpulse 500, ASIO may provide Master 1-2 and
+Headphones 3-4. The Hercules driver download is optional and only offered if
+the driver is not already installed. For other hardware, use its own setup.
+If the controller was disconnected during setup, select the RX3 mapping in
+Preferences > Controllers after connecting it, or run setup again.
 
-No permite reemplazar una version de Mixxx posterior a la base incluida. En ese
-caso usa el modo paralelo. Los respaldos de aplicaciones quedan en:
-%LOCALAPPDATA%\NauticMixxx-Backups\Applications
+The ZIP does not include your music, passwords, Mac library or Mac settings.
+Import tracks from the Windows laptop or its USB drives. Before using it at
+an event, check PLAY/CUE, jog wheels, loop, pitch, MASTER and cue monitoring
+on each laptop.
 
-Los respaldos de perfiles quedan en:
-%LOCALAPPDATA%\Mixxx-XDJ-RX3-Backups
+This is a customized community build, not an official Mixxx release. The
+NauticMixxx-Files folder contains the tested runtime, test results, SHA-256
+manifest, corresponding source code and build recipe.
 
-AUDIO: HACER UNA VEZ EN CADA LAPTOP
-En Preferencias > Hardware de sonido elige la API, dispositivo y canales que
-correspondan a tu hardware. Para Hercules Inpulse 500 puedes usar ASIO,
-Principal 1-2 y Auriculares 3-4. Para otros controladores consulta su manual.
-
-CONTROLES Y PANTALLA
-- Mapping: Hercules DJControl Inpulse 500 - XDJ-RX3 Browse.
-- Si instalas sin conectar el controlador, seleccionalo en Preferencias >
-  Controladores despues de conectarlo, o repite INSTALL-WINDOWS.cmd.
-- SHIFT + ASSISTANT: STATUS / BEAT FX.
-- MASTER exclusivo naranja, con transferencia al detener el deck master.
-- Loop lateral dinamico, fracciones, overview RX3 y cursor blanco.
-- Lienzo 1280 x 800 con escalado proporcional.
-- Compases, milisegundos, hot cues y grilla de la version nativa.
-
-NO INCLUYE LA MUSICA DEL MAC
-Importa las pistas desde los discos o USB de la laptop. El paquete no contiene
-contrasenas, rutas personales, bases de datos, musica ni dispositivos del Mac.
-
-COMPILACION Y PRUEBAS
-El ZIP incluye resultados de pruebas, hashes, fuentes correspondientes y receta
-de compilacion. Es una compilacion comunitaria personalizada, no una publicacion
-oficial del equipo Mixxx. Verifica PLAY/CUE, jogs, loop, pitch, MASTER y
-preescucha en cada laptop antes de usarla en una sesion.
-
-FUENTES OFICIALES
-https://github.com/mixxxdj/mixxx/tree/2.5.6
-https://github.com/mixxxdj/mixxx/wiki/Compiling-On-Windows
-https://support.hercules.com/es/product/djcontrolinpulse500-es/
+Mixxx source: https://github.com/mixxxdj/mixxx/tree/2.5.6
+Hercules support: https://support.hercules.com/en/product/djcontrolinpulse500-en/

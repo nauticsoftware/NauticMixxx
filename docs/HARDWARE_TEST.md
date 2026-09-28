@@ -1,14 +1,15 @@
 # Prueba física — Hercules DJControl Inpulse 500
 
-Esta matriz valida los seis fixes incluidos en el mapper vigente. Usa solamente
-`release/1.0.0/NauticMixxx-1.0.0-macOS-arm64/NauticMixxx.app`; no mezcles el ensayo con otra instalación de
-Mixxx o con un mapping copiado anteriormente al perfil del usuario.
+Esta matriz valida los seis fixes incluidos en el mapper vigente. Extrae el ZIP
+`../../../release/1.0.0/NauticMixxx-1.0.0-macOS-arm64.zip` en una carpeta
+temporal y usa únicamente la aplicación que contiene; no mezcles el ensayo con
+otra instalación de Mixxx o con un mapping copiado antes al perfil del usuario.
 
 ## Preparación
 
 1. Cierra Mixxx y cualquier NauticMixxx que esté abierto.
 2. Conecta el Inpulse 500 directamente al Mac.
-3. Ejecuta `release/1.0.0/CONFIGURAR-Y-ABRIR.command`.
+3. Ejecuta `CONFIGURE-AND-OPEN.command` desde la carpeta extraída.
    No debe aparecer ningún selector de carpeta Música. Si macOS solicita acceso,
    autoriza exclusivamente la raíz del USB Rekordbox conectado.
 4. En Preferencias → Controladores verifica que el equipo esté habilitado con

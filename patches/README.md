@@ -109,3 +109,23 @@ only in the corresponding-source tree: direct PDB/ANLZ catalog access, imported
 waveforms and strict track capability policies. USB-backed tracks may be loaded
 and played, but they cannot be persisted into the local collection, exported,
 rewritten or passed to local analysis jobs.
+
+
+## 0011 — RX3 1.1 display geometry and playhead
+
+Apply after 0001–0010. `ReferenceFill=true` makes the live canvas fill its
+viewport while fonts and fixed dimensions retain uniform reference scaling.
+Flexible waveform/layout regions absorb the remaining width. Without this
+opt-in, `ReferenceSize` keeps its original centered aspect ratio behavior.
+
+`PlayPosWidth` specifies a width of 1–4 reference pixels (default 1). Both
+waveform backends and overview cursors use it; the RX3 skin selects 2 and
+`PlayPosColor=#ff0000`. Resizing preserves the reference width. The skin aligns
+the lower waveform edge with the STATUS / BEAT FX panel and leaves a ten-pixel
+gap above the mode strip at 1280×800.
+
+The regression suite covers fill at matching and different aspect ratios,
+resizes with an unchanged scale factor, widget/control identity, legacy
+letterboxing and invalid/missing cursor width values. The patch also carries
+an existing test sampling-coordinate correction from the working source so
+reconstructed and working tests match.

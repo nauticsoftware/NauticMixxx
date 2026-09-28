@@ -1,80 +1,104 @@
-# Install NauticMixxx 1.0.0
+# Instalar NauticMixxx 1.1.0
 
 ## macOS Apple Silicon
 
-Requirements: macOS 11 or later and a Mac with Apple Silicon chip.
+Requisitos: macOS 11 o posterior y un Mac con chip Apple Silicon.
 
-1. Download `NauticMixxx-1.0.0-macOS-arm64.dmg` and `SHA256SUMS.txt`.
+1. Descarga `NauticMixxx-1.1.0-macOS-arm64.dmg` y `SHA256SUMS.txt`.
+2. Verifica el archivo: `shasum -a 256 -c SHA256SUMS.txt`.
+3. Abre el DMG y arrastra **NauticMixxx.app** a Aplicaciones.
+4. El ZIP alternativo incluye `CONFIGURE-AND-OPEN.command`, que instala el perfil
+   RX3 y asigna automáticamente el Inpulse 500 antes de abrir la app.
+5. También puedes usar `install-nauticmixxx-macos.sh`; el instalador aplica el
+   perfil y conserva como máximo una versión previa.
+6. Si macOS advierte que es una build comunitaria sin notarizar, usa clic derecho
+   → **Abrir** en la primera ejecución.
 
-2. Check the file: `shasum -a 256 -c SHA256SUMS.txt`.
+NauticMixxx no debe abrir el selector de carpeta musical: el asistente, el
+escaneo y el alta de directorios de la biblioteca local están bloqueados. Si
+aparece una ventana ubicada en Música, estás ejecutando una build anterior.
+La única selección de carpeta permitida es una autorización de macOS sobre la
+raíz del propio USB Rekordbox cuando el sistema operativo la exige.
 
-3. Open the DMG and drag **NauticMixxx.app** to Applications.
+El perfil deja asignado **Hercules DJControl Inpulse 500 - XDJ-RX3 Browse** y
+mantiene el mapping en la carpeta de usuario, por lo que mover o reemplazar el
+`.app` no rompe la asignación. No modifica dispositivos de audio ni grabaciones.
+El motor conserva una base interna para estado e historial, pero no la expone
+como fuente musical ni escanea directorios locales.
 
-4. The alternative ZIP includes `CONFIGURAR-Y-ABRIR.command`, which installs the profile
-RX3 and automatically assign the Inpulse 500 before opening the app.
-
-5. You can also use `install-nauticmixxx-macos.sh`; the installer applies the
-Profile and retains at most a previous version.
-
-6. This community build is ad-hoc signed and not notarised. If macOS blocks the
-first launch, try to open NauticMixxx once, then open **System Settings →
-Privacy & Security** and choose **Open Anyway** next to the NauticMixxx warning.
-Confirm **Open** when prompted. An Apple Developer account is not required.
-
-NauticMixxx should not open the music folder selector: the wizard, the
-Scan and the registration of directories from the local library are blocked. If
-A window appears located in Music, you are running a previous build.
-The only folder selection allowed is a macOS authorisation on the
-Root of the USB Rekordbox itself when the operating system requires it.
-The profile leaves assigned **Hercules DJControl Inpulse 500 - XDJ-RX3 Browse** and
-Keeps the mapping in the user folder, so moving or replacing the
-`.app` does not break the assignment. It does not modify audio devices or recordings.
-The engine retains an internal base for status and history, but does not expose it
-As a music source or scan local directories.
-The application preserves the Mixxx data identifier to keep the
-Access to the profile and sandbox used by the base engine. Before trying a
-New version, back up:
+La aplicación conserva el identificador de datos de Mixxx para mantener el
+acceso al perfil y al sandbox usados por el motor base. Antes de probar una
+versión nueva, realiza una copia de seguridad de:
 
 `~/Library/Containers/org.mixxx.mixxx/Data/Library/Application Support/NauticMixxx`
 
-The NauticMixxx profile is independent of the existing Mixxx profile. The app opens
-The default NauticMixxx interface in a new installation.
-NauticMixxx opens the USB Rekordbox in read mode and does not modify its music.
-The first selection of the device may cause a request for authorisation
-Of macOS; select the root of the USB, never a local Music folder.
+El perfil NauticMixxx es independiente del perfil Mixxx existente. La app abre
+la interfaz NauticMixxx por defecto en una instalación nueva.
+
+NauticMixxx abre el USB Rekordbox en modo de lectura y no modifica su música.
+La primera selección del dispositivo puede provocar una solicitud de permiso
+de macOS; selecciona la raíz del USB, nunca una carpeta de Música local.
 
 ## Windows x64
 
-The native version is produced by the **NauticMixxx Windows x64** workflow.
-Fully extract the ZIP and run only `INSTALL-WINDOWS.cmd`. The package already
-contains the modified application, skin, mapping, effects, corresponding source
-and test results; it does not download and patch an official installation.
+Para instalar la **skin 1.1.0**, extrae
+`release/1.1.0/NauticMixxx-1.1.0-Windows-x64-Skin.zip` y ejecuta
+únicamente `INSTALL-WINDOWS.bat`. Mantén `NauticMixxx-Files/` junto al BAT. El
+instalador está íntegramente en inglés, muestra el avance y detecta tanto
+NauticMixxx 1.0 como Mixxx oficial. Si encuentra NauticMixxx 1.0 actualiza la
+skin en sus carpetas existentes; si no encuentra ninguno, descarga Mixxx desde
+la fuente oficial. Para Mixxx oficial ofrece un perfil paralelo o la
+actualización de la skin en el perfil habitual. Reconoce versiones 1.0+
+de la skin, crea respaldos y evita instalar 1.1 sobre una versión posterior.
+El acceso directo se llama NauticMixxx, usa el icono del proyecto y sustituye
+los accesos directos antiguos del escritorio, conservándolos como respaldo.
+Esta edición no distribuye `mixxx.exe`; las funciones nativas personalizadas
+requieren la aplicación NauticMixxx completa.
 
-The installer verifies hashes, detects Mixxx installations and checks the
-latest stable version. If Mixxx is present, it offers:
+Para quitar las versiones instaladas en las carpetas propias de NauticMixxx en Windows, cierra la aplicación
+y ejecuta `UNINSTALL-WINDOWS.bat` del mismo ZIP. El BAT muestra las carpetas
+detectadas y exige escribir `UNINSTALL`. Elimina las instalaciones propias,
+el perfil independiente, accesos directos, respaldos y cachés. Si la skin se
+instaló en el perfil habitual de Mixxx, retira sus componentes RX3 y conserva
+la biblioteca, Mixxx oficial y el controlador Hercules instalado por separado.
 
-- **Parallel (recommended):** installs to
-  `%LOCALAPPDATA%\Programs\NauticMixxx\1.0.0` with the independent
-  `%LOCALAPPDATA%\Mixxx-RX3` profile. The official installation remains intact.
-- **Advanced replacement:** lets the user select a detected installation,
-  requires the exact confirmation `REEMPLAZAR`, backs up the application and
-  profile first, and requests administrator rights only when required. It never
-  replaces a Mixxx version newer than the included 2.5.6 base.
+La siguiente descripción corresponde al ZIP **nativo 1.0.0** anterior:
 
-If the Hercules ASIO driver is not detected, the assistant offers it as a
-separate optional download with **No** as the default. Users of other
-controllers or audio interfaces do not need it. Application backups are stored
-under `%LOCALAPPDATA%\NauticMixxx-Backups\Applications`; profile backups are
-stored under `%LOCALAPPDATA%\Mixxx-XDJ-RX3-Backups`.
+La versión nativa se obtiene como artefacto del workflow **NauticMixxx Windows
+x64**. Extrae por completo el ZIP y ejecuta únicamente `INSTALL-WINDOWS.cmd`.
+El paquete ya contiene la aplicación modificada, la skin, el mapping, efectos,
+fuentes y resultados de prueba; no descarga ni parchea una instalación oficial.
 
-Do not present a Windows ZIP as stable until the installer validation and native
-tests have completed successfully in the workflow.
+El instalador valida los hashes, detecta las instalaciones de Mixxx y consulta
+la última versión estable disponible. Si encuentra Mixxx ofrece:
 
-## Only the skin
+- **Paralelo (recomendado):** instala en
+  `%LOCALAPPDATA%\Programs\NauticMixxx\1.0.0` y usa el perfil independiente
+  `%LOCALAPPDATA%\Mixxx-RX3`; la instalación oficial queda intacta.
+- **Reemplazo avanzado:** permite elegir una instalación detectada, exige
+  escribir `REEMPLAZAR`, respalda primero la aplicación y el perfil, y solicita
+  permisos de administrador sólo cuando la ruta los necesita. Nunca reemplaza
+  una versión posterior a la base Mixxx 2.5.6.
 
-`NauticMixxx-1.0.0-skin.zip` is for inspection or for compatible Mixxx. La
+Si no detecta el driver ASIO de Hercules, el asistente ofrece descargarlo como
+opción separada y con respuesta predeterminada **No**. No es necesario para
+usuarios de otros controladores o interfaces. Los respaldos de aplicaciones se guardan en
+`%LOCALAPPDATA%\NauticMixxx-Backups\Applications` y los de perfiles en
+`%LOCALAPPDATA%\Mixxx-XDJ-RX3-Backups`.
 
-Complete experience requires the patched app: the skin alone does not incorporate the
-RX3 browser, native scaling or engine corrections.
+No presentes como estable un ZIP de Windows hasta que el workflow termine con
+la validación del instalador y las pruebas nativas en verde.
 
-## Uninstall
+## Sólo la skin
+
+La skin activa está en `../skins/XDJ_RX3_Mixxx/` desde esta documentación. El
+empaquetador puede crear `NauticMixxx-1.0.0-skin.zip` como candidato, pero ese
+ZIP no se encuentra en `release/1.0.0/` actualmente. La experiencia completa
+requiere la app parcheada: la skin sola no incorpora el navegador RX3, el
+escalado nativo ni las correcciones del motor.
+
+## Desinstalar
+
+Elimina `NauticMixxx.app`. Los ajustes y la biblioteca permanecen en el perfil
+de Mixxx para evitar pérdida de datos. Elimínalos sólo después de respaldarlos y
+únicamente si ya no los necesitas.

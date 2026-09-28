@@ -21,6 +21,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 APP_ROOT = ROOT.parent
+WORKSPACE_ROOT = APP_ROOT.parent
 VERSION = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 PRODUCT = "NauticMixxx"
 LOCAL_SOURCE_ROOT = APP_ROOT
@@ -32,7 +33,7 @@ SOURCE_ROOT = (
 )
 LOCAL_APP = APP_ROOT / "stage-v1/NauticMixxx.app"
 REBUILD_APP = ROOT / "tmp/mixxx-native-rebuild/stage/NauticMixxx.app"
-RELEASE_APPS = sorted((ROOT / "release").glob("*/NauticMixxx-*-macOS-arm64/NauticMixxx.app"), reverse=True)
+RELEASE_APPS = sorted((WORKSPACE_ROOT / "release").glob("*/NauticMixxx-*-macOS-arm64/NauticMixxx.app"), reverse=True)
 DEFAULT_APP = next(
     (candidate for candidate in [LOCAL_APP, REBUILD_APP, *RELEASE_APPS] if candidate.exists()),
     REBUILD_APP,
@@ -40,19 +41,27 @@ DEFAULT_APP = next(
 FALLBACK_APP = APP_ROOT / "build/NauticMixxx.app"
 PUBLIC_SCRIPT_PATHS = [
     "scripts/build-app-icon-macos.sh",
+    "scripts/build-app-icon-windows.py",
     "scripts/build-mixxx-rx3-macos.sh",
     "scripts/package-macos-dmg.sh",
     "scripts/build-mixxx-rx3-windows.ps1",
     "scripts/configure-nauticmixxx-profile.py",
     "scripts/package-release.py",
     "scripts/package-rx3-windows-native.py",
+    "scripts/package-rx3-windows-skin.py",
     "scripts/release-audit.py",
+    "scripts/test-windows-skin-package.py",
+    "scripts/test-windows-installer-contract.py",
     "scripts/test-rx3-autoloop.js",
     "scripts/test-rx3-loop-adjust.js",
     "scripts/test-rx3-sound-color-fx.js",
     "scripts/test-rx3-transport-controls.js",
     "scripts/test-rx3-usb-only.py",
+    "scripts/test-flx6-browser.js",
     "scripts/validate-release.sh",
+    "tests/windows/installer-tests.ps1",
+    "tests/windows/uninstaller-tests.ps1",
+    "tests/windows/browser-grid-vinyl-tests.cjs",
 ]
 
 
@@ -94,16 +103,14 @@ def add_tree(tar: tarfile.TarFile, source: Path, arcname: str) -> None:
 
 
 def validate_inputs(app: Path) -> None:
-    if VERSION != "1.0.0":
-        raise ValueError(f"Este empaquetador corresponde a 1.0.0, no a {VERSION}")
     skin_version = ET.parse(ROOT / "skins/XDJ_RX3_Mixxx/skin.xml").findtext(
         "manifest/version"
     )
     if skin_version != VERSION:
         raise ValueError(f"La skin declara {skin_version}; se esperaba {VERSION}")
     patches = sorted((ROOT / "patches").glob("00[0-9][0-9]-*.patch"))
-    if len(patches) != 10:
-        raise ValueError("La release requiere exactamente los diez parches 0001–0010")
+    if len(patches) != 11:
+        raise ValueError("La release requiere exactamente los once parches 0001–0011")
     if not (SOURCE_ROOT / "src/widget/rx3displaystate.h").is_file():
         raise ValueError("Faltan los fuentes correspondientes parcheados de Mixxx")
     if not app.is_dir() or not (app / "Contents/Info.plist").is_file():
@@ -151,6 +158,7 @@ def prepare_app(source_app: Path, target_app: Path) -> None:
     resources = target_app / "Contents/Resources"
     copy_tree(ROOT / "skins/XDJ_RX3_Mixxx", resources / "skins/XDJ_RX3_Mixxx")
     copy_tree(ROOT / "controllers/Hercules_DJControl_Inpulse_500_RX3", resources / "controllers")
+    copy_tree(ROOT / "controllers/Pioneer_DDJ_FLX6_RX3", resources / "controllers")
     copy_tree(ROOT / "effects/chains", resources / "effects/chains")
     profiles = resources / "profiles"
     profiles.mkdir(parents=True, exist_ok=True)
@@ -169,6 +177,7 @@ def prepare_app(source_app: Path, target_app: Path) -> None:
         [str(ROOT / "scripts/build-app-icon-macos.sh"), str(app_icon)],
         check=True,
     )
+    (resources / "osx").mkdir(parents=True, exist_ok=True)
     shutil.copy2(app_icon, resources / "osx/application.icns")
     # Finder metadata copied from a local bundle invalidates strict code-sign
     # verification. Strip extended attributes before applying the final sign.
@@ -208,9 +217,12 @@ def create_source_archive(output: Path) -> None:
         add_tree(archive, ROOT / "packaging/windows", f"{prefix}/packaging/windows")
         add_tree(
             archive,
-            ROOT / "packaging/DMG_PROJECT/iCon-macOS-Dark-1024x1024@1x.png",
-            f"{prefix}/packaging/DMG_PROJECT/iCon-macOS-Dark-1024x1024@1x.png",
+            ROOT / "branding/iCon-macOS-Dark-1024x1024@1x.png",
+            f"{prefix}/branding/iCon-macOS-Dark-1024x1024@1x.png",
         )
+        background = ROOT / "packaging/DMG_PROJECT/DMG_BG.jpg"
+        if background.is_file():
+            add_tree(archive, background, f"{prefix}/packaging/DMG_PROJECT/DMG_BG.jpg")
         for path in [
             "VERSION",
             "README.md",
@@ -220,10 +232,10 @@ def create_source_archive(output: Path) -> None:
             "CHANGELOG.md",
             "CONTRIBUTING.md",
             "RELEASE_NOTES.md",
+            "RELEASE_NOTES_EN.md",
             "TEST_REPORT.md",
             "BUILD-WINDOWS.cmd",
             "DRIVER-HERCULES.cmd",
-            "INSTALL-WINDOWS.cmd",
             "EMPEZAR-COMPILACION.txt",
         ]:
             add_tree(archive, ROOT / path, f"{prefix}/{path}")
@@ -241,7 +253,7 @@ def create_github_source_zip(output: Path) -> None:
     entries = [
         "docs",
         "branding/iCon.icon",
-        "packaging/DMG_PROJECT/iCon-macOS-Dark-1024x1024@1x.png",
+        "branding/iCon-macOS-Dark-1024x1024@1x.png",
         "packaging/macos",
         "packaging/windows",
         "controllers",
@@ -255,12 +267,12 @@ def create_github_source_zip(output: Path) -> None:
         "CONTRIBUTING.md",
         "CHANGELOG.md",
         "DRIVER-HERCULES.cmd",
-        "INSTALL-WINDOWS.cmd",
         "EMPEZAR-COMPILACION.txt",
         "LICENSE.md",
         "branding/NauticMixxx.png",
         "README.md",
         "RELEASE_NOTES.md",
+        "RELEASE_NOTES_EN.md",
         "SECURITY.md",
         "TEST_REPORT.md",
         "THIRD_PARTY_NOTICES.md",
@@ -289,7 +301,7 @@ base=$(CDPATH= cd -- \"$(dirname -- \"$0\")\" && pwd)
 archive=\"$base/{archive_name}\"
 expected={expected}
 actual=$(shasum -a 256 \"$archive\" | awk '{{print $1}}')
-[ \"$actual\" = \"$expected\" ] || {{ echo 'SHA-256 inválido.' >&2; exit 1; }}
+[ \"$actual\" = \"$expected\" ] || {{ echo 'SHA-256 verification failed.' >&2; exit 1; }}
 temp=$(mktemp -d \"${{TMPDIR:-/tmp}}/nauticmixxx-install.XXXXXX\")
 trap 'rm -rf \"$temp\"' EXIT HUP INT TERM
 ditto -x -k \"$archive\" \"$temp\"
@@ -300,12 +312,12 @@ if [ -e \"$target\" ]; then
   backup=\"/Applications/{PRODUCT}.previous.app\"
   [ ! -e \"$backup\" ] || rm -rf \"$backup\"
   mv \"$target\" \"$backup\"
-  echo \"Respaldo: $backup\"
+  echo \"Previous app backed up at: $backup\"
 fi
 ditto \"$source_app\" \"$target\"
 python3 \"$target/Contents/Resources/tools/configure-nauticmixxx-profile.py\" --app \"$target\"
-echo \"Instalado y configurado: $target\"
-echo 'En la primera apertura, macOS puede solicitar confirmación para una build comunitaria.'
+echo \"Installed and configured: $target\"
+echo 'On first launch, macOS may ask you to confirm opening this community build.'
 """
     path.write_text(script, encoding="utf-8")
     path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
@@ -316,7 +328,7 @@ def write_configure_launcher(path: Path) -> None:
 set -eu
 base=$(CDPATH= cd -- \"$(dirname -- \"$0\")\" && pwd)
 app=\"$base/{PRODUCT}.app\"
-[ -d \"$app\" ] || {{ echo 'NauticMixxx.app debe estar junto a este archivo.' >&2; exit 1; }}
+[ -d \"$app\" ] || {{ echo 'Keep NauticMixxx.app next to this file.' >&2; exit 1; }}
 python3 \"$app/Contents/Resources/tools/configure-nauticmixxx-profile.py\" --app \"$app\"
 open \"$app\"
 """
@@ -344,11 +356,31 @@ def create_sbom(path: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app", type=Path)
-    parser.add_argument("--output", type=Path, default=ROOT / "release" / VERSION)
+    parser.add_argument("--windows-skin", type=Path, help="validated Windows skin ZIP to include")
+    parser.add_argument("--output", type=Path, default=ROOT / "build" / "release-candidate" / VERSION)
     args = parser.parse_args()
     app = args.app.resolve() if args.app else (DEFAULT_APP if DEFAULT_APP.exists() else FALLBACK_APP)
+    windows_skin = args.windows_skin.resolve() if args.windows_skin else None
     output = args.output.resolve()
     validate_inputs(app)
+    if windows_skin:
+        expected_name = f"{PRODUCT}-{VERSION}-Windows-x64-Skin.zip"
+        if windows_skin.name != expected_name or not windows_skin.is_file():
+            raise ValueError(f"Expected a built Windows package named {expected_name}")
+        with zipfile.ZipFile(windows_skin) as archive:
+            prefix = expected_name[:-4] + "/"
+            names = set(archive.namelist())
+            expected = {
+                prefix + "INSTALL-WINDOWS.bat",
+                prefix + "UNINSTALL-WINDOWS.bat",
+                prefix + "NauticMixxx-Files/payload-sha256.json",
+            }
+            if not expected.issubset(names) or any(name.lower().endswith((".exe", ".msi")) for name in names):
+                raise ValueError("The Windows skin package has an unexpected layout")
+            windows_manifest = json.loads(archive.read(prefix + "NauticMixxx-Files/payload-sha256.json"))
+            if (windows_manifest.get("product") != PRODUCT or windows_manifest.get("version") != VERSION or
+                windows_manifest.get("kind") != "skin-only"):
+                raise ValueError("The Windows skin package has an invalid manifest")
     if output.exists() and any(output.iterdir()):
         raise ValueError(f"La salida ya contiene archivos; usa otra carpeta: {output}")
     output.mkdir(parents=True, exist_ok=True)
@@ -359,8 +391,10 @@ def main() -> None:
         bundle_root.mkdir()
         prepared_app = bundle_root / f"{PRODUCT}.app"
         prepare_app(app, prepared_app)
-        write_configure_launcher(bundle_root / "CONFIGURAR-Y-ABRIR.command")
+        write_configure_launcher(bundle_root / "CONFIGURE-AND-OPEN.command")
         shutil.copy2(ROOT / "docs/INSTALLATION.md", bundle_root / "LEEME.md")
+        shutil.copy2(ROOT / "docs/INSTALLATION-EN.md", bundle_root / "README.md")
+        shutil.copy2(ROOT / "docs/DDJ-FLX6-EN.md", bundle_root / "DDJ-FLX6-EN.md")
         shutil.copy2(ROOT / "LICENSE.md", bundle_root)
         shutil.copy2(ROOT / "THIRD_PARTY_NOTICES.md", bundle_root)
         mac_archive = output / f"{PRODUCT}-{VERSION}-macOS-arm64.zip"
@@ -372,20 +406,23 @@ def main() -> None:
     create_skin_zip(skin_archive)
     create_source_archive(source_archive)
     create_github_source_zip(github_archive)
+    if windows_skin:
+        shutil.copy2(windows_skin, output / windows_skin.name)
     shutil.copy2(ROOT / "RELEASE_NOTES.md", output / "RELEASE_NOTES.md")
+    shutil.copy2(ROOT / "RELEASE_NOTES_EN.md", output / "RELEASE_NOTES_EN.md")
     shutil.copy2(ROOT / "TEST_REPORT.md", output / "TEST_REPORT.md")
     create_sbom(output / f"{PRODUCT}-{VERSION}.spdx.json")
     installer = output / "install-nauticmixxx-macos.sh"
     write_installer(installer, mac_archive.name, sha256(mac_archive))
-    write_configure_launcher(output / "CONFIGURAR-Y-ABRIR.command")
+    write_configure_launcher(output / "CONFIGURE-AND-OPEN.command")
 
     artifacts = sorted(path for path in output.iterdir() if path.is_file() and path.name not in {"SHA256SUMS.txt", "release-manifest.json"})
     manifest = {
         "product": PRODUCT,
         "version": VERSION,
         "base": "Mixxx 2.5.6",
-        "platformStatus": {"macOS-arm64": "locally-tested", "windows-x64": "build-recipe"},
-        "tests": {"nativePassed": 46, "nativeFailed": 0, "optionalExternalFixturesSkipped": 5, "controllerSuitesPassed": 4, "usbOnlyContractPassed": True},
+        "platformStatus": {"macOS-arm64": "native-build-locally-tested", "windows-x64": "skin-only-installer"},
+        "tests": {"nativePassed": 111, "nativeFailed": 0, "optionalExternalFixturesSkipped": 5, "controllerSuitesPassed": 4, "usbOnlyContractPassed": True, "windowsInstallerChecks": 20, "windowsUninstallerChecks": 16, "windowsTargetMachineVerified": False},
         "artifacts": [{"name": path.name, "bytes": path.stat().st_size, "sha256": sha256(path)} for path in artifacts],
     }
     (output / "release-manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
