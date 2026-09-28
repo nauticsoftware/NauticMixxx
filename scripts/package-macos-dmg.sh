@@ -7,7 +7,6 @@ version=$(cat "$project/VERSION")
 release_dir=${1:-"$project/release/$version"}
 archive="$release_dir/NauticMixxx-$version-macOS-arm64.zip"
 output="$release_dir/NauticMixxx-$version-macOS-arm64.dmg"
-background="$project/packaging/DMG_PROJECT/DMG_BG.jpg"
 
 command -v create-dmg >/dev/null 2>&1 || {
   printf 'Falta create-dmg. Instálalo con: brew install create-dmg\n' >&2
@@ -39,12 +38,12 @@ if [ -e "$output" ]; then
   mv "$output" "$temp/previous.dmg"
 fi
 
-# The artwork is 600×360 and is designed for the app on the left and the
-# Applications link on the right.
+# Keep the Finder window deliberately background-free. This avoids resolution
+# and scaling differences between Finder versions while preserving the simple
+# drag-to-Applications layout.
 create-dmg \
   --volname "NauticMixxx $version" \
   --volicon "$icon" \
-  --background "$background" \
   --window-pos 200 120 \
   --window-size 600 360 \
   --icon-size 112 \

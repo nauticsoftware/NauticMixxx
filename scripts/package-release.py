@@ -211,11 +211,6 @@ def create_source_archive(output: Path) -> None:
             ROOT / "packaging/DMG_PROJECT/iCon-macOS-Dark-1024x1024@1x.png",
             f"{prefix}/packaging/DMG_PROJECT/iCon-macOS-Dark-1024x1024@1x.png",
         )
-        add_tree(
-            archive,
-            ROOT / "packaging/DMG_PROJECT/DMG_BG.jpg",
-            f"{prefix}/packaging/DMG_PROJECT/DMG_BG.jpg",
-        )
         for path in [
             "VERSION",
             "README.md",
@@ -247,7 +242,6 @@ def create_github_source_zip(output: Path) -> None:
         "docs",
         "branding/iCon.icon",
         "packaging/DMG_PROJECT/iCon-macOS-Dark-1024x1024@1x.png",
-        "packaging/DMG_PROJECT/DMG_BG.jpg",
         "packaging/macos",
         "packaging/windows",
         "controllers",

@@ -29,7 +29,6 @@ PUBLIC_INPUTS = [
     ROOT / "controllers/Hercules_DJControl_Inpulse_500_RX3",
     ROOT / "effects",
     ROOT / "packaging/DMG_PROJECT/iCon-macOS-Dark-1024x1024@1x.png",
-    ROOT / "packaging/DMG_PROJECT/DMG_BG.jpg",
     ROOT / "packaging/macos",
     ROOT / "packaging/windows",
 ]
