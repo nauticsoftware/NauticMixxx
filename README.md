@@ -1,117 +1,60 @@
 # NauticMixxx 1.1.0
 
-English: [installation guide](docs/INSTALLATION-EN.md) · [DDJ-FLX6 menu controls](docs/DDJ-FLX6-EN.md). Windows and macOS installer messages are in English.
-
 ![NauticMixxx](branding/NauticMixxx.png)
 
-NauticMixxx es una edición comunitaria y de código abierto de Mixxx 2.5.6,
-diseñada para ofrecer un flujo visual de dos decks inspirado en una cabina
-XDJ-RX3 y una integración profunda con Hercules DJControl Inpulse 500.
+NauticMixxx is an open-source community edition of Mixxx 2.5.6. It brings an XDJ-RX3-inspired two-deck display to Mixxx, with a dedicated Hercules DJControl Inpulse 500 mapping.
 
-La versión vigente 1.1.0 ajusta la geometría del display a las referencias RX3,
-llena el área de la ventana desde un lienzo de 1280×800 y utiliza cursores rojos
-de dos píxeles de referencia en la aplicación nativa de macOS. La distribución
-de Windows incluye la skin 1.1.0 y scripts de instalación y desinstalación;
-no incluye un ejecutable NauticMixxx nuevo.
+Version 1.1 refines the display around a 1280×800 reference layout. The waveforms, beatgrid and STATUS / BEAT FX controls have more accurate spacing, and the playback marker is red and slightly thicker. The native macOS app fills the available window area. The Windows release updates the skin and installer; it does **not** include a new native NauticMixxx executable.
 
-## Qué incluye
+## Features
 
-- Interfaz 1280×800 escalable con vistas PERFORMANCE, BROWSE y STATUS.
-- Waveforms apiladas, beat grid perimetral, overview y ocho Hot Cues por deck.
-- Navegación y carga exclusiva desde USB preparado por rekordbox; el asistente,
-  el escaneo y las fuentes de biblioteca musical local están bloqueados.
-- Mapping específico para Hercules DJControl Inpulse 500.
-- Preset opcional de navegación DDJ-FLX6; no reemplaza un mapping completo.
-- Cuatro Sound Color FX y controles de loop adaptados al hardware.
-- Pantalla de arranque, icono y estado sin pistas con identidad NauticMixxx.
-- Corrección de reapertura de SOURCE/USB durante la reproducción.
-- Fuentes, parches, pruebas y checksums para auditar cada release.
+- Scalable PERFORMANCE, BROWSE and STATUS views with stacked waveforms, beatgrid, overviews and eight Hot Cues per deck.
+- Rekordbox USB browsing and loading in the native NauticMixxx app. Its local music-folder browser and scanner are disabled.
+- Hercules DJControl Inpulse 500 mapping with RX3-style browser and loop controls.
+- Optional DDJ-FLX6 **browser-only** preset for VIEW, SOURCE, BROWSE, BACK and LOAD 1/2. It does not replace a full controller mapping; see the [DDJ-FLX6 guide](docs/DDJ-FLX6-EN.md).
+- Four Sound Color FX, NauticMixxx branding, reproducible patches, tests and release checksums.
 
-## Descargar e instalar
+## Download and install
 
-La versión vigente se descarga desde [Releases de NauticMixxx](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.1.0):
+Get the current files from [NauticMixxx 1.1.0 Releases](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.1.0):
 
-- `NauticMixxx-1.1.0-macOS-arm64.dmg`
-- `NauticMixxx-1.1.0-macOS-arm64.zip`
-- `NauticMixxx-1.1.0-Windows-x64-Skin.zip`
-- `NauticMixxx-1.1.0-source.tar.gz`
-- `SHA256SUMS.txt`
+- [macOS Apple Silicon DMG](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.1.0/NauticMixxx-1.1.0-macOS-arm64.dmg)
+- [macOS Apple Silicon ZIP](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.1.0/NauticMixxx-1.1.0-macOS-arm64.zip)
+- [Windows x64 skin installer ZIP](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.1.0/NauticMixxx-1.1.0-Windows-x64-Skin.zip)
+- [Rebuildable source archive](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.1.0/NauticMixxx-1.1.0-source.tar.gz)
+- [SHA-256 checksums](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.1.0/SHA256SUMS.txt)
 
-La versión 1.0.0 permanece en la [etiqueta anterior](https://github.com/nauticsoftware/NauticMixxx/tree/v1.0.0).
+On macOS, open the DMG and drag `NauticMixxx.app` to Applications. The ZIP is an alternative download of the same app. This build is ad-hoc signed rather than Apple-notarized, so macOS may ask you to confirm its first launch. See the [English installation guide](docs/INSTALLATION-EN.md).
 
-En macOS, abre el DMG, arrastra **NauticMixxx.app** a Aplicaciones y ábrela.
-El ZIP contiene la misma aplicación como descarga alternativa. La
-compilación local está firmada de forma ad hoc; una publicación general debe
-firmarse y notarizarse con una cuenta Apple Developer. Consulta
-[`docs/INSTALLATION.md`](docs/INSTALLATION.md).
+On Windows, extract the whole ZIP and run **INSTALL-WINDOWS.bat**. Keep `NauticMixxx-Files` beside it. The installer detects NauticMixxx 1.0 and updates its skin in place. If only standard Mixxx is installed, it offers a separate or shared profile; if neither is installed, it downloads verified Mixxx 2.5.6. It creates one NauticMixxx shortcut with the project icon. Run **UNINSTALL-WINDOWS.bat** from the same folder for removal. This skin-only release cannot add native RX3 engine features to standard Mixxx, and an existing NauticMixxx 1.0 app retains its 1.0 engine. See the [installation guide](docs/INSTALLATION-EN.md) and [build guide](docs/BUILDING.md).
 
-El paquete de **skin 1.1.0 para Windows** contiene `INSTALL-WINDOWS.bat`,
-`UNINSTALL-WINDOWS.bat` y `NauticMixxx-Files/` en su raíz. Si existe
-NauticMixxx 1.0, reutiliza su instalación y actualiza la skin en la misma
-carpeta y perfil. Si faltan NauticMixxx y Mixxx, descarga Mixxx oficial 2.5.6;
-si sólo está Mixxx, ofrece un perfil paralelo o el perfil habitual. Crea un
-solo acceso directo NauticMixxx con el icono del proyecto. El instalador muestra
-avance y mensajes en inglés. El desinstalador retira las versiones de carpetas
-NauticMixxx y los componentes RX3. No incluye un ejecutable NauticMixxx 1.1:
-las funciones que dependen de los parches nativos no estarán en Windows si se
-usa Mixxx oficial, y una aplicación NauticMixxx 1.0 conservará su motor 1.0.
-Consulta
-[`docs/INSTALLATION.md`](docs/INSTALLATION.md) y
-[`docs/BUILDING.md`](docs/BUILDING.md).
+The [v1.0.0 tag](https://github.com/nauticsoftware/NauticMixxx/tree/v1.0.0) remains available as an archive.
 
-## Verificar una descarga
+## Verify a download
+
+After downloading the release files into one directory, run:
 
 ```bash
-cd /ruta/a/tus/descargas
 shasum -a 256 -c SHA256SUMS.txt
 ```
 
-## Probar la versión vigente
+On Windows, use PowerShell's `Get-FileHash -Algorithm SHA256` and compare the result with `SHA256SUMS.txt`.
 
-Extrae `NauticMixxx-1.1.0-macOS-arm64.zip` en una carpeta
-temporal, conecta el Hercules DJControl Inpulse 500 y sigue
-[`docs/HARDWARE_TEST.md`](docs/HARDWARE_TEST.md).
+## Test or build
 
-## Desarrollo y release
+For a physical Inpulse 500 test, follow the [hardware test guide](docs/HARDWARE_TEST.md). The optional FLX6 browser mapping has been checked in software but has not yet been tested on physical DDJ-FLX6 hardware.
+
+To validate the source checkout or build the native macOS app:
 
 ```bash
 ./scripts/validate-release.sh
 ./scripts/build-mixxx-rx3-macos.sh
-python3 scripts/package-release.py
 ```
 
-La compilación nativa de macOS se reproduce con:
+The `patches/` directory contains changes against Mixxx 2.5.6. `controllers/`, `effects/`, `skins/` and `profile/` hold the NauticMixxx components; `scripts/` and `packaging/` contain build and release tooling. Downloadable binaries, the manifest and checksums are attached to [GitHub Releases](https://github.com/nauticsoftware/NauticMixxx/releases).
 
-```bash
-./scripts/build-mixxx-rx3-macos.sh
-```
+More documentation: [validation](docs/VALIDATION-1.1.md), [architecture](docs/ARCHITECTURE.md), [changelog](CHANGELOG.md), [contributing](CONTRIBUTING.md) and [release process](docs/RELEASING.md).
 
-## Estructura del repositorio
+## License and trademarks
 
-- `patches/`: cambios reproducibles aplicados sobre Mixxx 2.5.6.
-- `controllers/`, `effects/`, `skins/` y `profile/`: componentes de NauticMixxx.
-- `scripts/` y `packaging/`: compilación, distribución y verificación.
-- [Releases](https://github.com/nauticsoftware/NauticMixxx/releases): artefactos vigentes, manifiesto y checksums.
-- [v1.0.0](https://github.com/nauticsoftware/NauticMixxx/tree/v1.0.0): versión anterior conservada.
-- `../../archive/`: espacio reservado para futuros componentes retirados; los anteriores están recuperables desde Git.
-
-Documentación:
-
-- [Instalación](docs/INSTALLATION.md)
-- [Compilación reproducible](docs/BUILDING.md)
-- [Validación de 1.1](docs/VALIDATION-1.1.md)
-- [Prueba física de los seis fixes](docs/HARDWARE_TEST.md)
-- [Organización y política de limpieza](docs/WORKSPACE.md)
-- [Cómo publicar el release](docs/RELEASING.md)
-- [Arquitectura](docs/ARCHITECTURE.md)
-- [Cambios](CHANGELOG.md)
-- [Contribuir](CONTRIBUTING.md)
-
-## Licencia y marcas
-
-El trabajo de NauticMixxx se publica bajo GNU GPL v3. El motor Mixxx conserva
-GNU GPL v2 o posterior y sus avisos. Consulta [LICENSE.md](LICENSE.md) y
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-NauticMixxx no es un producto oficial ni está afiliado a los titulares de las
-marcas mencionadas. Consulta [TRADEMARKS.md](TRADEMARKS.md).
+NauticMixxx components are released under GNU GPL v3. The Mixxx engine retains its GNU GPL v2-or-later terms and notices. See [LICENSE.md](LICENSE.md) and [third-party notices](THIRD_PARTY_NOTICES.md). NauticMixxx is not an official product of, or affiliated with, the trademark owners named in the [trademark notice](TRADEMARKS.md).

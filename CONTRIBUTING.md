@@ -10,6 +10,9 @@ Gracias por mejorar NauticMixxx. Antes de enviar un cambio:
 6. No adjuntes música, bases de datos, perfiles personales, certificados ni logs
    con rutas o datos privados.
 
+Mantén el `README.md` principal del repositorio siempre en inglés. Las
+traducciones pueden vivir en archivos separados dentro de `docs/`.
+
 Los cambios visuales deben incluir una captura a 1280×800. Los cambios del
 motor deben entregarse también como un parche numerado en `patches/`, de
 modo que puedan aplicarse sobre Mixxx 2.5.6 limpio.
