@@ -87,6 +87,12 @@ try {
     $resourceText = $resourceText.Replace('#define VER_PRODUCTNAME_STR         "Mixxx\0"', '#define VER_PRODUCTNAME_STR         "NauticMixxx\0"')
     $resourceText = $resourceText.Replace('#define VER_FILEDESCRIPTION_STR     "Mixxx digital DJ software"', '#define VER_FILEDESCRIPTION_STR     "NauticMixxx digital DJ software"')
     $resourceText = $resourceText.Replace('#define VER_COMPANYNAME_STR         "The Mixxx Development Team"', '#define VER_COMPANYNAME_STR         "NauticMixxx contributors and Mixxx Development Team"')
+    $resourceText = $resourceText.Replace('#define VER_ORIGINALFILENAME_STR    "Mixxx.exe"', '#define VER_ORIGINALFILENAME_STR    "NauticMixxx.exe"')
+    if (-not $resourceText.Contains('#define VER_PRODUCTNAME_STR         "NauticMixxx\0"') -or
+        -not $resourceText.Contains('#define VER_FILEDESCRIPTION_STR     "NauticMixxx digital DJ software"') -or
+        -not $resourceText.Contains('#define VER_ORIGINALFILENAME_STR    "NauticMixxx.exe"')) {
+        throw 'Windows resource branding did not apply.'
+    }
     $utf8WithoutBom = New-Object -TypeName System.Text.UTF8Encoding -ArgumentList $false
     [IO.File]::WriteAllText($resourceFile, $resourceText, $utf8WithoutBom)
     $build = Join-Path $WorkRoot 'build'
@@ -109,13 +115,23 @@ try {
             "--gtest_output=xml:$testXml")
     } finally { Pop-Location }
     Invoke-Checked -File cmake -Arguments @('--install', $build, '--prefix', $stage)
+    Move-Item -LiteralPath (Join-Path $stage 'mixxx.exe') -Destination (Join-Path $stage 'NauticMixxx.exe')
+    Copy-Item -LiteralPath $windowsIcon -Destination (Join-Path $stage 'NauticMixxx.ico')
+    $exeInfo = (Get-Item -LiteralPath (Join-Path $stage 'NauticMixxx.exe')).VersionInfo
+    if ($exeInfo.ProductName -ne 'NauticMixxx' -or
+        $exeInfo.OriginalFilename -ne 'NauticMixxx.exe' -or
+        $exeInfo.FileDescription -ne 'NauticMixxx digital DJ software') {
+        throw "Windows executable metadata is incorrect: $($exeInfo | Out-String)"
+    }
     Copy-Item -LiteralPath (Join-Path $projectRoot 'skins\XDJ_RX3_Mixxx') -Destination (Join-Path $stage 'skins') -Recurse -Force
     Copy-Item -LiteralPath $testXml -Destination (Join-Path $stage 'rx3-tests.xml')
     $info = @{ version = (Get-Content -LiteralPath (Join-Path $projectRoot 'VERSION') -Raw).Trim(); product = 'NauticMixxx'; platform = 'windows-x64'; baseMixxxVersion = '2.5.6'; testsPassed = $true; patches = $patchState;
-        executableSha256 = (Get-FileHash (Join-Path $stage 'mixxx.exe') -Algorithm SHA256).Hash.ToLowerInvariant() }
+        executableSha256 = (Get-FileHash (Join-Path $stage 'NauticMixxx.exe') -Algorithm SHA256).Hash.ToLowerInvariant() }
     $info | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $stage 'rx3-build.json') -Encoding UTF8
-    Invoke-Checked -File python -Arguments @((Join-Path $PSScriptRoot 'package-rx3-windows-native.py'), '--runtime', $stage, '--source', $source)
-    Write-Host 'Native NauticMixxx ZIP generated in build.' -ForegroundColor Green
+    $makensis = Join-Path ${env:ProgramFiles(x86)} 'NSIS\makensis.exe'
+    if (-not (Test-Path -LiteralPath $makensis)) { throw 'NSIS is required to build the Windows setup EXE.' }
+    Invoke-Checked -File python -Arguments @((Join-Path $PSScriptRoot 'package-rx3-windows-native.py'), '--runtime', $stage, '--source', $source, '--makensis', $makensis)
+    Write-Host 'Native NauticMixxx setup EXE generated in build.' -ForegroundColor Green
 } catch {
     Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red
     exit 1

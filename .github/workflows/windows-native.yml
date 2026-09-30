@@ -4,56 +4,77 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: nauticmixxx-windows-release
+  cancel-in-progress: false
 
 jobs:
   build:
+    if: github.repository == 'nauticsoftware/NauticMixxx' && github.ref == 'refs/heads/main'
     runs-on: windows-2022
-    timeout-minutes: 90
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-      - name: Install icon build dependency
-        run: python -m pip install Pillow==11.3.0
-      - name: Validate installer scripts and contract
+          python-version: '3.12'
+      - name: Install free build dependencies
         shell: powershell
         run: |
-          $scripts = @(
-            'packaging/windows/install-native-rx3.ps1',
-            'packaging/windows/rx3-install-common.ps1',
-            'packaging/windows/install-hercules-driver.ps1',
-            'scripts/build-mixxx-rx3-windows.ps1'
-          )
+          python -m pip install Pillow==11.3.0
+          choco install nsis --yes --no-progress --limit-output
+          if ($LASTEXITCODE -ne 0) { throw 'NSIS installation failed' }
+      - name: Validate installer inputs
+        shell: powershell
+        run: |
+          $scripts = @('scripts/build-mixxx-rx3-windows.ps1', 'packaging/windows/configure-profile.ps1')
           foreach ($script in $scripts) {
             $tokens = $null
-            $parseErrors = $null
-            [void][System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$parseErrors)
-            if ($parseErrors.Count -gt 0) {
-              $parseErrors | Format-List | Out-String | Write-Error
-              throw "PowerShell syntax error: $script"
-            }
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors)
+            if ($errors.Count -gt 0) { throw "PowerShell syntax error in $script : $errors" }
           }
           python scripts/test-windows-installer-contract.py
-      - name: Build, test and package NauticMixxx 1.1.0
+      - name: Build, test and package native NauticMixxx
         shell: powershell
         run: ./scripts/build-mixxx-rx3-windows.ps1 -WorkRoot C:\rx3-build -Jobs 4
-      - name: Validate installer payload and Windows profile helpers
+      - name: Smoke test the actual EXE installer
         shell: powershell
-        run: ./tests/windows/installer-tests.ps1 -PackageRoot ./build/NauticMixxx-1.1.0-Windows-x64/NauticMixxx-Files
-      - name: Installer and checksums
-        uses: actions/upload-artifact@v4
-        with:
-          name: NauticMixxx-1.1.0-Windows-x64
-          path: |
-            build/NauticMixxx-1.1.0-Windows-x64.zip
-            build/NauticMixxx-1.1.0-Windows-x64.zip.sha256
-          if-no-files-found: error
-      - name: Native test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: RX3-native-test-results
-          path: C:/rx3-build/build/rx3-tests.xml
-          if-no-files-found: ignore
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          $setup = Join-Path (Resolve-Path build) "NauticMixxx-$version-Windows-x64-Setup.exe"
+          if (-not (Test-Path $setup)) { throw "Missing setup: $setup" }
+          $setupInfo = (Get-Item $setup).VersionInfo
+          if ($setupInfo.ProductName -ne 'NauticMixxx') { throw 'Setup EXE product name is wrong' }
+          $install = Start-Process -FilePath $setup -ArgumentList '/S' -PassThru -Wait
+          if ($install.ExitCode -ne 0) { throw "Silent install failed: $($install.ExitCode)" }
+          $installedExe = Join-Path $env:LOCALAPPDATA 'Programs\NauticMixxx\NauticMixxx.exe'
+          $profile = Join-Path $env:LOCALAPPDATA 'NauticMixxx'
+          if (-not (Test-Path $installedExe)) { throw 'NauticMixxx.exe was not installed' }
+          if ((Get-Item $installedExe).VersionInfo.ProductName -ne 'NauticMixxx') { throw 'Installed app identity is wrong' }
+          if (Test-Path (Join-Path (Split-Path $installedExe) 'mixxx.exe')) { throw 'Old Mixxx executable remains' }
+          $cfg = Get-Content (Join-Path $profile 'mixxx.cfg') -Raw
+          foreach ($setting in @('ResizableSkin XDJ_RX3_Mixxx', 'WaveformType 25', 'UsbOnlyMode 1', 'BPMDetectionEnabled 0', 'ReplayGainEnabled 0', 'DJControl_Inpulse_500 1')) {
+            if (-not $cfg.Contains($setting)) { throw "Missing preset: $setting" }
+          }
+          foreach ($path in @('skins\XDJ_RX3_Mixxx\skin.xml', 'controllers\Hercules_DJControl_Inpulse_500_RX3.midi.xml', 'effects\chains\RX3 REVERB.xml', 'effects.xml')) {
+            if (-not (Test-Path (Join-Path $profile $path))) { throw "Missing profile file: $path" }
+          }
+          $effects = [xml](Get-Content (Join-Path $profile 'effects.xml') -Raw)
+          $order = @($effects.Effects.QuickEffectPresetList.ChainPresetName)
+          if (($order[0..3] -join ',') -ne 'RX3 REVERB,RX3 PING PONG,RX3 NOISE,RX3 FILTER') { throw 'Wrong quick effect order' }
+          $uninstall = Start-Process -FilePath (Join-Path (Split-Path $installedExe) 'Uninstall-NauticMixxx.exe') -ArgumentList '/S' -PassThru -Wait
+          if ($uninstall.ExitCode -ne 0) { throw "Silent uninstall failed: $($uninstall.ExitCode)" }
+          if (Test-Path $installedExe) { throw 'Uninstall left executable behind' }
+          if (-not (Test-Path (Join-Path $profile 'mixxx.cfg'))) { throw 'Uninstall removed user profile' }
+      - name: Publish the single Windows installer to the public release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          $setup = "build/NauticMixxx-$version-Windows-x64-Setup.exe"
+          gh release upload "v$version" $setup --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Release upload failed' }

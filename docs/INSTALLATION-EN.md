@@ -17,9 +17,11 @@ First-sound loading uses an existing marker. A USB track without that marker loa
 
 ## Windows x64
 
-The 1.2.0 source, patches and native Windows build recipe are ready. **The Windows 1.2.0 executable has not yet been built or tested on Windows.** A skin package on official Mixxx cannot enforce the native USB, analysis and fixed-preference behavior.
+Download [NauticMixxx-1.2.0-Windows-x64-Setup.exe](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.2.0/NauticMixxx-1.2.0-Windows-x64-Setup.exe) and run it directly on Windows 10/11 x64. The installer is a native NSIS EXE and includes the complete NauticMixxx application. It does not need an existing Mixxx install or another download.
 
-The `NauticMixxx Windows x64` workflow or `scripts/build-mixxx-rx3-windows.ps1` builds, tests and packages the native edition on a Windows x64 machine with Visual Studio 2022. Distribute that ZIP after a successful build and tests with the physical controller and a Rekordbox USB drive.
+Setup installs the app under `%LOCALAPPDATA%\Programs\NauticMixxx` and applies the macOS RX3 settings to a separate profile under `%LOCALAPPDATA%\NauticMixxx`. It installs the XDJ RX3 skin, custom Hercules Inpulse 500 mapping, optional FLX6 browser mapping, four Sound Color FX chains, 3-Band waveform default, Rekordbox USB-only browsing, disabled analysis and ReplayGain, Pioneer Cue, ±6% tempo, and the other portable preferences. Existing personal settings are backed up before the managed RX3 preferences are merged. Audio devices, channel routing and music paths depend on the Windows laptop and must be selected there.
+
+The Start menu and desktop shortcuts open `NauticMixxx.exe`. To uninstall, use Windows Settings → Installed apps. The uninstall leaves the user profile in place to avoid losing library data. The EXE is unsigned, so Windows SmartScreen may ask for confirmation on first launch. Physical controller and Rekordbox USB tests should be done on the target laptop before a live set.
 
 ## Uninstall on macOS
 

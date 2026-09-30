@@ -16,21 +16,14 @@ Version 1.2 fixes the USB Rekordbox workflow and performance preferences: Pionee
 
 ## Download and install
 
-The 1.2.0 macOS candidate and its checksums are generated under `build/release-candidate/1.2.0/`. The Windows native binary still needs a Windows x64 build and hardware validation. See [release notes](RELEASE_NOTES.md) and the [installation guide](docs/INSTALLATION-EN.md).
+Download NauticMixxx 1.2.0 directly from the [public release](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.2.0):
 
-The most recently published version is [NauticMixxx 1.1.0](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.1.0):
+- [Windows x64 installer EXE](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.2.0/NauticMixxx-1.2.0-Windows-x64-Setup.exe)
+- [macOS Apple Silicon DMG](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.2.0/NauticMixxx-1.2.0-macOS-arm64.dmg)
 
-- [macOS Apple Silicon DMG](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.1.0/NauticMixxx-1.1.0-macOS-arm64.dmg)
-- [macOS Apple Silicon ZIP](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.1.0/NauticMixxx-1.1.0-macOS-arm64.zip)
-- [Windows x64 skin installer ZIP](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.1.0/NauticMixxx-1.1.0-Windows-x64-Skin.zip)
-- [Rebuildable source archive](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.1.0/NauticMixxx-1.1.0-source.tar.gz)
-- [SHA-256 checksums](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.1.0/SHA256SUMS.txt)
+On Windows, download and run the EXE. It installs the native NauticMixxx program, RX3 skin, controller mappings, effects and the same preset choices as macOS. No BAT, ZIP extraction, compiler, or existing Mixxx installation is required. The app and profile are separate from official Mixxx. Uninstall from Windows Settings; personal settings remain in `%LOCALAPPDATA%\NauticMixxx`.
 
-On macOS, open the DMG and drag `NauticMixxx.app` to Applications. The ZIP is an alternative download of the same app. This build is ad-hoc signed rather than Apple-notarized, so macOS may ask you to confirm its first launch. See the [English installation guide](docs/INSTALLATION-EN.md).
-
-The published Windows 1.1 ZIP is a skin-only installer. It cannot provide the fixed 1.2 engine behavior. Build and test the native Windows package before distributing it; see the [build guide](docs/BUILDING.md).
-
-The [v1.0.0 tag](https://github.com/nauticsoftware/NauticMixxx/tree/v1.0.0) remains available as an archive.
+On macOS, open the DMG and drag `NauticMixxx.app` to Applications. This build is ad-hoc signed rather than Apple-notarized, so macOS may ask you to confirm its first launch. See the [English installation guide](docs/INSTALLATION-EN.md).
 
 ## Verify a download
 
