@@ -89,8 +89,8 @@ try {
     Write-Step 'Verifying the skin package...'
     Test-Rx3Payload -PackageRoot $PSScriptRoot
     $manifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'payload-sha256.json') -Raw | ConvertFrom-Json
-    if ($manifest.product -ne 'NauticMixxx' -or $manifest.kind -ne 'skin-only' -or $manifest.version -ne '1.1.0') {
-        throw 'This is not a valid NauticMixxx 1.1.0 skin package.'
+    if ($manifest.product -ne 'NauticMixxx' -or $manifest.kind -ne 'skin-only' -or $manifest.version -ne '1.2.0') {
+        throw 'This is not a valid NauticMixxx 1.2.0 skin package.'
     }
     $newVersion = [version]$manifest.version
     $standardProfile = Join-Path $env:LOCALAPPDATA 'Mixxx'

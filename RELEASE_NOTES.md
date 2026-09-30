@@ -1,3 +1,45 @@
+# NauticMixxx 1.2.0 — 2026-09-30
+
+## Actualización de waveforms y modo USB
+
+- Blue/RGB recuperan signo y nivel real del PCM durante la carga; conservan el
+  color ANLZ y no escriben caché ni activan análisis automático de la biblioteca.
+- Overview extendido Blue/RGB con gradientes y altura medidos en las capturas.
+
+- Datos independientes PWV3/PWV5/PWV7 y PWAV/PWV4/PWV6; RGB big-endian,
+  blancura Blue conservada y orden 3-Band validado con tonos conocidos.
+- Detalle y overview comparten el estilo. El segundo selector permite fijar
+  las ondas o seguir los EQ del mixer. 3-Band es el valor inicial.
+- Contador hasta el marcador bajo la Key, separado de la posición compás.beat.
+- Marcas de pulsos blancas únicamente encima y debajo de la onda desde el
+  primer sonido; las rojas de compás sobresalen dos píxeles hacia fuera.
+- El DMG de macOS muestra únicamente NauticMixxx y el acceso a Aplicaciones;
+  las guías de instalación y controladores siguen en el ZIP y las fuentes.
+- Modelo experimental entrenado con 01–06 y validado con 07–09, sin activarlo
+  automáticamente en el reproductor.
+- **La réplica píxel a píxel no está alcanzada.** Véase
+  [informe cuantitativo y comparaciones](docs/calibration-v2/REPORT.md).
+
+
+NauticMixxx inicia en modo USB Rekordbox. El selector de biblioteca local no
+aparece y el escaneo, el análisis, ReplayGain y la caché de formas de onda están
+desactivados. Pioneer Cue, ±6 % de pitch, carga en el primer sonido cuando existe
+ese marcador, tiempo restante, Rubber Band Finer, normalización visual y cuenta
+de pulsos hasta el próximo marcador quedan fijados. Las vistas seleccionables son
+BLUE, RGB y 3Band; bucles y hot loops nuevos usan `#FF8800`.
+
+El Hercules DJControl Inpulse 500 utiliza el mapeo RX3 personalizado al
+detectarse al iniciar. El preset genérico duplicado se retiró. Si NauticMixxx
+se inicia sin ningún controlador, reintenta detectarlo periódicamente; el
+cambio de dispositivos con otros controladores ya abiertos requiere reinicio.
+
+El marcador «primer sonido» depende de que exista en los metadatos de la pista.
+En pistas Rekordbox USB sin ese marcador, Mixxx carga en el inicio: no se analiza
+el audio para crearlo. Las pruebas con hardware Inpulse 500 y USB Rekordbox real,
+así como la compilación nativa Windows, están pendientes.
+
+---
+
 # NauticMixxx 1.1.0 — 2026-09-28
 
 English: [installation guide](docs/INSTALLATION-EN.md) and [DDJ-FLX6 menu mapping](docs/DDJ-FLX6-EN.md). The macOS and Windows installers display English messages. The optional FLX6 browser preset has been checked in software; physical controller testing is pending.

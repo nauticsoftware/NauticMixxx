@@ -110,7 +110,7 @@ with tempfile.TemporaryDirectory(prefix="rx3-windows-contract-") as temporary:
     except ValueError:
         pass
     else:
-        raise AssertionError("The 1.0.0 runtime must not be repackaged as 1.1.0")
+        raise AssertionError("The 1.0.0 runtime must not be repackaged as 1.2.0")
     (runtime / "rx3-build.json").write_text(json.dumps(build_info))
     archive = module.package(runtime, source, output)
     with zipfile.ZipFile(archive) as package:
@@ -121,7 +121,7 @@ with tempfile.TemporaryDirectory(prefix="rx3-windows-contract-") as temporary:
         launchers = [entry for entry in entries if entry.lower().endswith((".bat", ".cmd"))]
         assert launchers == [prefix + "INSTALL-WINDOWS.bat"], launchers
         launcher = package.read(launchers[0]).decode("ascii")
-        assert "NauticMixxx 1.1.0" in launcher
+        assert "NauticMixxx 1.2.0" in launcher
         assert "%RX3_FILES%\\install-native-rx3.ps1" in launcher
         manifest = json.loads(package.read(prefix + "NauticMixxx-Files/payload-sha256.json"))
         assert manifest["version"] == module.VERSION

@@ -1,0 +1,445 @@
+{
+  "pixels_per_second_from_grid": 112.53117206982549,
+  "jobs": [
+    {
+      "stem": "01_blue_detail",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_G4wVt6/Screenshot 2026-09-29 at 08.54.26.png",
+      "crop": [
+        0,
+        107,
+        2196,
+        114
+      ],
+      "render_height": 114,
+      "first_second": 1.4312686980609421,
+      "last_second": 20.94586149584487,
+      "masked_pixels": 42486
+    },
+    {
+      "stem": "01_blue_overview",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_G4wVt6/Screenshot 2026-09-29 at 08.54.26.png",
+      "crop": [
+        14,
+        20,
+        2146,
+        35
+      ],
+      "render_height": 35,
+      "first_second": 0,
+      "last_second": 94.0,
+      "masked_pixels": 35,
+      "preview_offset_x": 3,
+      "preview_registration": "first colored PCM onset, manifest t=2s; no SSIM optimization"
+    },
+    {
+      "stem": "01_rgb_detail",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_2FWZ8G/Screenshot 2026-09-29 at 08.54.52.png",
+      "crop": [
+        0,
+        111,
+        2199,
+        114
+      ],
+      "render_height": 114,
+      "first_second": 1.4134958448753465,
+      "last_second": 20.954747922437665,
+      "masked_pixels": 42534
+    },
+    {
+      "stem": "01_rgb_overview",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_2FWZ8G/Screenshot 2026-09-29 at 08.54.52.png",
+      "crop": [
+        14,
+        20,
+        2146,
+        39
+      ],
+      "render_height": 39,
+      "first_second": 0,
+      "last_second": 94.0,
+      "masked_pixels": 39,
+      "preview_offset_x": 5,
+      "preview_registration": "first colored PCM onset, manifest t=2s; no SSIM optimization"
+    },
+    {
+      "stem": "01_3band_detail",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_D3XQqQ/Screenshot 2026-09-29 at 08.55.08.png",
+      "crop": [
+        0,
+        105,
+        2184,
+        114
+      ],
+      "render_height": 114,
+      "first_second": 1.4845872576177288,
+      "last_second": 20.89254293628808,
+      "masked_pixels": 42294
+    },
+    {
+      "stem": "01_3band_overview",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_D3XQqQ/Screenshot 2026-09-29 at 08.55.08.png",
+      "crop": [
+        14,
+        20,
+        2146,
+        33
+      ],
+      "render_height": 33,
+      "first_second": 0,
+      "last_second": 94.0,
+      "masked_pixels": 33
+    },
+    {
+      "stem": "02_blue_detail",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_enYDbk/Screenshot 2026-09-29 at 08.55.48.png",
+      "crop": [
+        0,
+        109,
+        2194,
+        114
+      ],
+      "render_height": 114,
+      "first_second": 0.906969529085873,
+      "last_second": 20.403789473684203,
+      "masked_pixels": 17796
+    },
+    {
+      "stem": "02_blue_overview",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_enYDbk/Screenshot 2026-09-29 at 08.55.48.png",
+      "crop": [
+        18,
+        20,
+        2150,
+        38
+      ],
+      "render_height": 38,
+      "first_second": 0,
+      "last_second": 49.0,
+      "masked_pixels": 38,
+      "preview_offset_x": 0,
+      "preview_registration": "first colored PCM onset, manifest t=2s; no SSIM optimization"
+    },
+    {
+      "stem": "02_rgb_detail",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_yguYDy/Screenshot 2026-09-29 at 08.56.00.png",
+      "crop": [
+        0,
+        105,
+        2194,
+        114
+      ],
+      "render_height": 114,
+      "first_second": 0.9691745152354576,
+      "last_second": 20.465994459833787,
+      "masked_pixels": 17466
+    },
+    {
+      "stem": "02_rgb_overview",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_yguYDy/Screenshot 2026-09-29 at 08.56.00.png",
+      "crop": [
+        18,
+        20,
+        2150,
+        34
+      ],
+      "render_height": 34,
+      "first_second": 0,
+      "last_second": 49.0,
+      "masked_pixels": 34,
+      "preview_offset_x": -7,
+      "preview_registration": "first colored PCM onset, manifest t=2s; no SSIM optimization"
+    },
+    {
+      "stem": "02_3band_detail",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_Hon02S/Screenshot 2026-09-29 at 08.56.11.png",
+      "crop": [
+        0,
+        109,
+        2186,
+        114
+      ],
+      "render_height": 114,
+      "first_second": 0.9247423822714687,
+      "last_second": 20.350470914127413,
+      "masked_pixels": 38804
+    },
+    {
+      "stem": "02_3band_overview",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_Hon02S/Screenshot 2026-09-29 at 08.56.11.png",
+      "crop": [
+        18,
+        20,
+        2150,
+        38
+      ],
+      "render_height": 38,
+      "first_second": 0,
+      "last_second": 49.0,
+      "masked_pixels": 38
+    },
+    {
+      "stem": "03_blue_detail",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_hdB95W/Screenshot 2026-09-29 at 08.56.44.png",
+      "crop": [
+        0,
+        107,
+        2190,
+        114
+      ],
+      "render_height": 114,
+      "first_second": 1.075811634349031,
+      "last_second": 20.537085872576167,
+      "masked_pixels": 342
+    },
+    {
+      "stem": "03_blue_overview",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_hdB95W/Screenshot 2026-09-29 at 08.56.44.png",
+      "crop": [
+        22,
+        20,
+        2144,
+        35
+      ],
+      "render_height": 35,
+      "first_second": 0,
+      "last_second": 49.0,
+      "masked_pixels": 35,
+      "preview_offset_x": -5,
+      "preview_registration": "first colored PCM onset, manifest t=2s; no SSIM optimization"
+    },
+    {
+      "stem": "03_rgb_detail",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_Mccf8Q/Screenshot 2026-09-29 at 08.56.54.png",
+      "crop": [
+        0,
+        106,
+        2186,
+        114
+      ],
+      "render_height": 114,
+      "first_second": 1.0580387811634353,
+      "last_second": 20.48376731301938,
+      "masked_pixels": 342
+    },
+    {
+      "stem": "03_rgb_overview",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_Mccf8Q/Screenshot 2026-09-29 at 08.56.54.png",
+      "crop": [
+        22,
+        20,
+        2144,
+        35
+      ],
+      "render_height": 35,
+      "first_second": 0,
+      "last_second": 49.0,
+      "masked_pixels": 35,
+      "preview_offset_x": -3,
+      "preview_registration": "first colored PCM onset, manifest t=2s; no SSIM optimization"
+    },
+    {
+      "stem": "03_3band_detail",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_GBpm7r/Screenshot 2026-09-29 at 08.57.04.png",
+      "crop": [
+        0,
+        109,
+        2190,
+        114
+      ],
+      "render_height": 114,
+      "first_second": 1.0580387811634353,
+      "last_second": 20.519313019390573,
+      "masked_pixels": 342
+    },
+    {
+      "stem": "03_3band_overview",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_GBpm7r/Screenshot 2026-09-29 at 08.57.04.png",
+      "crop": [
+        22,
+        20,
+        2144,
+        37
+      ],
+      "render_height": 37,
+      "first_second": 0,
+      "last_second": 49.0,
+      "masked_pixels": 37
+    },
+    {
+      "stem": "04_blue_detail",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_MsIGGS/Screenshot 2026-09-29 at 08.57.41.png",
+      "crop": [
+        0,
+        105,
+        2184,
+        114
+      ],
+      "render_height": 114,
+      "first_second": 1.0580387811634353,
+      "last_second": 20.465994459833787,
+      "masked_pixels": 342
+    },
+    {
+      "stem": "04_blue_overview",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_MsIGGS/Screenshot 2026-09-29 at 08.57.41.png",
+      "crop": [
+        18,
+        20,
+        2129,
+        33
+      ],
+      "render_height": 33,
+      "first_second": 0,
+      "last_second": 49.0,
+      "masked_pixels": 33,
+      "preview_offset_x": -2,
+      "preview_registration": "first colored PCM onset, manifest t=2s; no SSIM optimization"
+    },
+    {
+      "stem": "04_rgb_detail",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_TvVHTF/Screenshot 2026-09-29 at 08.57.49.png",
+      "crop": [
+        0,
+        107,
+        2190,
+        114
+      ],
+      "render_height": 114,
+      "first_second": 1.0047202216066486,
+      "last_second": 20.465994459833787,
+      "masked_pixels": 342
+    },
+    {
+      "stem": "04_rgb_overview",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_TvVHTF/Screenshot 2026-09-29 at 08.57.49.png",
+      "crop": [
+        18,
+        20,
+        2129,
+        36
+      ],
+      "render_height": 36,
+      "first_second": 0,
+      "last_second": 49.0,
+      "masked_pixels": 36,
+      "preview_offset_x": 4,
+      "preview_registration": "first colored PCM onset, manifest t=2s; no SSIM optimization"
+    },
+    {
+      "stem": "04_3band_detail",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_ddCDBF/Screenshot 2026-09-29 at 08.58.01.png",
+      "crop": [
+        0,
+        105,
+        2185,
+        114
+      ],
+      "render_height": 114,
+      "first_second": 1.0402659279778397,
+      "last_second": 20.45710803324099,
+      "masked_pixels": 342
+    },
+    {
+      "stem": "04_3band_overview",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_ddCDBF/Screenshot 2026-09-29 at 08.58.01.png",
+      "crop": [
+        18,
+        20,
+        2129,
+        33
+      ],
+      "render_height": 33,
+      "first_second": 0,
+      "last_second": 49.0,
+      "masked_pixels": 33
+    },
+    {
+      "stem": "05_blue_detail",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_6jVJF3/Screenshot 2026-09-29 at 08.58.21.png",
+      "crop": [
+        0,
+        104,
+        2184,
+        89
+      ],
+      "render_height": 114,
+      "first_second": 1.5912243767313021,
+      "last_second": 20.999180055401652,
+      "masked_pixels": 9612
+    },
+    {
+      "stem": "05_blue_overview",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_6jVJF3/Screenshot 2026-09-29 at 08.58.21.png",
+      "crop": [
+        20,
+        20,
+        2160,
+        32
+      ],
+      "render_height": 32,
+      "first_second": 0,
+      "last_second": 157.0,
+      "masked_pixels": 32,
+      "preview_offset_x": -10,
+      "preview_registration": "first colored PCM onset, manifest t=2s; no SSIM optimization"
+    },
+    {
+      "stem": "05_rgb_detail",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_CAtmgK/Screenshot 2026-09-29 at 08.58.32.png",
+      "crop": [
+        0,
+        112,
+        2194,
+        91
+      ],
+      "render_height": 114,
+      "first_second": 1.5023601108033242,
+      "last_second": 20.999180055401652,
+      "masked_pixels": 9828
+    },
+    {
+      "stem": "05_rgb_overview",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_CAtmgK/Screenshot 2026-09-29 at 08.58.32.png",
+      "crop": [
+        20,
+        20,
+        2160,
+        40
+      ],
+      "render_height": 40,
+      "first_second": 0,
+      "last_second": 157.0,
+      "masked_pixels": 40,
+      "preview_offset_x": 0,
+      "preview_registration": "first colored PCM onset, manifest t=2s; no SSIM optimization"
+    },
+    {
+      "stem": "05_3band_detail",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_2Gd9ry/Screenshot 2026-09-29 at 08.58.42.png",
+      "crop": [
+        0,
+        109,
+        2194,
+        91
+      ],
+      "render_height": 114,
+      "first_second": 1.5112465373961221,
+      "last_second": 21.00806648199445,
+      "masked_pixels": 9828
+    },
+    {
+      "stem": "05_3band_overview",
+      "source": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_2Gd9ry/Screenshot 2026-09-29 at 08.58.42.png",
+      "crop": [
+        20,
+        20,
+        2160,
+        37
+      ],
+      "render_height": 37,
+      "first_second": 0,
+      "last_second": 157.0,
+      "masked_pixels": 37
+    }
+  ]
+}

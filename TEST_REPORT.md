@@ -1,36 +1,42 @@
-# Informe de validación — NauticMixxx 1.1.0
+# Informe de validación — NauticMixxx 1.2.0
 
-Fecha: 2026-09-28. Base: Mixxx 2.5.6.
+Fecha: 2026-09-29. Base: Mixxx 2.5.6.
 
 ## macOS ARM64
 
-- Aplicación nativa 1.1.0 compilada, firmada de forma ad hoc y verificada con
-  `codesign --verify --deep --strict`.
-- Display y controles: **111 pruebas aprobadas, 0 fallidas, 5 omitidas**. Las
-  omitidas requieren fixtures externos de USB rekordbox.
-- Once parches aplicados al código oficial con hash verificado; las fuentes
-  resultantes coinciden con los cambios nativos incluidos en el proyecto.
-- Capturas de 1280×800 y pantalla maximizada revisadas. La prueba se hizo con
-  pistas sintéticas en un perfil aislado.
-- XML de skin, mapping y efectos, y pruebas JavaScript de controles: correctos.
-- Preset DDJ-FLX6 validado con mensajes MIDI documentados y pruebas simuladas
-  de navegación tanto nativa RX3 como estándar Mixxx. Hardware FLX6 pendiente.
-- Instalador macOS, configurador del perfil y documentación de acceso en inglés.
+- Compilación nativa incremental de `mixxx` y `mixxx-test`: correcta.
+- `validate-release.sh`: 60 pruebas nativas aprobadas, 0 fallidas y 5 omitidas
+  por requerir fixtures opcionales (incluidos exports externos específicos).
+- 2 pruebas adicionales de integración aprobadas sobre el USB real del usuario:
+  asociación ANLZ/pista y lectura de ondas del navegador.
+- 12 pruebas del importador/render, incluida polaridad PCM, cancelación y
+  resampling de pistas largas, geometría de marcas y comienzo audible, aprobadas.
+- 30 renders del decoder C++ y la geometría compartida comparados con las
+  capturas de calibración. [Resultados y límites](docs/calibration-v2/REPORT.md).
+- El análisis propio fue validado por columna y segmento con 07–09; no alcanza
+  equivalencia Pioneer y permanece separado del reproductor.
+- XML de skin, controlador y efectos válido; pruebas JavaScript de AUTOLOOP,
+  ajuste de bucle, Sound Color FX, SLIP, SYNC y pitch ±6 % aprobadas.
+- Parche 0012 verificado con `git apply --check` sobre la fuente 2.5.6 ya
+  parcheada con 0001–0011.
+- Bundle instalado en un directorio de staging y verificado por CMake.
+- La app empaquetada arrancó con Cocoa y perfil separado, permaneció activa
+  durante 12 segundos y se cerró al terminar la prueba. Este smoke no verifica
+  reproducción física ni equivalencia del framebuffer OpenGL con las capturas.
 
 ## Windows x64
 
-- El paquete 1.1.0 distribuye **skin y BAT**, sin un ejecutable nativo nuevo.
-- Contrato del ZIP, archivos y hashes SHA-256: correcto.
-- Instalador: **20 comprobaciones aprobadas**, incluida la detección de
-  NauticMixxx 1.0 y la validación del payload.
-- Desinstalador: **16 comprobaciones aprobadas**, incluida la eliminación de
-  varias versiones simuladas y la conservación del perfil compartido de Mixxx.
-- Los scripts PowerShell se analizaron sintácticamente. La instalación y
-  desinstalación reales en Windows, MIDI y audio requieren prueba en un equipo
-  Windows.
+- El contrato del instalador y empaquetador nativo pasó con un ejecutable de
+  prueba; la receta Windows apunta a 1.2.0 y doce parches.
+- No se compiló ni ejecutó `mixxx.exe` en Windows desde este Mac.
 
-## Alcance
+## Pendiente antes de publicación multiplataforma
 
-No se probó físicamente el Hercules DJControl Inpulse 500 ni un USB rekordbox
-real en esta validación. La firma ad hoc de macOS no sustituye una firma
-Developer ID ni la notarización de Apple.
+- Compilación y prueba nativas Windows mediante el workflow de Windows x64.
+- Prueba física del Hercules DJControl Inpulse 500 y de conexión en caliente.
+- Prueba de reproducción en tiempo real con el controlador y el USB, incluidos
+  beatgrid y marcadores.
+- Validación visual de las tres ondas y del color naranja en ambos sistemas.
+
+La opción de cargar en el primer sonido usa un marcador existente. Con análisis
+desactivado, una pista USB sin ese marcador carga al inicio.

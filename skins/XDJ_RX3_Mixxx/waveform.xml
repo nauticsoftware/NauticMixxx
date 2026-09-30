@@ -62,7 +62,7 @@
                   <NumberPos>
                     <ObjectName>WaveformInfo_Bars</ObjectName>
                     <Channel><Variable name="channel"/></Channel>
-                    <Rx3Format>bars</Rx3Format>
+                    <Rx3Format>countdown</Rx3Format>
                     <Connection><ConfigKey>[RX3Display],master<Variable name="channel"/></ConfigKey><BindProperty>highlight</BindProperty></Connection>
                     <Connection><ConfigKey>[Channel<Variable name="channel"/>],playposition</ConfigKey></Connection>
                   </NumberPos>
@@ -118,13 +118,12 @@
         </Connection>
         <DisableSeek>true</DisableSeek><ShowPreroll>false</ShowPreroll><ShowUntilNextMark>false</ShowUntilNextMark>
         <BgColor>#000</BgColor>
-        <!-- RX3 beat grid: short ticks at both waveform edges. The custom
-             Mixxx RX3 renderer uses DownbeatColor every four beats and keeps
-             the signal area free of full-height grid lines. -->
-        <BeatColor>#787C78</BeatColor>
+        <!-- RX3 beat grid: white edge ticks and slightly longer red downbeats.
+             All ticks begin at the first audible part of the track. -->
+        <BeatColor>#D0D0D0</BeatColor>
         <DownbeatColor>#ff0000</DownbeatColor>
         <BeatTickLength>10</BeatTickLength>
-        <PlayPosColor>#ff0000</PlayPosColor><PlayPosWidth>2</PlayPosWidth>
+        <PlayPosColor>#ff0000</PlayPosColor><PlayPosWidth>1</PlayPosWidth>
         <!-- rekordbox draws no centre line. Mixxx's filtered renderer paints one
              last, over the bands, and with AxesColor unset it defaults to
              #f5f5f5: invisible inside a cream core, a white seam across every
@@ -139,10 +138,10 @@
         <SignalLowColor>#0055e1</SignalLowColor>
         <SignalMidColor>#b4690a</SignalMidColor>
         <SignalHighColor>#f5ebd7</SignalHighColor>
-        <SignalRGBLowColor>#0055e1</SignalRGBLowColor>
-        <SignalRGBMidColor>#b4690a</SignalRGBMidColor>
-        <SignalRGBHighColor>#f5ebd7</SignalRGBHighColor>
-        <DefaultMark><Rx3Hotcue>true</Rx3Hotcue><Color>#00ff00</Color><TextColor>#000000</TextColor><Align>top</Align></DefaultMark>
+        <SignalRGBLowColor>#ff3030</SignalRGBLowColor>
+        <SignalRGBMidColor>#32d060</SignalRGBMidColor>
+        <SignalRGBHighColor>#357bff</SignalRGBHighColor>
+        <DefaultMark><Rx3Hotcue>true</Rx3Hotcue><Color>#ff8800</Color><TextColor>#000000</TextColor><Align>top</Align></DefaultMark>
         <Mark>
           <Control>cue_point</Control>
           <Text>CUE</Text>
@@ -153,22 +152,22 @@
         <Mark>
           <Control>loop_start_position</Control>
           <Text>▴</Text>
-          <Color>#ff9200</Color>
-          <TextColor>#ff9200</TextColor>
+          <Color>#ff8800</Color>
+          <TextColor>#ff8800</TextColor>
           <Align>bottom</Align>
         </Mark>
         <Mark>
           <Control>loop_end_position</Control>
           <Text>▴</Text>
-          <Color>#ff9200</Color>
-          <TextColor>#ff9200</TextColor>
+          <Color>#ff8800</Color>
+          <TextColor>#ff8800</TextColor>
           <Align>bottom</Align>
         </Mark>
         <MarkRange>
           <StartControl>loop_start_position</StartControl>
           <EndControl>loop_end_position</EndControl>
           <EnabledControl>loop_enabled</EnabledControl>
-          <Color>#ff9200</Color>
+          <Color>#ff8800</Color>
           <Opacity>0.35</Opacity>
           <DisabledColor>#acacac</DisabledColor>
           <DisabledOpacity>0.4</DisabledOpacity>

@@ -69,9 +69,9 @@ try {
     $manifest = Get-Content (Join-Path $PSScriptRoot 'payload-sha256.json') -Raw | ConvertFrom-Json
     if ($buildInfo.version -ne $manifest.version -or $buildInfo.product -ne 'NauticMixxx' -or
         $buildInfo.platform -ne 'windows-x64' -or -not $buildInfo.testsPassed -or
-        $buildInfo.baseMixxxVersion -ne '2.5.6' -or $manifest.version -ne '1.1.0' -or
+        $buildInfo.baseMixxxVersion -ne '2.5.6' -or $manifest.version -ne '1.2.0' -or
         $buildInfo.patches -ne $manifest.patches) {
-        throw 'This package does not contain a validated NauticMixxx 1.1.0 build based on Mixxx 2.5.6.'
+        throw 'This package does not contain a validated NauticMixxx 1.2.0 build based on Mixxx 2.5.6.'
     }
     if ((Get-FileHash (Join-Path $runtime 'mixxx.exe') -Algorithm SHA256).Hash -ne $buildInfo.executableSha256) {
         throw 'The executable does not match the validated build.'
@@ -226,6 +226,12 @@ try {
     New-Item -ItemType Directory -Path $controllers, $chains -Force | Out-Null
     Get-ChildItem (Join-Path $PSScriptRoot 'controllers\Hercules_DJControl_Inpulse_500_RX3') -File |
         Copy-Item -Destination $controllers -Force
+    foreach ($legacyMapping in @('Hercules_DJControl_Inpulse_500.midi.xml', 'Hercules-DJControl-Inpulse-500-script.js')) {
+        $legacyPath = Join-Path $controllers $legacyMapping
+        if (Test-Path -LiteralPath $legacyPath -PathType Leaf) {
+            Move-Item -LiteralPath $legacyPath -Destination ($legacyPath + '.previous') -Force
+        }
+    }
     Get-ChildItem (Join-Path $PSScriptRoot 'effects\chains') -File | Copy-Item -Destination $chains -Force
     foreach ($legacyEffect in @('RX3 SPACE.xml', 'RX3 DUB ECHO.xml')) {
         $legacyPath = Join-Path $chains $legacyEffect

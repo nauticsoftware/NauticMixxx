@@ -44,7 +44,7 @@
             <control>
                 <group>[Master]</group>
                 <key>DJCi500.rx3TempoRangeButton</key>
-                <description>BEATMATCH GUIDE: cycle TEMPO range +/-6, 10, 16 and WIDE</description>
+                <description>BEATMATCH GUIDE: confirm fixed TEMPO range +/-6%</description>
                 <status>0x90</status>
                 <midino>0x01</midino>
                 <options>

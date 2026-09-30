@@ -12,7 +12,7 @@ Requisitos: Xcode Command Line Tools, CMake, Ninja, Git y unos 8 GB libres.
 ```
 
 El script descarga las entradas verificadas, aplica `patches/0001` a
-`0011`, compila `NauticMixxx.app`, ejecuta las pruebas RX3, instala skin y
+`0012`, compila `NauticMixxx.app`, ejecuta las pruebas RX3, instala skin y
 mapping dentro del bundle, genera el icono y firma de forma ad hoc.
 
 Variables opcionales:
@@ -31,8 +31,8 @@ python3 scripts/package-rx3-windows-skin.py
 python3 scripts/test-windows-skin-package.py
 ```
 
-El empaquetador deja un candidato en `build/test-candidate/1.1.0/`. La
-distribución vigente está en `../../../release/1.1.0/` y contiene los BAT de
+El empaquetador deja un candidato en `build/test-candidate/1.2.0/`. La
+distribución anterior está en `../../../release/1.1.0/` y contiene los BAT de
 instalación y desinstalación más una carpeta de archivos. No incluye
 `mixxx.exe` ni requiere compilar C++.
 
@@ -47,7 +47,7 @@ También puede ejecutarse manualmente desde GitHub Actions. El workflow genera
 el runtime, ejecuta la suite RX3 y sólo entonces llama al empaquetador nativo.
 Ese ZIP también contiene `INSTALL-WINDOWS.bat` y `NauticMixxx-Files/`, pero
 requiere un entorno Windows x64 para generar `mixxx.exe`. El empaquetador nativo
-rechaza un runtime 1.0.0 o parches que no correspondan a 1.1.0.
+rechaza un runtime 1.0.0 o parches que no correspondan a 1.2.0.
 
 ## Fuentes correspondientes
 

@@ -1,4 +1,4 @@
-NAUTICMIXXX SKIN 1.1.0 FOR WINDOWS X64
+NAUTICMIXXX SKIN 1.2.0 FOR WINDOWS X64
 Windows 10 version 1809 or later / Windows 11, Intel or AMD 64-bit
 
 QUICK START
@@ -28,8 +28,8 @@ the preset: it does not map PLAY/CUE, jog wheels, mixer or effects.
 
 EXISTING SKIN VERSIONS
 Setup detects the skin in both the standard and separate profiles. In the
-profile you select, version 1.0.0 and later are backed up and updated to 1.1.0.
-Setup refuses to overwrite a newer version with 1.1.0. Backups are kept in:
+profile you select, version 1.0.0 and later are backed up and updated to 1.2.0.
+Setup refuses to overwrite a newer version with 1.2.0. Backups are kept in:
 %LOCALAPPDATA%\NauticMixxx-Backups
 When NauticMixxx 1.0 is present, setup also replaces its bundled skin in the
 same application folder after creating a backup. The existing executable is
@@ -68,9 +68,10 @@ uninstaller stops in that case to avoid deleting the only restore copy.
 
 COMPATIBILITY
 This is the skin-only edition for official Mixxx. It does not include the
-custom NauticMixxx audio engine or native patches. Native-only features such
-as USB-only source browsing, the exact two-pixel playhead width and automatic
-full-window reference fill require a separately built NauticMixxx application.
+custom NauticMixxx audio engine or native patches. The fixed 1.2 preferences,
+USB-only source browsing, automatic controller selection, exact two-pixel
+playhead width and automatic full-window reference fill require a separately
+built NauticMixxx application.
 The red playhead color and visual layout are supplied by the skin where
 supported by the installed Mixxx version.
 

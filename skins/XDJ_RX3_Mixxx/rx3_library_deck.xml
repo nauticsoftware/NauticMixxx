@@ -16,7 +16,7 @@
             <ObjectName>RX3LibraryDeckOverview</ObjectName><Size>0me,0me</Size><SizePolicy>me,me</SizePolicy><Channel><Variable name="channel"/></Channel>
             <BgColor>#050607</BgColor><AxesColor>#00000000</AxesColor>
             <SignalColor>#1d6fe0</SignalColor><SignalLowColor>#0055e1</SignalLowColor><SignalMidColor>#f0a000</SignalMidColor><SignalHighColor>#ffffff</SignalHighColor>
-            <SignalRGBLowColor>#0055e1</SignalRGBLowColor><SignalRGBMidColor>#f0a000</SignalRGBMidColor><SignalRGBHighColor>#ffffff</SignalRGBHighColor>
+            <SignalRGBLowColor>#ff3030</SignalRGBLowColor><SignalRGBMidColor>#32d060</SignalRGBMidColor><SignalRGBHighColor>#357bff</SignalRGBHighColor>
             <PlayedOverlayColor>#99000000</PlayedOverlayColor><PlayPosColor>#ff0000</PlayPosColor><PlayPosWidth>2</PlayPosWidth><DefaultMark><Rx3Hotcue>true</Rx3Hotcue><Align>bottom</Align><Color>#00c6ee</Color><TextColor>#000000</TextColor></DefaultMark>
             <Connection><ConfigKey>[Channel<Variable name="channel"/>],playposition</ConfigKey></Connection>
           </Overview>

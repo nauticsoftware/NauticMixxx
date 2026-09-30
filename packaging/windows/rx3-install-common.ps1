@@ -184,7 +184,7 @@ function Get-LatestStableMixxxVersion {
 
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        $headers = @{ 'User-Agent' = 'NauticMixxx-Installer/1.1.0' }
+        $headers = @{ 'User-Agent' = 'NauticMixxx-Installer/1.2.0' }
         $release = Invoke-RestMethod -UseBasicParsing -Uri 'https://api.github.com/repos/mixxxdj/mixxx/releases/latest' `
             -Headers $headers -TimeoutSec 8
         $version = ConvertTo-MixxxVersion -Value $release.tag_name

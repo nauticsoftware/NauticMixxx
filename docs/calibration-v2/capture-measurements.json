@@ -1,0 +1,2508 @@
+[
+  {
+    "file": 1,
+    "mode": "blue",
+    "path": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_G4wVt6/Screenshot 2026-09-29 at 08.54.26.png",
+    "sha256": "a00cda91cc98290a3ddc6f5c298cbf1cf61fd113476f346717073ffc3dfa48da",
+    "size": [
+      2196,
+      227
+    ],
+    "overview_baseline_rows": [
+      57,
+      59
+    ],
+    "overview_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 37822
+      },
+      {
+        "rgb": "#06263C",
+        "pixels": 572
+      },
+      {
+        "rgb": "#0D4E7C",
+        "pixels": 509
+      },
+      {
+        "rgb": "#0C4974",
+        "pixels": 503
+      },
+      {
+        "rgb": "#0B456E",
+        "pixels": 501
+      },
+      {
+        "rgb": "#0C4B78",
+        "pixels": 498
+      },
+      {
+        "rgb": "#0C4771",
+        "pixels": 493
+      },
+      {
+        "rgb": "#0E5180",
+        "pixels": 476
+      },
+      {
+        "rgb": "#072941",
+        "pixels": 467
+      },
+      {
+        "rgb": "#093859",
+        "pixels": 456
+      },
+      {
+        "rgb": "#0E5587",
+        "pixels": 454
+      },
+      {
+        "rgb": "#093858",
+        "pixels": 449
+      },
+      {
+        "rgb": "#072B44",
+        "pixels": 435
+      },
+      {
+        "rgb": "#B8CBD9",
+        "pixels": 431
+      },
+      {
+        "rgb": "#093B5E",
+        "pixels": 424
+      },
+      {
+        "rgb": "#083350",
+        "pixels": 421
+      }
+    ],
+    "detail_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 140393
+      },
+      {
+        "rgb": "#CB3F3F",
+        "pixels": 33321
+      },
+      {
+        "rgb": "#503BFF",
+        "pixels": 1753
+      },
+      {
+        "rgb": "#4C4C4C",
+        "pixels": 889
+      },
+      {
+        "rgb": "#3769EB",
+        "pixels": 840
+      },
+      {
+        "rgb": "#4F3DFE",
+        "pixels": 769
+      },
+      {
+        "rgb": "#FFFFFF",
+        "pixels": 622
+      },
+      {
+        "rgb": "#503CFF",
+        "pixels": 605
+      },
+      {
+        "rgb": "#1E1E1E",
+        "pixels": 600
+      },
+      {
+        "rgb": "#4E3FFD",
+        "pixels": 468
+      },
+      {
+        "rgb": "#4352F5",
+        "pixels": 468
+      },
+      {
+        "rgb": "#4254F4",
+        "pixels": 467
+      },
+      {
+        "rgb": "#4E3EFE",
+        "pixels": 463
+      },
+      {
+        "rgb": "#4450F6",
+        "pixels": 458
+      },
+      {
+        "rgb": "#4156F3",
+        "pixels": 453
+      },
+      {
+        "rgb": "#366BEA",
+        "pixels": 446
+      }
+    ],
+    "playhead": {
+      "x": 1063,
+      "y": [
+        89,
+        224
+      ],
+      "width_px": 1
+    },
+    "grid_top": 107,
+    "grid_bottom": 220,
+    "bar_x": [
+      62,
+      423,
+      784,
+      1145,
+      1506,
+      1867
+    ],
+    "pixels_per_beat": 90.25,
+    "detail_center_y": 163.5,
+    "label_bbox": [
+      1014,
+      92,
+      1062,
+      102
+    ]
+  },
+  {
+    "file": 1,
+    "mode": "rgb",
+    "path": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_2FWZ8G/Screenshot 2026-09-29 at 08.54.52.png",
+    "sha256": "6817e82e23b9a9b3be6eb39386e393d49ea38a0582990ec3cc780d356f5ce2c7",
+    "size": [
+      2199,
+      237
+    ],
+    "overview_baseline_rows": [
+      61,
+      63
+    ],
+    "overview_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 45733
+      },
+      {
+        "rgb": "#D10000",
+        "pixels": 493
+      },
+      {
+        "rgb": "#640000",
+        "pixels": 488
+      },
+      {
+        "rgb": "#D90000",
+        "pixels": 486
+      },
+      {
+        "rgb": "#B90000",
+        "pixels": 486
+      },
+      {
+        "rgb": "#9E0000",
+        "pixels": 470
+      },
+      {
+        "rgb": "#BC0000",
+        "pixels": 465
+      },
+      {
+        "rgb": "#C80000",
+        "pixels": 461
+      },
+      {
+        "rgb": "#C30000",
+        "pixels": 456
+      },
+      {
+        "rgb": "#860000",
+        "pixels": 455
+      },
+      {
+        "rgb": "#8E0000",
+        "pixels": 442
+      },
+      {
+        "rgb": "#940000",
+        "pixels": 436
+      },
+      {
+        "rgb": "#6D0000",
+        "pixels": 434
+      },
+      {
+        "rgb": "#2C2C9B",
+        "pixels": 434
+      },
+      {
+        "rgb": "#970000",
+        "pixels": 426
+      },
+      {
+        "rgb": "#1010DE",
+        "pixels": 418
+      }
+    ],
+    "detail_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 140647
+      },
+      {
+        "rgb": "#CB3F3F",
+        "pixels": 33321
+      },
+      {
+        "rgb": "#1E1E1E",
+        "pixels": 13890
+      },
+      {
+        "rgb": "#4C4C4C",
+        "pixels": 889
+      },
+      {
+        "rgb": "#FFFFFF",
+        "pixels": 622
+      },
+      {
+        "rgb": "#FC0000",
+        "pixels": 609
+      },
+      {
+        "rgb": "#800000",
+        "pixels": 590
+      },
+      {
+        "rgb": "#FD0000",
+        "pixels": 582
+      },
+      {
+        "rgb": "#7F0100",
+        "pixels": 571
+      },
+      {
+        "rgb": "#FB0000",
+        "pixels": 551
+      },
+      {
+        "rgb": "#FA0000",
+        "pixels": 536
+      },
+      {
+        "rgb": "#F90000",
+        "pixels": 449
+      },
+      {
+        "rgb": "#F50000",
+        "pixels": 440
+      },
+      {
+        "rgb": "#FC0100",
+        "pixels": 438
+      },
+      {
+        "rgb": "#F80000",
+        "pixels": 424
+      },
+      {
+        "rgb": "#FB0100",
+        "pixels": 413
+      }
+    ],
+    "playhead": {
+      "x": 1065,
+      "y": [
+        93,
+        228
+      ],
+      "width_px": 1
+    },
+    "grid_top": 111,
+    "grid_bottom": 224,
+    "bar_x": [
+      64,
+      425,
+      786,
+      1147,
+      1508,
+      1869
+    ],
+    "pixels_per_beat": 90.25,
+    "detail_center_y": 167.5,
+    "label_bbox": [
+      1016,
+      96,
+      1064,
+      106
+    ]
+  },
+  {
+    "file": 1,
+    "mode": "3band",
+    "path": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_D3XQqQ/Screenshot 2026-09-29 at 08.55.08.png",
+    "sha256": "f8f92a4f4a7d5291f79bdf747c6dcfe3b2f2283c90e0a18971b46d2d64639684",
+    "size": [
+      2184,
+      228
+    ],
+    "overview_baseline_rows": [
+      55,
+      57
+    ],
+    "overview_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 37348
+      },
+      {
+        "rgb": "#0055E1",
+        "pixels": 12757
+      },
+      {
+        "rgb": "#FFFFFF",
+        "pixels": 12231
+      },
+      {
+        "rgb": "#FFA600",
+        "pixels": 5021
+      },
+      {
+        "rgb": "#0041AB",
+        "pixels": 1914
+      },
+      {
+        "rgb": "#BFD4F7",
+        "pixels": 364
+      },
+      {
+        "rgb": "#0041AC",
+        "pixels": 242
+      },
+      {
+        "rgb": "#BF9138",
+        "pixels": 209
+      },
+      {
+        "rgb": "#00050E",
+        "pixels": 168
+      },
+      {
+        "rgb": "#010101",
+        "pixels": 89
+      },
+      {
+        "rgb": "#92835F",
+        "pixels": 86
+      },
+      {
+        "rgb": "#1C5EC7",
+        "pixels": 85
+      },
+      {
+        "rgb": "#010202",
+        "pixels": 83
+      },
+      {
+        "rgb": "#010100",
+        "pixels": 77
+      },
+      {
+        "rgb": "#FF0000",
+        "pixels": 67
+      },
+      {
+        "rgb": "#060503",
+        "pixels": 53
+      }
+    ],
+    "detail_palette": [
+      {
+        "rgb": "#0051E1",
+        "pixels": 113281
+      },
+      {
+        "rgb": "#000000",
+        "pixels": 101798
+      },
+      {
+        "rgb": "#CB3F3F",
+        "pixels": 33321
+      },
+      {
+        "rgb": "#1E1E1E",
+        "pixels": 6543
+      },
+      {
+        "rgb": "#0053E1",
+        "pixels": 5624
+      },
+      {
+        "rgb": "#B36506",
+        "pixels": 3233
+      },
+      {
+        "rgb": "#F5EAD6",
+        "pixels": 2065
+      },
+      {
+        "rgb": "#FFFFFF",
+        "pixels": 622
+      },
+      {
+        "rgb": "#4C4C4C",
+        "pixels": 522
+      },
+      {
+        "rgb": "#D24747",
+        "pixels": 288
+      },
+      {
+        "rgb": "#FF0000",
+        "pixels": 228
+      },
+      {
+        "rgb": "#B36606",
+        "pixels": 126
+      },
+      {
+        "rgb": "#002870",
+        "pixels": 116
+      },
+      {
+        "rgb": "#7C7C7C",
+        "pixels": 108
+      },
+      {
+        "rgb": "#F5EBD7",
+        "pixels": 102
+      },
+      {
+        "rgb": "#727272",
+        "pixels": 72
+      }
+    ],
+    "playhead": {
+      "x": 1057,
+      "y": [
+        87,
+        222
+      ],
+      "width_px": 1
+    },
+    "grid_top": 105,
+    "grid_bottom": 218,
+    "bar_x": [
+      56,
+      417,
+      778,
+      1139,
+      1500,
+      1861
+    ],
+    "pixels_per_beat": 90.25,
+    "detail_center_y": 161.5,
+    "label_bbox": [
+      1008,
+      90,
+      1056,
+      100
+    ]
+  },
+  {
+    "file": 2,
+    "mode": "blue",
+    "path": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_enYDbk/Screenshot 2026-09-29 at 08.55.48.png",
+    "sha256": "32c3b6b4eee851c9fafb6dbb0c2ed240d47db03319e18b02327bd78ab39ae12d",
+    "size": [
+      2194,
+      238
+    ],
+    "overview_baseline_rows": [
+      60,
+      62
+    ],
+    "overview_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 45312
+      },
+      {
+        "rgb": "#06263C",
+        "pixels": 535
+      },
+      {
+        "rgb": "#0C4771",
+        "pixels": 497
+      },
+      {
+        "rgb": "#0D4E7C",
+        "pixels": 496
+      },
+      {
+        "rgb": "#0C4974",
+        "pixels": 485
+      },
+      {
+        "rgb": "#0B456E",
+        "pixels": 484
+      },
+      {
+        "rgb": "#0C4B78",
+        "pixels": 474
+      },
+      {
+        "rgb": "#072941",
+        "pixels": 462
+      },
+      {
+        "rgb": "#0E5180",
+        "pixels": 462
+      },
+      {
+        "rgb": "#093858",
+        "pixels": 452
+      },
+      {
+        "rgb": "#0E5587",
+        "pixels": 450
+      },
+      {
+        "rgb": "#093859",
+        "pixels": 443
+      },
+      {
+        "rgb": "#093654",
+        "pixels": 431
+      },
+      {
+        "rgb": "#051B2B",
+        "pixels": 430
+      },
+      {
+        "rgb": "#072B44",
+        "pixels": 430
+      },
+      {
+        "rgb": "#062439",
+        "pixels": 425
+      }
+    ],
+    "detail_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 70160
+      },
+      {
+        "rgb": "#1E1E1E",
+        "pixels": 17880
+      },
+      {
+        "rgb": "#B40000",
+        "pixels": 11853
+      },
+      {
+        "rgb": "#BB0818",
+        "pixels": 3317
+      },
+      {
+        "rgb": "#BC0619",
+        "pixels": 1403
+      },
+      {
+        "rgb": "#B80F13",
+        "pixels": 1232
+      },
+      {
+        "rgb": "#3769EB",
+        "pixels": 1180
+      },
+      {
+        "rgb": "#BA0914",
+        "pixels": 958
+      },
+      {
+        "rgb": "#BB0918",
+        "pixels": 949
+      },
+      {
+        "rgb": "#B90E14",
+        "pixels": 841
+      },
+      {
+        "rgb": "#B81013",
+        "pixels": 840
+      },
+      {
+        "rgb": "#3272E8",
+        "pixels": 756
+      },
+      {
+        "rgb": "#B90D14",
+        "pixels": 731
+      },
+      {
+        "rgb": "#B81113",
+        "pixels": 726
+      },
+      {
+        "rgb": "#BA0A13",
+        "pixels": 703
+      },
+      {
+        "rgb": "#BB0817",
+        "pixels": 700
+      }
+    ],
+    "playhead": {
+      "x": 1063,
+      "y": [
+        92,
+        227
+      ],
+      "width_px": 1
+    },
+    "grid_top": 110,
+    "grid_bottom": 223,
+    "bar_x": [
+      93,
+      449,
+      804,
+      1160,
+      1516,
+      1872
+    ],
+    "pixels_per_beat": 89.0,
+    "detail_center_y": 166.5,
+    "label_bbox": [
+      1014,
+      95,
+      1062,
+      105
+    ]
+  },
+  {
+    "file": 2,
+    "mode": "rgb",
+    "path": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_yguYDy/Screenshot 2026-09-29 at 08.56.00.png",
+    "sha256": "ae4d3ba5466b2d8b947f1721499dbc9b0838f772b17e3076504d295c581e004d",
+    "size": [
+      2194,
+      226
+    ],
+    "overview_baseline_rows": [
+      56,
+      58
+    ],
+    "overview_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 37004
+      },
+      {
+        "rgb": "#9E0000",
+        "pixels": 457
+      },
+      {
+        "rgb": "#640000",
+        "pixels": 437
+      },
+      {
+        "rgb": "#D10000",
+        "pixels": 423
+      },
+      {
+        "rgb": "#C30000",
+        "pixels": 420
+      },
+      {
+        "rgb": "#B90000",
+        "pixels": 419
+      },
+      {
+        "rgb": "#8E0000",
+        "pixels": 418
+      },
+      {
+        "rgb": "#D90000",
+        "pixels": 417
+      },
+      {
+        "rgb": "#690000",
+        "pixels": 413
+      },
+      {
+        "rgb": "#470000",
+        "pixels": 411
+      },
+      {
+        "rgb": "#940000",
+        "pixels": 411
+      },
+      {
+        "rgb": "#C80000",
+        "pixels": 411
+      },
+      {
+        "rgb": "#BC0000",
+        "pixels": 410
+      },
+      {
+        "rgb": "#970000",
+        "pixels": 402
+      },
+      {
+        "rgb": "#6D0000",
+        "pixels": 399
+      },
+      {
+        "rgb": "#730000",
+        "pixels": 398
+      }
+    ],
+    "detail_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 69432
+      },
+      {
+        "rgb": "#B40000",
+        "pixels": 12078
+      },
+      {
+        "rgb": "#C20000",
+        "pixels": 1922
+      },
+      {
+        "rgb": "#C30000",
+        "pixels": 1870
+      },
+      {
+        "rgb": "#C10000",
+        "pixels": 1716
+      },
+      {
+        "rgb": "#C40000",
+        "pixels": 1151
+      },
+      {
+        "rgb": "#C80000",
+        "pixels": 1043
+      },
+      {
+        "rgb": "#1E1E1E",
+        "pixels": 970
+      },
+      {
+        "rgb": "#C90000",
+        "pixels": 916
+      },
+      {
+        "rgb": "#C50000",
+        "pixels": 697
+      },
+      {
+        "rgb": "#C70000",
+        "pixels": 654
+      },
+      {
+        "rgb": "#FFFFFF",
+        "pixels": 624
+      },
+      {
+        "rgb": "#FC0000",
+        "pixels": 611
+      },
+      {
+        "rgb": "#C80100",
+        "pixels": 610
+      },
+      {
+        "rgb": "#C60000",
+        "pixels": 534
+      },
+      {
+        "rgb": "#C70100",
+        "pixels": 520
+      }
+    ],
+    "playhead": {
+      "x": 1056,
+      "y": [
+        88,
+        223
+      ],
+      "width_px": 1
+    },
+    "grid_top": 106,
+    "grid_bottom": 219,
+    "bar_x": [
+      86,
+      442,
+      797,
+      1153,
+      1509,
+      1865
+    ],
+    "pixels_per_beat": 89.0,
+    "detail_center_y": 162.5,
+    "label_bbox": [
+      1007,
+      91,
+      1055,
+      101
+    ]
+  },
+  {
+    "file": 2,
+    "mode": "3band",
+    "path": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_Hon02S/Screenshot 2026-09-29 at 08.56.11.png",
+    "sha256": "a8655d7070bef77fb81247c40ef2f9f6f92a047ab346dd16dbd2394df0330de6",
+    "size": [
+      2186,
+      243
+    ],
+    "overview_baseline_rows": [
+      60,
+      62
+    ],
+    "overview_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 44265
+      },
+      {
+        "rgb": "#0055E1",
+        "pixels": 16363
+      },
+      {
+        "rgb": "#FFFFFF",
+        "pixels": 11857
+      },
+      {
+        "rgb": "#FFA600",
+        "pixels": 5510
+      },
+      {
+        "rgb": "#0041AB",
+        "pixels": 1919
+      },
+      {
+        "rgb": "#BFD4F7",
+        "pixels": 335
+      },
+      {
+        "rgb": "#00050E",
+        "pixels": 248
+      },
+      {
+        "rgb": "#0041AC",
+        "pixels": 243
+      },
+      {
+        "rgb": "#BF9138",
+        "pixels": 200
+      },
+      {
+        "rgb": "#010101",
+        "pixels": 83
+      },
+      {
+        "rgb": "#F7A306",
+        "pixels": 76
+      },
+      {
+        "rgb": "#FF0000",
+        "pixels": 67
+      },
+      {
+        "rgb": "#C49333",
+        "pixels": 65
+      },
+      {
+        "rgb": "#010100",
+        "pixels": 54
+      },
+      {
+        "rgb": "#3E3E3E",
+        "pixels": 45
+      },
+      {
+        "rgb": "#020202",
+        "pixels": 43
+      }
+    ],
+    "detail_palette": [
+      {
+        "rgb": "#0051E1",
+        "pixels": 103227
+      },
+      {
+        "rgb": "#000000",
+        "pixels": 81251
+      },
+      {
+        "rgb": "#B36506",
+        "pixels": 32342
+      },
+      {
+        "rgb": "#B40000",
+        "pixels": 29852
+      },
+      {
+        "rgb": "#1E1E1E",
+        "pixels": 27733
+      },
+      {
+        "rgb": "#0053E1",
+        "pixels": 5439
+      },
+      {
+        "rgb": "#B40816",
+        "pixels": 2987
+      },
+      {
+        "rgb": "#F5EAD6",
+        "pixels": 2068
+      },
+      {
+        "rgb": "#B36606",
+        "pixels": 1328
+      },
+      {
+        "rgb": "#FFA300",
+        "pixels": 1307
+      },
+      {
+        "rgb": "#FFFFFF",
+        "pixels": 624
+      },
+      {
+        "rgb": "#0F0F0F",
+        "pixels": 616
+      },
+      {
+        "rgb": "#4C4C4C",
+        "pixels": 411
+      },
+      {
+        "rgb": "#BC0707",
+        "pixels": 262
+      },
+      {
+        "rgb": "#FF0000",
+        "pixels": 238
+      },
+      {
+        "rgb": "#002870",
+        "pixels": 132
+      }
+    ],
+    "playhead": {
+      "x": 1061,
+      "y": [
+        92,
+        227
+      ],
+      "width_px": 1
+    },
+    "grid_top": 110,
+    "grid_bottom": 223,
+    "bar_x": [
+      91,
+      447,
+      802,
+      1158,
+      1514,
+      1870
+    ],
+    "pixels_per_beat": 89.0,
+    "detail_center_y": 166.5,
+    "label_bbox": [
+      1012,
+      95,
+      1060,
+      105
+    ]
+  },
+  {
+    "file": 3,
+    "mode": "blue",
+    "path": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_hdB95W/Screenshot 2026-09-29 at 08.56.44.png",
+    "sha256": "2bce8fdb97c65009b032f08827f906df36f138d07be2c1eb81c1dca42a0bd6ad",
+    "size": [
+      2190,
+      233
+    ],
+    "overview_baseline_rows": [
+      57,
+      59
+    ],
+    "overview_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 40596
+      },
+      {
+        "rgb": "#06263C",
+        "pixels": 561
+      },
+      {
+        "rgb": "#0D4E7C",
+        "pixels": 493
+      },
+      {
+        "rgb": "#072941",
+        "pixels": 491
+      },
+      {
+        "rgb": "#0B456E",
+        "pixels": 486
+      },
+      {
+        "rgb": "#9DABB4",
+        "pixels": 480
+      },
+      {
+        "rgb": "#0C4974",
+        "pixels": 476
+      },
+      {
+        "rgb": "#010101",
+        "pixels": 470
+      },
+      {
+        "rgb": "#95A2AA",
+        "pixels": 466
+      },
+      {
+        "rgb": "#ACBDC8",
+        "pixels": 457
+      },
+      {
+        "rgb": "#0E5180",
+        "pixels": 451
+      },
+      {
+        "rgb": "#0C4B78",
+        "pixels": 444
+      },
+      {
+        "rgb": "#879198",
+        "pixels": 435
+      },
+      {
+        "rgb": "#A2B1BB",
+        "pixels": 434
+      },
+      {
+        "rgb": "#B8CBD9",
+        "pixels": 433
+      },
+      {
+        "rgb": "#A8B8C3",
+        "pixels": 428
+      }
+    ],
+    "detail_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 275125
+      },
+      {
+        "rgb": "#1E1E1E",
+        "pixels": 13116
+      },
+      {
+        "rgb": "#7EB2DF",
+        "pixels": 138
+      },
+      {
+        "rgb": "#FF0000",
+        "pixels": 136
+      },
+      {
+        "rgb": "#4E3FFE",
+        "pixels": 125
+      },
+      {
+        "rgb": "#1CA0C7",
+        "pixels": 88
+      },
+      {
+        "rgb": "#258ECD",
+        "pixels": 86
+      },
+      {
+        "rgb": "#2497CC",
+        "pixels": 82
+      },
+      {
+        "rgb": "#2E76E0",
+        "pixels": 76
+      },
+      {
+        "rgb": "#2A7CC9",
+        "pixels": 74
+      },
+      {
+        "rgb": "#66A4DA",
+        "pixels": 68
+      },
+      {
+        "rgb": "#4E40FD",
+        "pixels": 67
+      },
+      {
+        "rgb": "#4E3FFD",
+        "pixels": 67
+      },
+      {
+        "rgb": "#2F70E0",
+        "pixels": 59
+      },
+      {
+        "rgb": "#2E7CC9",
+        "pixels": 54
+      },
+      {
+        "rgb": "#2E72C9",
+        "pixels": 54
+      }
+    ],
+    "playhead": {
+      "x": 1062,
+      "y": [
+        89,
+        224
+      ],
+      "width_px": 1
+    },
+    "grid_top": null,
+    "grid_bottom": null,
+    "bar_x": [],
+    "pixels_per_beat": null,
+    "detail_center_y": 165.0,
+    "label_bbox": null
+  },
+  {
+    "file": 3,
+    "mode": "rgb",
+    "path": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_Mccf8Q/Screenshot 2026-09-29 at 08.56.54.png",
+    "sha256": "47e8ecdb0df243c02e8b053f62d520e7cf0bbc798ffd129000c4e45081400ede",
+    "size": [
+      2186,
+      225
+    ],
+    "overview_baseline_rows": [
+      57,
+      59
+    ],
+    "overview_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 40395
+      },
+      {
+        "rgb": "#B90000",
+        "pixels": 523
+      },
+      {
+        "rgb": "#C30000",
+        "pixels": 507
+      },
+      {
+        "rgb": "#B50000",
+        "pixels": 503
+      },
+      {
+        "rgb": "#860000",
+        "pixels": 492
+      },
+      {
+        "rgb": "#1D1DC0",
+        "pixels": 478
+      },
+      {
+        "rgb": "#D90000",
+        "pixels": 475
+      },
+      {
+        "rgb": "#8E0000",
+        "pixels": 473
+      },
+      {
+        "rgb": "#D10000",
+        "pixels": 473
+      },
+      {
+        "rgb": "#640000",
+        "pixels": 472
+      },
+      {
+        "rgb": "#2727A8",
+        "pixels": 468
+      },
+      {
+        "rgb": "#2424AF",
+        "pixels": 466
+      },
+      {
+        "rgb": "#2C2C9B",
+        "pixels": 463
+      },
+      {
+        "rgb": "#0A0AEB",
+        "pixels": 459
+      },
+      {
+        "rgb": "#000001",
+        "pixels": 439
+      },
+      {
+        "rgb": "#C80000",
+        "pixels": 437
+      }
+    ],
+    "detail_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 270221
+      },
+      {
+        "rgb": "#FF0000",
+        "pixels": 136
+      },
+      {
+        "rgb": "#FC0000",
+        "pixels": 100
+      },
+      {
+        "rgb": "#FD0000",
+        "pixels": 97
+      },
+      {
+        "rgb": "#FB0000",
+        "pixels": 81
+      },
+      {
+        "rgb": "#F80000",
+        "pixels": 75
+      },
+      {
+        "rgb": "#870100",
+        "pixels": 73
+      },
+      {
+        "rgb": "#DB0000",
+        "pixels": 70
+      },
+      {
+        "rgb": "#F50000",
+        "pixels": 70
+      },
+      {
+        "rgb": "#FC0100",
+        "pixels": 70
+      },
+      {
+        "rgb": "#860100",
+        "pixels": 69
+      },
+      {
+        "rgb": "#FA0000",
+        "pixels": 69
+      },
+      {
+        "rgb": "#F90100",
+        "pixels": 69
+      },
+      {
+        "rgb": "#DD0000",
+        "pixels": 68
+      },
+      {
+        "rgb": "#DA0000",
+        "pixels": 67
+      },
+      {
+        "rgb": "#F30000",
+        "pixels": 67
+      }
+    ],
+    "playhead": {
+      "x": 1064,
+      "y": [
+        89,
+        224
+      ],
+      "width_px": 1
+    },
+    "grid_top": null,
+    "grid_bottom": null,
+    "bar_x": [],
+    "pixels_per_beat": null,
+    "detail_center_y": 163.5,
+    "label_bbox": null
+  },
+  {
+    "file": 3,
+    "mode": "3band",
+    "path": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_GBpm7r/Screenshot 2026-09-29 at 08.57.04.png",
+    "sha256": "fd4523d32c9c0927205b897d57f4aacfb64a8d49256dfd793549550fc43a802a",
+    "size": [
+      2190,
+      232
+    ],
+    "overview_baseline_rows": [
+      59,
+      61
+    ],
+    "overview_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 50554
+      },
+      {
+        "rgb": "#0055E1",
+        "pixels": 11609
+      },
+      {
+        "rgb": "#FFFFFF",
+        "pixels": 10515
+      },
+      {
+        "rgb": "#FFA600",
+        "pixels": 3623
+      },
+      {
+        "rgb": "#0041AB",
+        "pixels": 1920
+      },
+      {
+        "rgb": "#BFD4F7",
+        "pixels": 364
+      },
+      {
+        "rgb": "#00050E",
+        "pixels": 256
+      },
+      {
+        "rgb": "#0041AC",
+        "pixels": 242
+      },
+      {
+        "rgb": "#BF9138",
+        "pixels": 170
+      },
+      {
+        "rgb": "#000001",
+        "pixels": 135
+      },
+      {
+        "rgb": "#EFA10D",
+        "pixels": 109
+      },
+      {
+        "rgb": "#A88A4C",
+        "pixels": 109
+      },
+      {
+        "rgb": "#010101",
+        "pixels": 100
+      },
+      {
+        "rgb": "#020202",
+        "pixels": 89
+      },
+      {
+        "rgb": "#496C9E",
+        "pixels": 83
+      },
+      {
+        "rgb": "#010100",
+        "pixels": 82
+      }
+    ],
+    "detail_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 231300
+      },
+      {
+        "rgb": "#0051E1",
+        "pixels": 49623
+      },
+      {
+        "rgb": "#B36506",
+        "pixels": 14869
+      },
+      {
+        "rgb": "#1E1E1E",
+        "pixels": 6564
+      },
+      {
+        "rgb": "#0053E1",
+        "pixels": 2632
+      },
+      {
+        "rgb": "#F5EAD6",
+        "pixels": 2083
+      },
+      {
+        "rgb": "#FFA300",
+        "pixels": 767
+      },
+      {
+        "rgb": "#B36606",
+        "pixels": 610
+      },
+      {
+        "rgb": "#FF0000",
+        "pixels": 136
+      },
+      {
+        "rgb": "#F5EBD7",
+        "pixels": 103
+      },
+      {
+        "rgb": "#002870",
+        "pixels": 64
+      },
+      {
+        "rgb": "#FFA500",
+        "pixels": 30
+      },
+      {
+        "rgb": "#593203",
+        "pixels": 4
+      },
+      {
+        "rgb": "#1D1D1D",
+        "pixels": 3
+      },
+      {
+        "rgb": "#7A756B",
+        "pixels": 2
+      }
+    ],
+    "playhead": {
+      "x": 1064,
+      "y": [
+        91,
+        226
+      ],
+      "width_px": 1
+    },
+    "grid_top": null,
+    "grid_bottom": null,
+    "bar_x": [],
+    "pixels_per_beat": null,
+    "detail_center_y": 167.0,
+    "label_bbox": null
+  },
+  {
+    "file": 4,
+    "mode": "blue",
+    "path": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_MsIGGS/Screenshot 2026-09-29 at 08.57.41.png",
+    "sha256": "c5b97d537c0114fe272ed06db54e86631810a17d5fd841e3f9afeaca8290205e",
+    "size": [
+      2184,
+      220
+    ],
+    "overview_baseline_rows": [
+      55,
+      57
+    ],
+    "overview_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 39815
+      },
+      {
+        "rgb": "#879198",
+        "pixels": 632
+      },
+      {
+        "rgb": "#062439",
+        "pixels": 554
+      },
+      {
+        "rgb": "#06263C",
+        "pixels": 554
+      },
+      {
+        "rgb": "#082E48",
+        "pixels": 543
+      },
+      {
+        "rgb": "#010101",
+        "pixels": 525
+      },
+      {
+        "rgb": "#0B4369",
+        "pixels": 519
+      },
+      {
+        "rgb": "#0C4B78",
+        "pixels": 516
+      },
+      {
+        "rgb": "#0D4E7C",
+        "pixels": 516
+      },
+      {
+        "rgb": "#0B456E",
+        "pixels": 515
+      },
+      {
+        "rgb": "#303335",
+        "pixels": 507
+      },
+      {
+        "rgb": "#95A2AA",
+        "pixels": 507
+      },
+      {
+        "rgb": "#A2B1BB",
+        "pixels": 507
+      },
+      {
+        "rgb": "#A8B8C3",
+        "pixels": 507
+      },
+      {
+        "rgb": "#B8CBD9",
+        "pixels": 507
+      },
+      {
+        "rgb": "#97A8B4",
+        "pixels": 455
+      }
+    ],
+    "detail_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 282119
+      },
+      {
+        "rgb": "#7EB2DF",
+        "pixels": 136
+      },
+      {
+        "rgb": "#FF0000",
+        "pixels": 133
+      },
+      {
+        "rgb": "#66A4DA",
+        "pixels": 92
+      },
+      {
+        "rgb": "#2A7CC9",
+        "pixels": 68
+      },
+      {
+        "rgb": "#297EC9",
+        "pixels": 47
+      },
+      {
+        "rgb": "#209FC1",
+        "pixels": 44
+      },
+      {
+        "rgb": "#1CA0C6",
+        "pixels": 44
+      },
+      {
+        "rgb": "#1CA0C7",
+        "pixels": 44
+      },
+      {
+        "rgb": "#2F75E0",
+        "pixels": 43
+      },
+      {
+        "rgb": "#2C89CD",
+        "pixels": 42
+      },
+      {
+        "rgb": "#2892CA",
+        "pixels": 42
+      },
+      {
+        "rgb": "#2695C8",
+        "pixels": 42
+      },
+      {
+        "rgb": "#219CC1",
+        "pixels": 42
+      },
+      {
+        "rgb": "#20A2C2",
+        "pixels": 42
+      },
+      {
+        "rgb": "#20A4C3",
+        "pixels": 42
+      }
+    ],
+    "playhead": {
+      "x": 1058,
+      "y": [
+        87,
+        219
+      ],
+      "width_px": 1
+    },
+    "grid_top": null,
+    "grid_bottom": null,
+    "bar_x": [],
+    "pixels_per_beat": null,
+    "detail_center_y": 163.0,
+    "label_bbox": null
+  },
+  {
+    "file": 4,
+    "mode": "rgb",
+    "path": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_TvVHTF/Screenshot 2026-09-29 at 08.57.49.png",
+    "sha256": "edc9950aee824302bb1d40c6ff90028180e5dffc65f2b39b467f8c7615790028",
+    "size": [
+      2190,
+      229
+    ],
+    "overview_baseline_rows": [
+      58,
+      60
+    ],
+    "overview_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 45978
+      },
+      {
+        "rgb": "#2C2C9B",
+        "pixels": 632
+      },
+      {
+        "rgb": "#B20000",
+        "pixels": 560
+      },
+      {
+        "rgb": "#790000",
+        "pixels": 545
+      },
+      {
+        "rgb": "#C80000",
+        "pixels": 543
+      },
+      {
+        "rgb": "#000001",
+        "pixels": 521
+      },
+      {
+        "rgb": "#1010DE",
+        "pixels": 509
+      },
+      {
+        "rgb": "#161636",
+        "pixels": 507
+      },
+      {
+        "rgb": "#2424AF",
+        "pixels": 507
+      },
+      {
+        "rgb": "#1D1DC0",
+        "pixels": 507
+      },
+      {
+        "rgb": "#1B1BC8",
+        "pixels": 507
+      },
+      {
+        "rgb": "#0A0AEB",
+        "pixels": 507
+      },
+      {
+        "rgb": "#0505B9",
+        "pixels": 454
+      },
+      {
+        "rgb": "#2A2AA0",
+        "pixels": 449
+      },
+      {
+        "rgb": "#2727A8",
+        "pixels": 449
+      },
+      {
+        "rgb": "#2222B4",
+        "pixels": 449
+      }
+    ],
+    "detail_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 293853
+      },
+      {
+        "rgb": "#1E1E1E",
+        "pixels": 2188
+      },
+      {
+        "rgb": "#FF0000",
+        "pixels": 136
+      },
+      {
+        "rgb": "#FC0000",
+        "pixels": 62
+      },
+      {
+        "rgb": "#F40000",
+        "pixels": 61
+      },
+      {
+        "rgb": "#0000EF",
+        "pixels": 60
+      },
+      {
+        "rgb": "#F90100",
+        "pixels": 54
+      },
+      {
+        "rgb": "#F60000",
+        "pixels": 52
+      },
+      {
+        "rgb": "#F30000",
+        "pixels": 51
+      },
+      {
+        "rgb": "#FA0100",
+        "pixels": 49
+      },
+      {
+        "rgb": "#F70000",
+        "pixels": 46
+      },
+      {
+        "rgb": "#FD0000",
+        "pixels": 44
+      },
+      {
+        "rgb": "#F90200",
+        "pixels": 41
+      },
+      {
+        "rgb": "#F50000",
+        "pixels": 40
+      },
+      {
+        "rgb": "#F90000",
+        "pixels": 36
+      },
+      {
+        "rgb": "#E50100",
+        "pixels": 33
+      }
+    ],
+    "playhead": {
+      "x": 1064,
+      "y": [
+        90,
+        225
+      ],
+      "width_px": 1
+    },
+    "grid_top": null,
+    "grid_bottom": null,
+    "bar_x": [],
+    "pixels_per_beat": null,
+    "detail_center_y": 165.0,
+    "label_bbox": null
+  },
+  {
+    "file": 4,
+    "mode": "3band",
+    "path": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_ddCDBF/Screenshot 2026-09-29 at 08.58.01.png",
+    "sha256": "572ef6f89f26850371b5dd98069c66f703a03bc154c1783b51ff63f8a6f4acf3",
+    "size": [
+      2185,
+      228
+    ],
+    "overview_baseline_rows": [
+      55,
+      57
+    ],
+    "overview_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 46809
+      },
+      {
+        "rgb": "#0055E1",
+        "pixels": 13481
+      },
+      {
+        "rgb": "#FFA600",
+        "pixels": 4508
+      },
+      {
+        "rgb": "#FFFFFF",
+        "pixels": 2913
+      },
+      {
+        "rgb": "#0041AB",
+        "pixels": 1922
+      },
+      {
+        "rgb": "#BFD4F7",
+        "pixels": 360
+      },
+      {
+        "rgb": "#00050E",
+        "pixels": 300
+      },
+      {
+        "rgb": "#050609",
+        "pixels": 255
+      },
+      {
+        "rgb": "#486694",
+        "pixels": 255
+      },
+      {
+        "rgb": "#0041AC",
+        "pixels": 242
+      },
+      {
+        "rgb": "#BF9138",
+        "pixels": 206
+      },
+      {
+        "rgb": "#60738B",
+        "pixels": 168
+      },
+      {
+        "rgb": "#0155DF",
+        "pixels": 133
+      },
+      {
+        "rgb": "#1E5DC5",
+        "pixels": 129
+      },
+      {
+        "rgb": "#060503",
+        "pixels": 126
+      },
+      {
+        "rgb": "#DADADA",
+        "pixels": 116
+      }
+    ],
+    "detail_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 283282
+      },
+      {
+        "rgb": "#0051E1",
+        "pixels": 12238
+      },
+      {
+        "rgb": "#1E1E1E",
+        "pixels": 6552
+      },
+      {
+        "rgb": "#B36506",
+        "pixels": 2833
+      },
+      {
+        "rgb": "#F5EAD6",
+        "pixels": 2082
+      },
+      {
+        "rgb": "#0053E1",
+        "pixels": 626
+      },
+      {
+        "rgb": "#FF0000",
+        "pixels": 136
+      },
+      {
+        "rgb": "#B36606",
+        "pixels": 112
+      },
+      {
+        "rgb": "#FFA300",
+        "pixels": 101
+      },
+      {
+        "rgb": "#F5EBD7",
+        "pixels": 100
+      },
+      {
+        "rgb": "#002870",
+        "pixels": 8
+      },
+      {
+        "rgb": "#002970",
+        "pixels": 8
+      },
+      {
+        "rgb": "#1D1D1D",
+        "pixels": 3
+      },
+      {
+        "rgb": "#FFA500",
+        "pixels": 2
+      },
+      {
+        "rgb": "#7A756B",
+        "pixels": 2
+      }
+    ],
+    "playhead": {
+      "x": 1060,
+      "y": [
+        87,
+        222
+      ],
+      "width_px": 1
+    },
+    "grid_top": null,
+    "grid_bottom": null,
+    "bar_x": [],
+    "pixels_per_beat": null,
+    "detail_center_y": 163.0,
+    "label_bbox": null
+  },
+  {
+    "file": 5,
+    "mode": "blue",
+    "path": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_6jVJF3/Screenshot 2026-09-29 at 08.58.21.png",
+    "sha256": "ede3862a3cc911eb9f466a50eb2c52cc21c3cf14c3bc8d7de33acfad0a490a11",
+    "size": [
+      2184,
+      193
+    ],
+    "overview_baseline_rows": [
+      54,
+      56
+    ],
+    "overview_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 37058
+      },
+      {
+        "rgb": "#06263C",
+        "pixels": 501
+      },
+      {
+        "rgb": "#0B456E",
+        "pixels": 487
+      },
+      {
+        "rgb": "#0C4974",
+        "pixels": 457
+      },
+      {
+        "rgb": "#0E5180",
+        "pixels": 451
+      },
+      {
+        "rgb": "#0C4771",
+        "pixels": 437
+      },
+      {
+        "rgb": "#093858",
+        "pixels": 403
+      },
+      {
+        "rgb": "#072941",
+        "pixels": 401
+      },
+      {
+        "rgb": "#051C2C",
+        "pixels": 398
+      },
+      {
+        "rgb": "#ACBDC8",
+        "pixels": 394
+      },
+      {
+        "rgb": "#0D4E7C",
+        "pixels": 393
+      },
+      {
+        "rgb": "#093859",
+        "pixels": 392
+      },
+      {
+        "rgb": "#0C4B78",
+        "pixels": 391
+      },
+      {
+        "rgb": "#0E5587",
+        "pixels": 388
+      },
+      {
+        "rgb": "#083350",
+        "pixels": 385
+      },
+      {
+        "rgb": "#072B44",
+        "pixels": 350
+      }
+    ],
+    "detail_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 128769
+      },
+      {
+        "rgb": "#4C4C4C",
+        "pixels": 1268
+      },
+      {
+        "rgb": "#503BFF",
+        "pixels": 1177
+      },
+      {
+        "rgb": "#503CFF",
+        "pixels": 698
+      },
+      {
+        "rgb": "#FFFFFF",
+        "pixels": 672
+      },
+      {
+        "rgb": "#7EB2DF",
+        "pixels": 496
+      },
+      {
+        "rgb": "#4F3EFE",
+        "pixels": 324
+      },
+      {
+        "rgb": "#4F3DFE",
+        "pixels": 299
+      },
+      {
+        "rgb": "#4E3FFD",
+        "pixels": 224
+      },
+      {
+        "rgb": "#66A4DA",
+        "pixels": 217
+      },
+      {
+        "rgb": "#4E41FD",
+        "pixels": 209
+      },
+      {
+        "rgb": "#4E3EFE",
+        "pixels": 191
+      },
+      {
+        "rgb": "#4F3FFE",
+        "pixels": 174
+      },
+      {
+        "rgb": "#FF0000",
+        "pixels": 169
+      },
+      {
+        "rgb": "#405DF2",
+        "pixels": 157
+      },
+      {
+        "rgb": "#4F40FE",
+        "pixels": 156
+      }
+    ],
+    "playhead": {
+      "x": 1056,
+      "y": [
+        86,
+        192
+      ],
+      "width_px": 1
+    },
+    "grid_top": 104,
+    "grid_bottom": null,
+    "bar_x": [
+      39,
+      320,
+      602,
+      883,
+      1165,
+      1446,
+      1728,
+      2009
+    ],
+    "pixels_per_beat": 70.25,
+    "detail_center_y": 160.0,
+    "label_bbox": [
+      1005,
+      89,
+      1055,
+      99
+    ]
+  },
+  {
+    "file": 5,
+    "mode": "rgb",
+    "path": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_CAtmgK/Screenshot 2026-09-29 at 08.58.32.png",
+    "sha256": "38b34ca58a83ab994a3ff6cc9d5d171ad02ca91ae5c2d4fcb227cce0bacac31e",
+    "size": [
+      2194,
+      203
+    ],
+    "overview_baseline_rows": [
+      62,
+      64
+    ],
+    "overview_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 53402
+      },
+      {
+        "rgb": "#640000",
+        "pixels": 435
+      },
+      {
+        "rgb": "#C30000",
+        "pixels": 434
+      },
+      {
+        "rgb": "#D10000",
+        "pixels": 434
+      },
+      {
+        "rgb": "#D90000",
+        "pixels": 434
+      },
+      {
+        "rgb": "#B90000",
+        "pixels": 434
+      },
+      {
+        "rgb": "#860000",
+        "pixels": 392
+      },
+      {
+        "rgb": "#2C2C9B",
+        "pixels": 392
+      },
+      {
+        "rgb": "#6D0000",
+        "pixels": 391
+      },
+      {
+        "rgb": "#9E0000",
+        "pixels": 387
+      },
+      {
+        "rgb": "#C80000",
+        "pixels": 386
+      },
+      {
+        "rgb": "#FFFFFF",
+        "pixels": 383
+      },
+      {
+        "rgb": "#BC0000",
+        "pixels": 382
+      },
+      {
+        "rgb": "#940000",
+        "pixels": 380
+      },
+      {
+        "rgb": "#8E0000",
+        "pixels": 378
+      },
+      {
+        "rgb": "#2727A8",
+        "pixels": 346
+      }
+    ],
+    "detail_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 133963
+      },
+      {
+        "rgb": "#4C4C4C",
+        "pixels": 1298
+      },
+      {
+        "rgb": "#FC0000",
+        "pixels": 1037
+      },
+      {
+        "rgb": "#FD0000",
+        "pixels": 1012
+      },
+      {
+        "rgb": "#800000",
+        "pixels": 908
+      },
+      {
+        "rgb": "#FB0000",
+        "pixels": 845
+      },
+      {
+        "rgb": "#FA0000",
+        "pixels": 809
+      },
+      {
+        "rgb": "#F50000",
+        "pixels": 769
+      },
+      {
+        "rgb": "#F90000",
+        "pixels": 728
+      },
+      {
+        "rgb": "#F80000",
+        "pixels": 724
+      },
+      {
+        "rgb": "#FFFFFF",
+        "pixels": 688
+      },
+      {
+        "rgb": "#F70000",
+        "pixels": 654
+      },
+      {
+        "rgb": "#E30000",
+        "pixels": 638
+      },
+      {
+        "rgb": "#F00000",
+        "pixels": 616
+      },
+      {
+        "rgb": "#E70000",
+        "pixels": 609
+      },
+      {
+        "rgb": "#F20000",
+        "pixels": 608
+      }
+    ],
+    "playhead": {
+      "x": 1066,
+      "y": [
+        94,
+        202
+      ],
+      "width_px": 1
+    },
+    "grid_top": 112,
+    "grid_bottom": null,
+    "bar_x": [
+      49,
+      330,
+      612,
+      893,
+      1175,
+      1456,
+      1738,
+      2019
+    ],
+    "pixels_per_beat": 70.25,
+    "detail_center_y": 168.0,
+    "label_bbox": [
+      1015,
+      97,
+      1065,
+      107
+    ]
+  },
+  {
+    "file": 5,
+    "mode": "3band",
+    "path": "/var/folders/3r/f_9m14n16b51sbzs9sm017vc0000gn/T/TemporaryItems/NSIRD_screencaptureui_2Gd9ry/Screenshot 2026-09-29 at 08.58.42.png",
+    "sha256": "6f3c02819020b757ab02ffbceb3accc22d98130765c2a0b01317ec8642fa46c8",
+    "size": [
+      2194,
+      200
+    ],
+    "overview_baseline_rows": [
+      59,
+      61
+    ],
+    "overview_palette": [
+      {
+        "rgb": "#000000",
+        "pixels": 52027
+      },
+      {
+        "rgb": "#0055E1",
+        "pixels": 9806
+      },
+      {
+        "rgb": "#FFFFFF",
+        "pixels": 9607
+      },
+      {
+        "rgb": "#FFA600",
+        "pixels": 3719
+      },
+      {
+        "rgb": "#0041AB",
+        "pixels": 1947
+      },
+      {
+        "rgb": "#00050E",
+        "pixels": 479
+      },
+      {
+        "rgb": "#BFD4F7",
+        "pixels": 287
+      },
+      {
+        "rgb": "#0041AC",
+        "pixels": 249
+      },
+      {
+        "rgb": "#010100",
+        "pixels": 243
+      },
+      {
+        "rgb": "#BF9138",
+        "pixels": 195
+      },
+      {
+        "rgb": "#010101",
+        "pixels": 156
+      },
+      {
+        "rgb": "#040404",
+        "pixels": 136
+      },
+      {
+        "rgb": "#000001",
+        "pixels": 132
+      },
+      {
+        "rgb": "#3F3F3F",
+        "pixels": 116
+      },
+      {
+        "rgb": "#010202",
+        "pixels": 96
+      },
+      {
+        "rgb": "#73797B",
+        "pixels": 78
+      }
+    ],
+    "detail_palette": [
+      {
+        "rgb": "#0051E1",
+        "pixels": 96717
+      },
+      {
+        "rgb": "#000000",
+        "pixels": 93612
+      },
+      {
+        "rgb": "#0053E1",
+        "pixels": 4773
+      },
+      {
+        "rgb": "#F5EAD6",
+        "pixels": 2069
+      },
+      {
+        "rgb": "#4C4C4C",
+        "pixels": 835
+      },
+      {
+        "rgb": "#FFFFFF",
+        "pixels": 688
+      },
+      {
+        "rgb": "#FF0000",
+        "pixels": 171
+      },
+      {
+        "rgb": "#B36506",
+        "pixels": 131
+      },
+      {
+        "rgb": "#002870",
+        "pixels": 112
+      },
+      {
+        "rgb": "#F5EBD7",
+        "pixels": 102
+      },
+      {
+        "rgb": "#1E1E1E",
+        "pixels": 91
+      },
+      {
+        "rgb": "#7C7C7C",
+        "pixels": 69
+      },
+      {
+        "rgb": "#9A8358",
+        "pixels": 54
+      },
+      {
+        "rgb": "#727272",
+        "pixels": 46
+      },
+      {
+        "rgb": "#3E3E3E",
+        "pixels": 46
+      },
+      {
+        "rgb": "#151515",
+        "pixels": 46
+      }
+    ],
+    "playhead": {
+      "x": 1065,
+      "y": [
+        91,
+        199
+      ],
+      "width_px": 1
+    },
+    "grid_top": 109,
+    "grid_bottom": null,
+    "bar_x": [
+      48,
+      329,
+      611,
+      892,
+      1174,
+      1455,
+      1737,
+      2018
+    ],
+    "pixels_per_beat": 70.25,
+    "detail_center_y": 167.0,
+    "label_bbox": [
+      1014,
+      94,
+      1064,
+      104
+    ]
+  }
+]

@@ -35,7 +35,7 @@ with tempfile.TemporaryDirectory(prefix='rx3-skin-package-') as directory:
         manifest = json.loads(package.read(prefix + 'NauticMixxx-Files/payload-sha256.json'))
         assert manifest['product'] == 'NauticMixxx'
         assert manifest['kind'] == 'skin-only'
-        assert manifest['version'] == module.VERSION == '1.1.0'
+        assert manifest['version'] == module.VERSION == '1.2.0'
         assert manifest['entryPoint'] == 'INSTALL-WINDOWS.bat'
         assert manifest['uninstallEntryPoint'] == 'UNINSTALL-WINDOWS.bat'
         assert len(manifest['files']) > 20

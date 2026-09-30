@@ -1,9 +1,9 @@
-NAUTICMIXXX 1.1.0 FOR WINDOWS X64
+NAUTICMIXXX 1.2.0 FOR WINDOWS X64
 Windows 10 version 1809 or later / Windows 11, Intel or AMD 64-bit
 
 QUICK START
 1. Extract the entire ZIP. Do not run files from inside the ZIP viewer.
-2. Open the extracted NauticMixxx-1.1.0-Windows-x64 folder.
+2. Open the extracted NauticMixxx-1.2.0-Windows-x64 folder.
 3. Double-click INSTALL-WINDOWS.bat. This is the only file you need to run.
    Keep the NauticMixxx-Files folder next to it.
 4. Wait while setup verifies the files. It shows a running file count.
@@ -17,7 +17,7 @@ a compiler, Git, Python or an internet connection for the main installation.
 
 PARALLEL INSTALLATION
 Installs the application to:
-%LOCALAPPDATA%\Programs\NauticMixxx\1.1.0
+%LOCALAPPDATA%\Programs\NauticMixxx\1.2.0
 It uses a separate profile at:
 %LOCALAPPDATA%\Mixxx-RX3
 If an existing Mixxx profile uses base version 2.5.6 or earlier, setup backs

@@ -183,11 +183,9 @@ DJCi500.rx3SoundColorFxBlinkOn = false;
 DJCi500.rx3SoundColorFxTimer = null;
 DJCi500.rx3ColorKnobPositions = {1: 0.5, 2: 0.5};
 
-// The RX3 offers the four standard TEMPO ranges. The Inpulse BEATMATCH GUIDE
-// button is otherwise unused by Mixxx, so it cycles this shared range for both
-// physical decks.
-DJCi500.rx3TempoRanges = [0.06, 0.10, 0.16, 1.0];
-DJCi500.rx3TempoRangeIndex = -1;
+// NauticMixxx 1.2 keeps both decks at the XDJ-RX3 +/-6% tempo range.
+DJCi500.rx3TempoRanges = [0.06];
+DJCi500.rx3TempoRangeIndex = 0;
 
 DJCi500.rx3SoundColorFxAmount = function(normalized) {
     const selected = DJCi500.rx3SoundColorFxSelected;
@@ -297,14 +295,12 @@ DJCi500.rx3TempoRangeButton = function(_channel, _control, value) {
         return;
     }
 
-    DJCi500.rx3TempoRangeIndex =
-        (DJCi500.rx3TempoRangeIndex + 1) % DJCi500.rx3TempoRanges.length;
-    const range = DJCi500.rx3TempoRanges[DJCi500.rx3TempoRangeIndex];
+    const range = 0.06;
     [DJCi500.deckA, DJCi500.deckB].forEach(function(deckData) {
         if (!deckData) {
             return;
         }
-        deckData.pitchRangeId = DJCi500.rx3TempoRangeIndex;
+        deckData.pitchRangeId = 0;
         engine.setValue(deckData.currentDeck, "rateRange", range);
     });
     midi.sendShortMsg(0x90, 0x01, 0x7F);
@@ -1259,11 +1255,8 @@ DJCi500.Deck = function(deckNumbers, midiChannel) {
         off: 0x7F,
         input: function(channel, control, value, status, _group) {
             if (value === 0x7F) {
-                deckData.pitchRangeId++;
-                if (deckData.pitchRangeId > 6) {
-                    deckData.pitchRangeId = 6;
-                }
-                engine.setValue(deckData.currentDeck, "rateRange", deckData.pitchRanges[deckData.pitchRangeId]);
+                deckData.pitchRangeId = 0;
+                engine.setValue(deckData.currentDeck, "rateRange", 0.06);
                 midi.sendShortMsg(status, control, this.on); //17 -- 3B
             } else {
                 midi.sendShortMsg(status, control, this.off); //3B -- 33
@@ -1277,11 +1270,8 @@ DJCi500.Deck = function(deckNumbers, midiChannel) {
         off: 0x7F,
         input: function(channel, control, value, status, _group) {
             if (value === 0x7F) {
-                deckData.pitchRangeId = deckData.pitchRangeId - 1;
-                if (deckData.pitchRangeId < 0) {
-                    deckData.pitchRangeId = 0;
-                }
-                engine.setValue(deckData.currentDeck, "rateRange", deckData.pitchRanges[deckData.pitchRangeId]);
+                deckData.pitchRangeId = 0;
+                engine.setValue(deckData.currentDeck, "rateRange", 0.06);
                 midi.sendShortMsg(status, control, this.on); //17 -- 3B
             } else {
                 midi.sendShortMsg(status, control, this.off); //3B -- 33

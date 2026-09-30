@@ -44,7 +44,7 @@ if [ -x "$native_test" ]; then
   resource_path=$(CDPATH= cd -- "$project/../res" && pwd)
   (cd "$native_test_dir" && QT_QPA_PLATFORM=offscreen ./mixxx-test \
     --resource-path "$resource_path" \
-    --gtest_filter='LibraryTableViewStateTest.*:Rx3*:RekordboxUsbSessionTest.*:RekordboxRuntimeTrackModelTest.*:TrackCapabilityPolicyTest.*')
+    --gtest_filter='LibraryTableViewStateTest.*:Rx3*:RekordboxWaveformImporterTest.*:RekordboxUsbSessionTest.*:RekordboxRuntimeTrackModelTest.*:TrackCapabilityPolicyTest.*')
 else
   printf '%s\n' 'mixxx-test no está compilado; reconstruye la app para ejecutar la suite nativa.'
 fi

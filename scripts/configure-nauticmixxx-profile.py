@@ -48,6 +48,9 @@ MANAGED_SECTIONS = (
     "Effects",
     "QuickEffectRack1_[Channel1]",
     "QuickEffectRack1_[Channel2]",
+    "ReplayGain",
+    "Master",
+    "ColorPalette Nautic Orange",
 )
 
 
@@ -210,6 +213,13 @@ def configure(app: Path, profile_dir: Path, dry_run: bool = False) -> list[str]:
         shutil.copy2(config_path, profile_dir / "mixxx.cfg.previous")
     for filename in CONTROLLER_FILES + OPTIONAL_CONTROLLER_FILES:
         shutil.copy2(resources / "controllers" / filename, controllers_dir / filename)
+    for filename in (
+        "Hercules_DJControl_Inpulse_500.midi.xml",
+        "Hercules-DJControl-Inpulse-500-script.js",
+    ):
+        old_mapping = controllers_dir / filename
+        if old_mapping.is_file():
+            old_mapping.replace(controllers_dir / (filename + ".previous"))
     for filename in EFFECT_CHAIN_FILES:
         shutil.copy2(resources / "effects/chains" / filename, effects_chain_dir / filename)
     for filename in LEGACY_EFFECT_CHAIN_FILES:

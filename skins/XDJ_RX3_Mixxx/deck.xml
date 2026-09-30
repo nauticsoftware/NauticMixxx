@@ -178,7 +178,7 @@
                 <Layout>vertical</Layout>
                 <Size>0me,<Variable name="ovh"/>f</Size>
                 <Children>
-                  <Overview><Rx3Overview>true</Rx3Overview><DefaultMark><Rx3Hotcue>true</Rx3Hotcue><Color>#00ff00</Color><TextColor>#000000</TextColor></DefaultMark>
+                  <Overview><Rx3Overview>true</Rx3Overview><DefaultMark><Rx3Hotcue>true</Rx3Hotcue><Color>#ff8800</Color><TextColor>#000000</TextColor></DefaultMark>
                     <ObjectName>DeckOverview</ObjectName>
                     <Size>0me,<Variable name="ovwf"/>f</Size>
                     <Channel><Variable name="channel"/></Channel>
@@ -188,9 +188,9 @@
                     <SignalLowColor>#0055e1</SignalLowColor>
                     <SignalMidColor>#b4690a</SignalMidColor>
                     <SignalHighColor>#f5ebd7</SignalHighColor>
-                    <SignalRGBLowColor>#0055e1</SignalRGBLowColor>
-                    <SignalRGBMidColor>#b4690a</SignalRGBMidColor>
-                    <SignalRGBHighColor>#f5ebd7</SignalRGBHighColor>
+                    <SignalRGBLowColor>#ff3030</SignalRGBLowColor>
+                    <SignalRGBMidColor>#32d060</SignalRGBMidColor>
+                    <SignalRGBHighColor>#357bff</SignalRGBHighColor>
                     <PlayedOverlayColor>#99000000</PlayedOverlayColor>
                     <PlayPosColor>#ff0000</PlayPosColor><PlayPosWidth>2</PlayPosWidth>
                     <Mark><Control>cue_point</Control><Text>CUE</Text><Color>#c85d21</Color><TextColor>#c85d21</TextColor><Align>top</Align></Mark>

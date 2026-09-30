@@ -1,5 +1,37 @@
 # Historial de cambios
 
+## Actualización de waveforms — candidata de calibración
+
+- Blue/RGB recuperan signo y nivel real del PCM durante la carga; conservan el
+  color ANLZ y no escriben caché ni activan análisis automático de la biblioteca.
+- Overview extendido Blue/RGB con gradientes y altura medidos en las capturas.
+
+- Datos independientes PWV3/PWV5/PWV7 y PWAV/PWV4/PWV6; RGB big-endian,
+  blancura Blue conservada y orden 3-Band validado con tonos conocidos.
+- Detalle y overview comparten el estilo. El segundo selector permite fijar
+  las ondas o seguir los EQ del mixer. 3-Band es el valor inicial.
+- Contador hasta el marcador bajo la Key, separado de la posición compás.beat.
+- Marcas de pulsos blancas únicamente encima y debajo de la onda desde el
+  primer sonido; las rojas de compás sobresalen dos píxeles hacia fuera.
+- Modelo experimental entrenado con 01–06 y validado con 07–09, sin activarlo
+  automáticamente en el reproductor.
+- **La réplica píxel a píxel no está alcanzada.** Véase
+  [informe cuantitativo y comparaciones](docs/calibration-v2/REPORT.md).
+
+
+## 1.2.0 — 2026-09-28
+
+- Política USB Rekordbox aplicada desde el primer arranque en macOS y Windows:
+  sin selector de biblioteca local, escaneo, análisis, ReplayGain ni caché de
+  formas de onda.
+- Pioneer Cue, pitch ±6 %, primer sonido, tiempo restante, motor Rubber Band
+  Finer, normalización visual y cuenta de pulsos hasta el próximo marcador.
+- Tres vistas de onda: BLUE, RGB y 3Band. Los bucles y hot loops nuevos usan
+  naranja `#FF8800`.
+- Selección automática del mapeo RX3 de Hercules DJControl Inpulse 500 al
+  detectarlo al inicio; retirado el preset genérico duplicado.
+- Parche nativo 0012 y recetas de compilación de ambas plataformas actualizadas.
+
 ## 1.1.0 — 2026-09-28
 
 - Lienzo de referencia de 1280×800 que ocupa toda el área cliente y adapta las

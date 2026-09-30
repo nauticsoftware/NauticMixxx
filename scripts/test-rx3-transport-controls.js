@@ -72,7 +72,7 @@ assert.equal(values.get(key("[Channel2]", "keylock")), 1);
 assert.equal(values.get(key("[Channel2]", "sync_enabled")), undefined,
     "SHIFT + SYNC must not alter SYNC on the other deck");
 
-for (const expected of [0.06, 0.10, 0.16, 1.0, 0.06]) {
+for (const expected of [0.06, 0.06, 0.06, 0.06, 0.06]) {
     mapping.rx3TempoRangeButton(0, 0x01, 0x7F);
     assert.equal(values.get(key("[Channel1]", "rateRange")), expected);
     assert.equal(values.get(key("[Channel2]", "rateRange")), expected);

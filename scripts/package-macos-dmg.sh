@@ -39,8 +39,6 @@ icon="$temp/NauticMixxx.icns"
 dmg_root="$temp/dmg-root"
 mkdir -p "$dmg_root"
 ditto "$app" "$dmg_root/NauticMixxx.app"
-cp "$source_dir/README.md" "$dmg_root/README.md"
-cp "$source_dir/DDJ-FLX6-EN.md" "$dmg_root/DDJ-FLX6-EN.md"
 
 if [ -e "$output" ]; then
   mv "$output" "$temp/previous.dmg"

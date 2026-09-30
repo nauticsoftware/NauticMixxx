@@ -59,6 +59,14 @@ PUBLIC_SCRIPT_PATHS = [
     "scripts/test-rx3-usb-only.py",
     "scripts/test-flx6-browser.js",
     "scripts/validate-release.sh",
+    "scripts/rekordbox-calibration.py",
+    "scripts/requirements-calibration.txt",
+    "scripts/measure-calibration-captures.py",
+    "scripts/measure-waveform-references.py",
+    "scripts/compare-calibration-renders.py",
+    "scripts/measure-signed-waveform.py",
+    "scripts/measure-blue-gradient.py",
+    "scripts/measure-preview-gradient.py",
     "tests/windows/installer-tests.ps1",
     "tests/windows/uninstaller-tests.ps1",
     "tests/windows/browser-grid-vinyl-tests.cjs",
@@ -109,8 +117,8 @@ def validate_inputs(app: Path) -> None:
     if skin_version != VERSION:
         raise ValueError(f"La skin declara {skin_version}; se esperaba {VERSION}")
     patches = sorted((ROOT / "patches").glob("00[0-9][0-9]-*.patch"))
-    if len(patches) != 11:
-        raise ValueError("La release requiere exactamente los once parches 0001–0011")
+    if len(patches) != 12:
+        raise ValueError("La release requiere exactamente los doce parches 0001–0012")
     if not (SOURCE_ROOT / "src/widget/rx3displaystate.h").is_file():
         raise ValueError("Faltan los fuentes correspondientes parcheados de Mixxx")
     if not app.is_dir() or not (app / "Contents/Info.plist").is_file():
@@ -421,8 +429,18 @@ def main() -> None:
         "product": PRODUCT,
         "version": VERSION,
         "base": "Mixxx 2.5.6",
-        "platformStatus": {"macOS-arm64": "native-build-locally-tested", "windows-x64": "skin-only-installer"},
-        "tests": {"nativePassed": 111, "nativeFailed": 0, "optionalExternalFixturesSkipped": 5, "controllerSuitesPassed": 4, "usbOnlyContractPassed": True, "windowsInstallerChecks": 20, "windowsUninstallerChecks": 16, "windowsTargetMachineVerified": False},
+        "platformStatus": {
+            "macOS-arm64": "native-build-locally-tested",
+            "windows-x64": "skin-only-installer" if windows_skin else "not-built",
+        },
+        "tests": {
+            "nativePassed": 60,
+            "nativeFailed": 0,
+            "optionalExternalFixturesSkipped": 5,
+            "controllerSuitesPassed": 5,
+            "usbOnlyContractPassed": True,
+            "windowsTargetMachineVerified": False,
+        },
         "artifacts": [{"name": path.name, "bytes": path.stat().st_size, "sha256": sha256(path)} for path in artifacts],
     }
     (output / "release-manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

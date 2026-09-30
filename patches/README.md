@@ -1,5 +1,14 @@
 # NauticMixxx native patches
 
+## 0012 — NauticMixxx 1.2 USB preferences
+
+Apply after 0001–0011. This patch enforces Rekordbox USB operation on startup,
+fixes the requested deck and waveform defaults, narrows waveform selection to
+BLUE/RGB/3Band, and autoloads the RX3 Inpulse 500 mapping when present. It also
+removes Mixxx's duplicate stock Inpulse 500 preset. The portable profile and
+controller script live outside this native patch in `profile/` and `controllers/`.
+
+
 `0001-rx3-waveform-edge-beat-grid.patch` applies to the Mixxx 2.5.6 tag. It adds two legacy-skin properties to both waveform backends:
 
 - `DownbeatColor`: color used every four beats, anchored to the first beatgrid marker/downbeat.

@@ -1,7 +1,7 @@
 param([string]$PackageRoot)
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version 2.0
-if (-not $PackageRoot) { $PackageRoot = Join-Path $PSScriptRoot "../../build/NauticMixxx-1.1.0-Windows-x64/NauticMixxx-Files" }
+if (-not $PackageRoot) { $PackageRoot = Join-Path $PSScriptRoot "../../build/NauticMixxx-1.2.0-Windows-x64/NauticMixxx-Files" }
 $PackageRoot = [IO.Path]::GetFullPath($PackageRoot)
 $testRoot = Join-Path ([IO.Path]::GetTempPath()) ("rx3-installer-tests-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $testRoot | Out-Null
