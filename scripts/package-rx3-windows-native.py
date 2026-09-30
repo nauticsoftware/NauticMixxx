@@ -103,7 +103,10 @@ def package(runtime, source, output, settings_file=None, makensis='makensis'):
             shutil.copytree(ROOT / directory, files_root / directory, ignore=shutil.ignore_patterns('.DS_Store', '__pycache__'))
         portable_profile(settings_file, files_root / 'profile/XDJ_RX3_Mixxx.profile.cfg')
         for name in ['LICENSE', 'THIRD_PARTY_NOTICES.md']:
-            shutil.copy2(ROOT / name, files_root / name)
+            original = ROOT / name
+            if not original.is_file():
+                original = ROOT.parent / name
+            shutil.copy2(original, files_root / name)
         command = [makensis, '/V2', f'/DVERSION={VERSION}', f'/DPAYLOAD={files_root}',
                    f'/DOUTPUT={destination}', f'/DICON={icon}',
                    f'/DPROFILE_SCRIPT={ROOT / "packaging/windows/configure-profile.ps1"}',
