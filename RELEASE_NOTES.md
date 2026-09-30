@@ -21,6 +21,12 @@
   [informe cuantitativo y comparaciones](docs/calibration-v2/REPORT.md).
 
 
+## Instalador directo para Windows x64
+
+`NauticMixxx-1.2.0-Windows-x64-Setup.exe` instala directamente la aplicación nativa con el mismo icono de macOS, la skin RX3, los mapeos Hercules Inpulse 500 y FLX6 de navegación, los cuatro Sound Color FX y las preferencias portables preestablecidas. No requiere BAT, descomprimir ZIP, instalar Mixxx oficial ni descargar componentes adicionales. El ejecutable, el menú Inicio y la información del producto aparecen como NauticMixxx.
+
+Se instala por usuario con un perfil separado; al desinstalar se conservan la biblioteca y los ajustes personales. Cada PC necesita seleccionar su dispositivo de audio y sus canales. El EXE no está firmado y Windows SmartScreen puede solicitar confirmación. La compilación Windows pasa pruebas nativas y una instalación/desinstalación silenciosa; sigue pendiente la prueba física con controlador y USB Rekordbox.
+
 NauticMixxx inicia en modo USB Rekordbox. El selector de biblioteca local no
 aparece y el escaneo, el análisis, ReplayGain y la caché de formas de onda están
 desactivados. Pioneer Cue, ±6 % de pitch, carga en el primer sonido cuando existe
@@ -35,8 +41,7 @@ cambio de dispositivos con otros controladores ya abiertos requiere reinicio.
 
 El marcador «primer sonido» depende de que exista en los metadatos de la pista.
 En pistas Rekordbox USB sin ese marcador, Mixxx carga en el inicio: no se analiza
-el audio para crearlo. Las pruebas con hardware Inpulse 500 y USB Rekordbox real,
-así como la compilación nativa Windows, están pendientes.
+el audio para crearlo. Las pruebas con hardware Inpulse 500 y USB Rekordbox real siguen pendientes.
 
 ---
 

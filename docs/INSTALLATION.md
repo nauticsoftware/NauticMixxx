@@ -17,9 +17,11 @@ La opción **primer sonido** requiere que el marcador ya exista en los metadatos
 
 ## Windows x64
 
-El código, los parches y la receta de compilación nativa 1.2.0 están preparados. **El ejecutable Windows 1.2.0 aún no se ha compilado ni probado en Windows.** No uses el paquete de skin sobre Mixxx oficial como sustituto de la aplicación nativa para las restricciones USB, análisis y preferencias fijas.
+Descarga directamente [NauticMixxx-1.2.0-Windows-x64-Setup.exe](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.2.0/NauticMixxx-1.2.0-Windows-x64-Setup.exe) y ejecútalo en Windows 10/11 x64. El instalador NSIS incluye el programa nativo; no necesita un BAT, descomprimir un ZIP ni instalar Mixxx oficial.
 
-En un entorno Windows x64 con Visual Studio 2022, el workflow `NauticMixxx Windows x64` o `scripts/build-mixxx-rx3-windows.ps1` compila, prueba y empaqueta la edición nativa. Distribuye ese ZIP sólo después de que termine correctamente y se pruebe con hardware y un USB Rekordbox real.
+La aplicación queda en `%LOCALAPPDATA%\Programs\NauticMixxx` y utiliza un perfil propio en `%LOCALAPPDATA%\NauticMixxx`. El instalador aplica las mismas preferencias portables de la edición Mac: skin RX3, 3-Band, USB Rekordbox, análisis y ReplayGain desactivados, Pioneer Cue, tempo ±6 %, mapeo Hercules Inpulse 500, mapeo opcional FLX6 y cuatro Sound Color FX. Conserva los datos personales y hace una copia de la configuración anterior al actualizarla. Selecciona el dispositivo de audio y sus canales en la PC Windows.
+
+El menú Inicio y el escritorio abren `NauticMixxx.exe`. Desinstala desde Ajustes de Windows; el perfil personal permanece para evitar pérdida de datos. El EXE no está firmado, por lo que SmartScreen puede pedir confirmación. Prueba el controlador y el USB antes de usarlo en vivo.
 
 ## Desinstalar en macOS
 

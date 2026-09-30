@@ -29,6 +29,12 @@ controller is active requires a restart.
 Skip silence uses an existing first-sound marker. Rekordbox USB tracks without
 that marker start at the beginning because audio analysis is disabled.
 
+## Windows x64 direct installer
+
+Download and run `NauticMixxx-1.2.0-Windows-x64-Setup.exe` directly. The NSIS installer contains the native NauticMixxx application, the same icon artwork as macOS, the RX3 skin, Hercules Inpulse 500 and optional FLX6 browser mappings, four Sound Color FX chains, and the portable macOS preset values. The Windows application and Start menu entry are named NauticMixxx. No BAT, ZIP extraction, existing Mixxx install, or additional download is required.
+
+Setup installs per user, keeps a separate profile, and leaves personal library data when uninstalled. Windows audio device and channel routing must be selected on each PC. The EXE is unsigned and may trigger a SmartScreen prompt. The Windows CI build runs native tests plus silent installation and uninstallation checks; physical controller and Rekordbox USB checks remain pending.
+
 ## macOS download
 
 The Apple Silicon (`arm64`) DMG contains the app and an Applications shortcut;
@@ -36,7 +42,7 @@ installation and controller guides remain in the alternative ZIP and source
 package. The app is signed ad hoc and is not notarized, so macOS may request
 confirmation on first launch. The local validation passed 60 native tests;
 five optional external-fixture tests were skipped. Physical Inpulse 500 and
-Rekordbox USB checks, and the native Windows build, remain pending.
+Rekordbox USB checks remain pending.
 
 ---
 

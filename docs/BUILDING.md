@@ -23,31 +23,13 @@ Variables opcionales:
 
 ## Windows x64
 
-Para distribuir sólo la skin con un instalador BAT que descarga Mixxx oficial
-si hace falta:
-
-```bash
-python3 scripts/package-rx3-windows-skin.py
-python3 scripts/test-windows-skin-package.py
-```
-
-El empaquetador deja un candidato en `build/test-candidate/1.2.0/`. La
-distribución anterior está en `../../../release/1.1.0/` y contiene los BAT de
-instalación y desinstalación más una carpeta de archivos. No incluye
-`mixxx.exe` ni requiere compilar C++.
-
-Para una aplicación NauticMixxx nativa completa (proyecto aparte), ejecuta en
-PowerShell de Visual Studio 2022:
+Para generar el instalador nativo completo, instala Visual Studio 2022 con C++, Python, Pillow y NSIS; luego ejecuta en PowerShell:
 
 ```powershell
 ./scripts/build-mixxx-rx3-windows.ps1 -WorkRoot C:\nauticmixxx-build -Jobs 4
 ```
 
-También puede ejecutarse manualmente desde GitHub Actions. El workflow genera
-el runtime, ejecuta la suite RX3 y sólo entonces llama al empaquetador nativo.
-Ese ZIP también contiene `INSTALL-WINDOWS.bat` y `NauticMixxx-Files/`, pero
-requiere un entorno Windows x64 para generar `mixxx.exe`. El empaquetador nativo
-rechaza un runtime 1.0.0 o parches que no correspondan a 1.2.0.
+El script descarga fuentes y dependencias verificadas, aplica los parches NauticMixxx, compila, ejecuta la suite RX3 y crea `build/NauticMixxx-1.2.0-Windows-x64-Setup.exe`. El workflow público usa el runner estándar Windows gratuito para repositorios públicos, prueba la instalación y desinstalación reales y carga directamente el EXE en el release. No usa almacenamiento de artifacts de Actions.
 
 ## Fuentes correspondientes
 
