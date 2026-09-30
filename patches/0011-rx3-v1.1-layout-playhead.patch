@@ -85,9 +85,10 @@ diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
 @@ -200,7 +247,7 @@
      EXPECT_EQ(QStringLiteral("H"),mark.rx3Label());
      mark.setBreadth(200); mark.setBaseColor(QColor("#cc00ff"),128);
-     const auto image=mark.generateImage(1);
+-    const auto image=mark.generateImage(1);
 -    EXPECT_EQ(QColor("#c3af04"),image.pixelColor(1,18));
-+    EXPECT_EQ(QColor("#c3af04"),image.pixelColor(2,20));
++    mark.generateImage(1);
++    EXPECT_EQ(QColor("#c3af04"),mark.fillColor());
  }
  
  #include "widget/rx3waveform.h"

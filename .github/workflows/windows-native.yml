@@ -37,6 +37,14 @@ jobs:
             if ($errors.Count -gt 0) { throw "PowerShell syntax error in $script : $errors" }
           }
           python scripts/test-windows-installer-contract.py
+          $profile = Join-Path $env:RUNNER_TEMP 'nautic-profile-check'
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File packaging/windows/configure-profile.ps1 -Profile $profile -Template profile/XDJ_RX3_Mixxx.profile.cfg
+          if ($LASTEXITCODE -ne 0) { throw 'Windows profile configuration failed' }
+          $cfg = Get-Content (Join-Path $profile 'mixxx.cfg') -Raw
+          foreach ($setting in @('ResizableSkin XDJ_RX3_Mixxx', 'WaveformType 25', 'UsbOnlyMode 1', 'DJControl_Inpulse_500 1')) {
+            if (-not $cfg.Contains($setting)) { throw "Missing preset: $setting" }
+          }
+          if (-not (Test-Path (Join-Path $profile 'effects.xml'))) { throw 'Sound Color FX configuration missing' }
       - name: Build, test and package native NauticMixxx
         shell: powershell
         run: ./scripts/build-mixxx-rx3-windows.ps1 -WorkRoot C:\rx3-build -Jobs 4
