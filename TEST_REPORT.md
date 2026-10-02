@@ -39,8 +39,9 @@
 - Los 14 parches compilaron con CMake/Ninja y Visual Studio 2022 en el runner
   público `windows-2022`. Pasaron 78 pruebas nativas RX3/beatgrid/cue, sin fallas.
 - NSIS generó `NauticMixxx-1.3.0-Windows-x64-Setup.exe` con el icono oficial
-  derivado de `branding/`. El instalador y la aplicación instalada se identifican
-  como NauticMixxx.
+  derivado de `branding/`. Las siete resoluciones incrustadas en el EXE coinciden
+  byte por byte con el `.ico` generado desde el PNG canónico. El instalador y la
+  aplicación instalada se identifican como NauticMixxx.
 - La instalación y desinstalación silenciosa verificaron ejecutable, skin, perfil,
   preferencias USB, controladores y efectos; se conservó el perfil personal.
 - [Ejecución pública](https://github.com/nauticsoftware/NauticMixxx/actions/runs/36953168670).
