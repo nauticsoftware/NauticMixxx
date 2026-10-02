@@ -32,6 +32,10 @@
   con datos y comparación física con RX3 siguen pendientes.
 - El icono canónico está en `branding/`; se retiró su copia antigua dentro de
   `packaging/` y los scripts de publicación dejaron de depender de ella.
+- El instalador nativo Windows x64 1.3.0 pasó 78 pruebas y una instalación
+  y desinstalación silenciosa en el runner público. Usa el icono canónico de
+  `branding/`. Las pruebas físicas con controlador y USB en Windows siguen
+  pendientes.
 
 ## Actualización de waveforms — candidata de calibración
 
