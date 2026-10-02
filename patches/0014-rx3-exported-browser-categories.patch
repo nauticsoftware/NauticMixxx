@@ -1,0 +1,1278 @@
+diff --git a/src/library/library.h b/src/library/library.h
+--- a/src/library/library.h
++++ b/src/library/library.h
+@@ -27,6 +27,7 @@
+ class PlayerManager;
+ class PlaylistFeature;
+ class RecordingManager;
++class RekordboxFeature;
+ class SidebarModel;
+ class TrackCollectionManager;
+ class WSearchLineEdit;
+@@ -72,6 +73,7 @@
+                     KeyboardEventFilter* pKeyboard);
+ 
+     void addFeature(LibraryFeature* feature);
++    RekordboxFeature* rekordboxFeature() const;
+ 
+     /// Needed for exposing models to QML
+     LibraryTableModel* trackTableModel() const;
+diff --git a/src/library/library.cpp b/src/library/library.cpp
+--- a/src/library/library.cpp
++++ b/src/library/library.cpp
+@@ -516,6 +516,15 @@
+             &Library::restoreModelState);
+ }
+ 
++RekordboxFeature* Library::rekordboxFeature() const {
++    for (auto* feature : m_features) {
++        if (auto* rekordbox = qobject_cast<RekordboxFeature*>(feature)) {
++            return rekordbox;
++        }
++    }
++    return nullptr;
++}
++
+ void Library::onPlayerManagerTrackAnalyzerProgress(
+         TrackId /*trackId*/, AnalyzerProgress /*analyzerProgress*/) {
+     if (m_pAnalysisFeature) {
+diff --git a/src/library/rekordbox/rekordboxdatabase.h b/src/library/rekordbox/rekordboxdatabase.h
+--- a/src/library/rekordbox/rekordboxdatabase.h
++++ b/src/library/rekordbox/rekordboxdatabase.h
+@@ -59,6 +59,37 @@
+     QString error;
+ };
+ 
++struct BrowseCategory {
++    quint16 id{0};
++    QString label;
++    quint16 position{0};
++    quint8 marker{0};
++    quint8 visibility{0};
++};
++
++struct BrowseMenu {
++    QList<BrowseCategory> categories;
++    QStringList diagnostics;
++    bool fromExport{false};
++};
++
++struct DatabaseHistory {
++    quint32 id{0};
++    QString name;
++    QList<quint32> trackIds;
++};
++
++struct HistoryIndex {
++    QList<DatabaseHistory> histories;
++    QStringList diagnostics;
++};
++
++HistoryIndex readHistoryIndex(const DatabaseDocument& document);
++
++// Category descriptors (table 16) and the ordered menu (table 17) in
++// export.pdb. Invalid menu entries are ignored without discarding tracks.
++BrowseMenu readBrowseMenu(const DatabaseDocument& document);
++
+ TrackIndex readTrackIndex(const DatabaseDocument& document);
+ 
+ PlaylistIndex readPlaylistIndex(const DatabaseDocument& document);
+diff --git a/src/library/rekordbox/rekordboxdatabase.cpp b/src/library/rekordbox/rekordboxdatabase.cpp
+--- a/src/library/rekordbox/rekordboxdatabase.cpp
++++ b/src/library/rekordbox/rekordboxdatabase.cpp
+@@ -166,6 +166,105 @@
+         result.error = QString::fromUtf8(e.what());
+         result.pageSize = 0;
+         result.rows.clear();
++    }
++    return result;
++}
++
++BrowseMenu readBrowseMenu(const DatabaseDocument& document) {
++    BrowseMenu result;
++    if (!document.valid() || document.kind != DatabaseKind::Main) {
++        result.diagnostics.append(QStringLiteral("Browse menu requires a valid main export"));
++        return result;
++    }
++    QMap<quint16, QString> labels;
++    const auto& bytes = document.bytes;
++    for (const auto& row : document.rows) {
++        if (row.tableType != 16) continue;
++        try {
++            if (row.size < 5) throw std::runtime_error("Truncated category descriptor");
++            const auto id = u16(bytes, row.offset);
++            QString label = readString(bytes, row.offset + 4, row.offset + row.size);
++            if (label.startsWith(QChar(0xfffa)) && label.endsWith(QChar(0xfffb))) {
++                label = label.mid(1, label.size() - 2);
++            }
++            if (id == 0 || label.isEmpty() || labels.contains(id)) {
++                throw std::runtime_error("Invalid category descriptor");
++            }
++            labels.insert(id, label);
++        } catch (const std::exception& e) {
++            result.diagnostics.append(QStringLiteral("Category page %1 row %2: %3")
++                    .arg(row.pageIndex).arg(row.rowIndex).arg(QString::fromUtf8(e.what())));
++        }
++    }
++    QSet<quint16> positions;
++    for (const auto& row : document.rows) {
++        if (row.tableType != 17) continue;
++        result.fromExport = true;
++        if (row.size < 8) {
++            result.diagnostics.append(QStringLiteral("Truncated browse menu row"));
++            continue;
++        }
++        const auto id = u16(bytes, row.offset);
++        const auto marker = static_cast<quint8>(bytes.at(row.offset + 4));
++        const auto visibility = static_cast<quint8>(bytes.at(row.offset + 5));
++        const auto position = u16(bytes, row.offset + 6);
++        // The mounted RX3 export uses 0 for ordinary visible entries and 2
++        // for MATCHING. Position zero and visibility 1/3 are hidden entries.
++        if (position == 0 || (visibility != 0 && visibility != 2)) continue;
++        if (!labels.contains(id) || positions.contains(position)) {
++            result.diagnostics.append(QStringLiteral("Browse menu has an unknown category or duplicate position"));
++            continue;
++        }
++        positions.insert(position);
++        result.categories.append({id, labels.value(id), position, marker, visibility});
++    }
++    std::sort(result.categories.begin(), result.categories.end(),
++            [](const auto& a, const auto& b) { return a.position < b.position; });
++    if (!result.fromExport) {
++        result.categories = {{4, QStringLiteral("TRACK"), 1, 0, 0},
++                {17, QStringLiteral("PLAYLIST"), 2, 0, 0}};
++        result.diagnostics.append(QStringLiteral("Browse menu absent; using TRACK and PLAYLIST fallback"));
++    }
++    return result;
++}
++
++HistoryIndex readHistoryIndex(const DatabaseDocument& document) {
++    HistoryIndex result;
++    if (!document.valid() || document.kind != DatabaseKind::Main) return result;
++    QMap<quint32, DatabaseHistory> histories;
++    QMap<quint32, QMap<quint32, quint32>> entries;
++    const auto& bytes = document.bytes;
++    for (const auto& row : document.rows) {
++        try {
++            if (row.tableType == 11) {
++                if (row.size < 5) throw std::runtime_error("Truncated history name");
++                const auto id = u32(bytes, row.offset);
++                if (id == 0 || histories.contains(id))
++                    throw std::runtime_error("Invalid or duplicate history identity");
++                histories.insert(id, {id,
++                        readString(bytes, row.offset + 4, row.offset + row.size), {}});
++            } else if (row.tableType == 12) {
++                if (row.size < 12) throw std::runtime_error("Truncated history entry");
++                const auto trackId = u32(bytes, row.offset);
++                const auto historyId = u32(bytes, row.offset + 4);
++                const auto position = u32(bytes, row.offset + 8);
++                if (entries[historyId].contains(position))
++                    throw std::runtime_error("Duplicate history position");
++                entries[historyId].insert(position, trackId);
++            }
++        } catch (const std::exception& e) {
++            result.diagnostics.append(QStringLiteral("History page %1 row %2: %3")
++                    .arg(row.pageIndex).arg(row.rowIndex).arg(QString::fromUtf8(e.what())));
++        }
++    }
++    for (auto it = histories.begin(); it != histories.end(); ++it) {
++        const auto ordered = entries.take(it.key());
++        for (const auto trackId : ordered) it->trackIds.append(trackId);
++        result.histories.append(*it);
++    }
++    for (auto it = entries.cbegin(); it != entries.cend(); ++it) {
++        result.diagnostics.append(QStringLiteral("History entries reference missing history %1")
++                .arg(it.key()));
+     }
+     return result;
+ }
+diff --git a/src/library/rekordbox/rekordboxruntimecatalog.h b/src/library/rekordbox/rekordboxruntimecatalog.h
+--- a/src/library/rekordbox/rekordboxruntimecatalog.h
++++ b/src/library/rekordbox/rekordboxruntimecatalog.h
+@@ -11,6 +11,7 @@
+ #include <mutex>
+ 
+ #include "util/color/rgbcolor.h"
++#include "library/rekordbox/rekordboxdatabase.h"
+ 
+ namespace mixxx::rekordbox {
+ 
+@@ -160,6 +161,8 @@
+     // Atomic subtree insertion. Tracks must exist before playlists reference
+     // them; duplicate entries in a playlist are allowed and order is preserved.
+     bool insertPlaylist(RuntimePlaylistNode playlist);
++    bool setBrowseMenu(BrowseMenu menu);
++    bool setHistories(QList<DatabaseHistory> histories);
+     bool seal();
+     void invalidate();
+     bool valid() const;
+@@ -167,6 +170,8 @@
+ 
+     QHash<quint32, RuntimeTrack> tracks() const;
+     QList<RuntimePlaylistNode> playlists() const;
++    BrowseMenu browseMenu() const;
++    QList<DatabaseHistory> histories() const;
+     QStringList diagnostics() const;
+     void appendDiagnostic(const QString& message);
+     std::optional<RuntimeTrack> findTrack(quint32 rekordboxId) const;
+@@ -181,6 +186,8 @@
+     QHash<quint32, RuntimeTrack> m_tracks;
+     QHash<QString, quint32> m_audioPaths;
+     QList<RuntimePlaylistNode> m_playlists;
++    BrowseMenu m_browseMenu;
++    QList<DatabaseHistory> m_histories;
+     QHash<quint32, RuntimePlaylistNode> m_playlistIndex;
+     QStringList m_diagnostics;
+ };
+diff --git a/src/library/rekordbox/rekordboxruntimecatalog.cpp b/src/library/rekordbox/rekordboxruntimecatalog.cpp
+--- a/src/library/rekordbox/rekordboxruntimecatalog.cpp
++++ b/src/library/rekordbox/rekordboxruntimecatalog.cpp
+@@ -68,6 +68,20 @@
+     return true;
+ }
+ 
++bool RuntimeCatalog::setBrowseMenu(BrowseMenu menu) {
++    const std::lock_guard<std::mutex> lock(m_mutex);
++    if (!m_valid || m_sealed) return false;
++    m_browseMenu = std::move(menu);
++    return true;
++}
++
++bool RuntimeCatalog::setHistories(QList<DatabaseHistory> histories) {
++    const std::lock_guard<std::mutex> lock(m_mutex);
++    if (!m_valid || m_sealed) return false;
++    m_histories = std::move(histories);
++    return true;
++}
++
+ bool RuntimeCatalog::seal() {
+     const std::lock_guard<std::mutex> lock(m_mutex);
+     if (!m_valid) {
+@@ -83,6 +97,8 @@
+     m_tracks.clear();
+     m_audioPaths.clear();
+     m_playlists.clear();
++    m_browseMenu = {};
++    m_histories.clear();
+     m_playlistIndex.clear();
+ }
+ 
+@@ -104,6 +120,16 @@
+ QList<RuntimePlaylistNode> RuntimeCatalog::playlists() const {
+     const std::lock_guard<std::mutex> lock(m_mutex);
+     return m_playlists;
++}
++
++BrowseMenu RuntimeCatalog::browseMenu() const {
++    const std::lock_guard<std::mutex> lock(m_mutex);
++    return m_browseMenu;
++}
++
++QList<DatabaseHistory> RuntimeCatalog::histories() const {
++    const std::lock_guard<std::mutex> lock(m_mutex);
++    return m_histories;
+ }
+ 
+ QStringList RuntimeCatalog::diagnostics() const {
+diff --git a/src/library/rekordbox/rekordboxusbsession.cpp b/src/library/rekordbox/rekordboxusbsession.cpp
+--- a/src/library/rekordbox/rekordboxusbsession.cpp
++++ b/src/library/rekordbox/rekordboxusbsession.cpp
+@@ -148,6 +148,10 @@
+         RuntimeCatalog* catalog, QString* error) {
+     const auto tracks = readTrackIndex(document);
+     const auto playlists = readPlaylistIndex(document);
++    catalog->setBrowseMenu(readBrowseMenu(document));
++    const auto historyIndex = readHistoryIndex(document);
++    catalog->setHistories(historyIndex.histories);
++    for (const auto& diagnostic : historyIndex.diagnostics) catalog->appendDiagnostic(diagnostic);
+     if (!tracks.error.isEmpty() || !playlists.error.isEmpty()) {
+         *error = tracks.error + playlists.error;
+         return false;
+diff --git a/src/library/rekordbox/rekordboxfeature.h b/src/library/rekordbox/rekordboxfeature.h
+--- a/src/library/rekordbox/rekordboxfeature.h
++++ b/src/library/rekordbox/rekordboxfeature.h
+@@ -32,6 +32,11 @@
+     void bindLibraryWidget(WLibrary* libraryWidget,
+             KeyboardEventFilter* keyboard) override;
+     TreeItemModel* sidebarModel() const override;
++    std::shared_ptr<const mixxx::rekordbox::RuntimeCatalog> catalogForRoot(
++            const QString& root) const;
++    bool showTrackIds(const QString& root,
++            const QList<quint32>& ids,
++            const QString& viewKey);
+ 
+   public slots:
+     void activate() override;
+diff --git a/src/library/rekordbox/rekordboxfeature.cpp b/src/library/rekordbox/rekordboxfeature.cpp
+--- a/src/library/rekordbox/rekordboxfeature.cpp
++++ b/src/library/rekordbox/rekordboxfeature.cpp
+@@ -406,6 +406,28 @@
+     m_runtimeTrackModel.showPlaylist(
+             session, playlist->trackIds, playlist->rekordboxId);
+     emit showTrackModel(&m_proxyTrackModel);
++}
++
++std::shared_ptr<const mixxx::rekordbox::RuntimeCatalog>
++RekordboxFeature::catalogForRoot(const QString& root) const {
++    const auto session = m_sessions.value(root);
++    return session && session->state() == mixxx::rekordbox::UsbSessionState::Ready
++            ? session->catalog() : nullptr;
++}
++
++bool RekordboxFeature::showTrackIds(const QString& root,
++        const QList<quint32>& ids,
++        const QString& viewKey) {
++    const auto session = m_sessions.value(root);
++    if (!session || session->state() != mixxx::rekordbox::UsbSessionState::Ready) {
++        return false;
++    }
++    m_selectedRoot = root;
++    emit enableCoverArtDisplay(false);
++    m_proxyTrackModel.search(QString());
++    m_runtimeTrackModel.showTrackIds(session, ids, viewKey);
++    emit showTrackModel(&m_proxyTrackModel);
++    return true;
+ }
+ 
+ void RekordboxFeature::setDeviceStatus(
+diff --git a/src/library/rekordbox/rekordboxruntimetrackmodel.h b/src/library/rekordbox/rekordboxruntimetrackmodel.h
+--- a/src/library/rekordbox/rekordboxruntimetrackmodel.h
++++ b/src/library/rekordbox/rekordboxruntimetrackmodel.h
+@@ -29,6 +29,9 @@
+     void showPlaylist(std::shared_ptr<RekordboxUsbSession> session,
+             const QList<quint32>& trackIds,
+             quint32 playlistId);
++    void showTrackIds(std::shared_ptr<RekordboxUsbSession> session,
++            const QList<quint32>& trackIds,
++            const QString& viewKey);
+     void clearSession();
+ 
+     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
+diff --git a/src/library/rekordbox/rekordboxruntimetrackmodel.cpp b/src/library/rekordbox/rekordboxruntimetrackmodel.cpp
+--- a/src/library/rekordbox/rekordboxruntimetrackmodel.cpp
++++ b/src/library/rekordbox/rekordboxruntimetrackmodel.cpp
+@@ -113,6 +113,21 @@
+     setRows(std::move(session),
+             std::move(rows),
+             QStringLiteral("playlist:%1").arg(playlistId));
++}
++
++void RekordboxRuntimeTrackModel::showTrackIds(
++        std::shared_ptr<RekordboxUsbSession> session,
++        const QList<quint32>& trackIds,
++        const QString& viewKey) {
++    QList<RuntimeTrack> rows;
++    auto catalog = session ? session->catalog() : nullptr;
++    if (catalog) {
++        rows.reserve(trackIds.size());
++        for (const auto id : trackIds) {
++            if (auto track = catalog->findTrack(id)) rows.append(std::move(*track));
++        }
++    }
++    setRows(std::move(session), std::move(rows), viewKey);
+ }
+ 
+ void RekordboxRuntimeTrackModel::clearSession() {
+diff --git a/src/widget/wrx3browser.h b/src/widget/wrx3browser.h
+--- a/src/widget/wrx3browser.h
++++ b/src/widget/wrx3browser.h
+@@ -1,10 +1,13 @@
+ #pragma once
+ 
+ #include <QLabel>
++#include <QHeaderView>
++#include <QItemSelectionModel>
+ #include <QLineEdit>
+ #include <QListWidget>
+ #include <QPushButton>
+ #include <QStackedWidget>
++#include <QTableWidget>
+ #include <QTreeWidget>
+ #include <QVBoxLayout>
+ #include <QHBoxLayout>
+@@ -15,6 +18,7 @@
+ #include <QPainter>
+ #include <QStyledItemDelegate>
+ #include "library/library.h"
++#include "library/rekordbox/rekordboxfeature.h"
+ #include "library/trackcollectionmanager.h"
+ #include "library/trackcollection.h"
+ #include <QPersistentModelIndex>
+@@ -43,7 +47,7 @@
+         if(label=="ARTIST") {
+             p->drawEllipse(QPointF(cx,cy-6*scale),5*scale,5*scale);
+             p->drawArc(QRectF(cx-11*scale,cy+2*scale,22*scale,15*scale),0,180*16);
+-        } else if(label=="ALBUMS") {
++        } else if(label=="ALBUM" || label=="ALBUMS") {
+             p->drawRect(QRectF(cx-11*scale,cy-11*scale,22*scale,22*scale));
+             p->drawEllipse(QPointF(cx,cy),7*scale,7*scale);
+             p->drawEllipse(QPointF(cx,cy),1*scale,1*scale);
+@@ -88,10 +92,36 @@
+         connect(m_facets,&QListWidget::itemClicked,this,[this](QListWidgetItem*){chooseFacet();});
+         m_facets->installEventFilter(this);
+         m_loading=new QLabel("Reading USB…",browse);m_loading->setObjectName("RX3BrowserLoading");m_loading->setAlignment(Qt::AlignCenter);m_loading->hide();b->addWidget(m_loading,1);
++        m_preview=new QWidget(browse);m_preview->setObjectName("RX3PlaylistPreview");
++        auto* previewLayout=new QVBoxLayout(m_preview);
++        previewLayout->setContentsMargins(0,0,0,0);previewLayout->setSpacing(0);
++        m_previewHeader=new QLabel(m_preview);m_previewHeader->setObjectName("RX3PlaylistPreviewHeader");
++        previewLayout->addWidget(m_previewHeader);
++        m_previewTracks=new QTableWidget(m_preview);
++        m_previewTracks->setObjectName("RX3PlaylistPreviewTracks");
++        m_previewTracks->setColumnCount(2);
++        m_previewTracks->setHorizontalHeaderLabels({"TRACK", "ARTIST"});
++        m_previewTracks->verticalHeader()->hide();
++        m_previewTracks->setShowGrid(false);
++        m_previewTracks->setAlternatingRowColors(true);
++        m_previewTracks->setEditTriggers(QAbstractItemView::NoEditTriggers);
++        m_previewTracks->setSelectionMode(QAbstractItemView::NoSelection);
++        m_previewTracks->setFocusPolicy(Qt::NoFocus);
++        m_previewTracks->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
++        m_previewTracks->horizontalHeader()->setStretchLastSection(false);
++        m_previewTracks->horizontalHeader()->setDefaultAlignment(Qt::AlignLeft|Qt::AlignVCenter);
++        previewLayout->addWidget(m_previewTracks,1);
++        m_previewMessage=new QLabel(m_preview);
++        m_previewMessage->setObjectName("RX3PlaylistPreviewMessage");
++        m_previewMessage->setAlignment(Qt::AlignCenter);
++        m_previewMessage->hide();
++        previewLayout->addWidget(m_previewMessage,1);
++        m_preview->hide();b->addWidget(m_preview,1);
+         m_library->setParent(browse); m_library->setObjectName("RX3BrowserTracks"); b->addWidget(m_library, 1);
+         m_trackInfo=new QLabel(browse);m_trackInfo->setObjectName("RX3TrackInfo");
+         m_trackInfo->setTextFormat(Qt::PlainText);m_trackInfo->setWordWrap(true);
+         m_trackInfo->setAlignment(Qt::AlignTop|Qt::AlignLeft);m_trackInfo->hide();b->addWidget(m_trackInfo);
++        m_emptySpace=new QWidget(browse);b->addWidget(m_emptySpace,1);
+         m_pages->addWidget(browse);
+         auto* sourcePage = new QWidget(m_pages); auto* sl = new QHBoxLayout(sourcePage);
+         sl->setContentsMargins(0,0,0,0); sl->setSpacing(0);
+@@ -105,13 +135,19 @@
+         connect(search, &QPushButton::clicked, this, [this]{ m_search->setVisible(!m_search->isVisible()); if(m_search->isVisible()) m_search->setFocus(); });
+         connect(m_search, &QLineEdit::textChanged, m_library, [this](const QString& query){ m_library->search(query); });
+         connect(info, &QPushButton::clicked, this, [this]{
+-            if(m_pages->currentIndex()==0) {m_trackInfo->setVisible(!m_trackInfo->isVisible());updateTrackInfo();}
++            if(m_pages->currentIndex()==0 && m_level==BrowserLevel::Tracks) {
++                m_trackInfo->setVisible(!m_trackInfo->isVisible());updateTrackInfo();
++            }
+         });
+         connect(m_categories, &QListWidget::itemClicked, this, [this](QListWidgetItem*){ m_focus=NavigationTarget::Categories; enter(); });
+         connect(m_sources,&QTreeWidget::currentItemChanged,this,[this](QTreeWidgetItem* item,QTreeWidgetItem*){updateSourceInfo(m_sources->indexOfTopLevelItem(item));});
+         connect(m_sources, &QTreeWidget::itemDoubleClicked, this, [this](QTreeWidgetItem*, int){ chooseSource(); });
+-        connect(m_sidebar, &QTreeView::clicked, this, [this](const QModelIndex& index){
+-            m_breadcrumb->setText(index.data().toString()); m_focus=NavigationTarget::Tree; refreshTable();
++        connect(m_sidebar, &QTreeView::clicked, this, [this](const QModelIndex&){
++            m_focus=NavigationTarget::Tree;
++            QTimer::singleShot(0,this,[this]{updatePlaylistPreview();});
++        });
++        connect(m_sidebar, &QTreeView::doubleClicked, this, [this](const QModelIndex& index){
++            enterTree(index);
+         });
+         connect(m_library, &QStackedWidget::currentChanged, this, [this](int){ refreshTable(); });
+         for (QWidget* w : {static_cast<QWidget*>(m_categories), static_cast<QWidget*>(m_sidebar), static_cast<QWidget*>(m_sources)}) w->installEventFilter(this);
+@@ -147,6 +183,10 @@
+         m_source->setFixedSize(qRound(100*scale), qRound(46*scale));
+         m_search->setMaximumWidth(qRound(240*scale));
+         m_trackInfo->setFixedWidth(qRound(280*scale));
++        m_previewHeader->setFixedHeight(qRound(48*scale));
++        m_previewTracks->verticalHeader()->setDefaultSectionSize(qRound(44*scale));
++        m_previewTracks->horizontalHeader()->setFixedHeight(qRound(44*scale));
++        resizePreviewColumns();
+         for(int i=0;i<m_categories->count();++i) m_categories->item(i)->setSizeHint(QSize(qRound(92*scale),qRound(65*scale)));
+         refreshTable();
+     }
+@@ -162,6 +202,11 @@
+             auto* key = static_cast<QKeyEvent*>(event);
+             if (key->key()==Qt::Key_Return || key->key()==Qt::Key_Enter) { enter(); return true; }
+             if (key->key()==Qt::Key_Left || key->key()==Qt::Key_Escape) { back(); return true; }
++            if(watched==m_sidebar && (key->key()==Qt::Key_Up || key->key()==Qt::Key_Down ||
++                    key->key()==Qt::Key_Home || key->key()==Qt::Key_End ||
++                    key->key()==Qt::Key_PageUp || key->key()==Qt::Key_PageDown)) {
++                QTimer::singleShot(0,this,[this]{updatePlaylistPreview();});
++            }
+         }
+         return QWidget::eventFilter(watched,event);
+     }
+@@ -173,6 +218,15 @@
+         Source,
+         Facets,
+     };
++    enum class BrowserLevel { Categories, Hierarchy, FacetValues, Tracks, Notice };
++
++    void resizePreviewColumns() {
++        const int width=m_previewTracks->viewport()->width();
++        if(width<=0) return;
++        const int title=qRound(width*0.58);
++        m_previewTracks->setColumnWidth(0,title);
++        m_previewTracks->setColumnWidth(1,qMax(1,width-title-2));
++    }
+ 
+     ControlObject* makeControl(const QString& name, std::function<void(double)> handler, bool ignoreNops=false) {
+         auto control = std::make_unique<ControlObject>(ConfigKey("[RX3Browser]", name), ignoreNops);
+@@ -197,26 +251,102 @@
+         QTimer::singleShot(0,this,[this,resume]{restoreNavigationFocus(resume);});
+     }
+     SidebarModel* model() const { return qobject_cast<SidebarModel*>(m_sidebar->model()); }
++    std::shared_ptr<const mixxx::rekordbox::RuntimeCatalog> catalog() const {
++        auto* feature = m_backend->rekordboxFeature();
++        return feature ? feature->catalogForRoot(m_currentRoot) : nullptr;
++    }
+     void populateCategories() {
+-        const int selected = qMax(0,m_categories->currentRow());
+-        m_categories->clear(); m_roots.clear();m_facetFields.clear();
+-        auto* sm = model(); if(!sm) return;
++        const auto previous = m_categories->currentRow() >= 0 &&
++                m_categories->currentRow() < m_categoryIds.size()
++                ? m_categoryIds.at(m_categories->currentRow()) : quint16(0);
++        m_categories->clear();m_categoryIds.clear();
+         if(!m_selectedDevice.isValid()) {showSources();return;}
+-        for(const auto& label : {QString("♪\nTRACK"),QString("♫\nPLAYLIST")}) {
+-            auto* item=new QListWidgetItem(label,m_categories);
++        const auto currentCatalog=catalog();
++        if(deviceStatus(m_selectedDevice)!="ready" || !currentCatalog) return;
++        const auto menu=currentCatalog->browseMenu();
++        int selected = 0;
++        for(const auto& category : menu.categories) {
++            const auto label = category.label.toUpper();
++            const QString icon = label == "PLAYLIST" ? QStringLiteral("♫")
++                    : label == "TRACK" ? QStringLiteral("♪") : QStringLiteral("▣");
++            auto* item=new QListWidgetItem(icon + "\n" + label,m_categories);
+             item->setTextAlignment(Qt::AlignCenter);item->setSizeHint(QSize(94,65));
+-            m_roots.push_back(m_selectedDevice);m_facetFields.push_back(QString());
+-        }
+-        m_categories->setCurrentRow(qMin(selected,1));
+-        selectCategory(m_categories->currentRow());
++            if(category.id == previous) selected=m_categoryIds.size();
++            m_categoryIds.append(category.id);
++        }
++        if(!m_categoryIds.isEmpty()) m_categories->setCurrentRow(selected);
++        m_level=BrowserLevel::Categories;
++        m_breadcrumb->setText(m_selectedDevice.data().toString());
++    }
++    QModelIndex selectedTreeIndex() const {
++        if(auto* selection=m_sidebar->selectionModel()) {
++            const auto rows=selection->selectedRows();
++            if(!rows.isEmpty()) return rows.first();
++        }
++        return m_sidebar->currentIndex();
++    }
++    void updatePlaylistPreview() {
++        if(m_level!=BrowserLevel::Hierarchy || !m_preview->isVisible()) return;
++        const auto currentCatalog=catalog();
++        const QModelIndex index=selectedTreeIndex();
++        const auto data=index.data(SidebarModel::DataRole).toList();
++        std::optional<mixxx::rekordbox::RuntimePlaylistNode> playlist;
++        if(currentCatalog && data.size()>=3)
++            playlist=currentCatalog->findPlaylist(static_cast<quint32>(data[2].toULongLong()));
++        if(!playlist) {
++            m_previewHeader->setText("PLAYLIST PREVIEW");
++            m_previewTracks->hide();
++            m_previewMessage->setText("Select a playlist to preview its tracks.");
++            m_previewMessage->show();
++            return;
++        }
++        const bool folder=playlist->isFolder;
++        const int count=folder ? playlist->children.size() : playlist->trackIds.size();
++        m_previewHeader->setText(QStringLiteral("%1   ·   %2 %3")
++                .arg(playlist->name)
++                .arg(count)
++                .arg(folder ? QStringLiteral("PLAYLISTS") : QStringLiteral("TRACKS")));
++        m_previewTracks->setUpdatesEnabled(false);
++        m_previewTracks->clearContents();
++        m_previewTracks->setHorizontalHeaderLabels(folder
++                ? QStringList{QStringLiteral("PLAYLIST"),QStringLiteral("TRACKS")}
++                : QStringList{QStringLiteral("TRACK"),QStringLiteral("ARTIST")});
++        m_previewTracks->setRowCount(count);
++        const auto tracks=folder ? QHash<quint32,mixxx::rekordbox::RuntimeTrack>()
++                : currentCatalog->tracks();
++        for(int row=0;row<count;++row) {
++            QString name;
++            QString detail;
++            if(folder) {
++                const auto& child=playlist->children.at(row);
++                name=child.isFolder ? QStringLiteral("▸  ")+child.name : child.name;
++                detail=child.isFolder ? QStringLiteral("FOLDER")
++                        : QString::number(child.trackIds.size());
++            } else {
++                const auto track=tracks.constFind(playlist->trackIds.at(row));
++                name=QStringLiteral("%1  %2").arg(row+1,2,10,QChar('0'))
++                        .arg(track==tracks.cend() ? QStringLiteral("Unavailable track") : track->title);
++                detail=track==tracks.cend() ? QString() : track->artist;
++            }
++            m_previewTracks->setItem(row,0,new QTableWidgetItem(name));
++            m_previewTracks->setItem(row,1,new QTableWidgetItem(detail));
++        }
++        m_previewTracks->setUpdatesEnabled(true);
++        m_previewTracks->setVisible(count>0);
++        m_previewMessage->setText(folder ? QStringLiteral("This folder has no playlists.")
++                : QStringLiteral("This playlist has no tracks."));
++        m_previewMessage->setVisible(count==0);
+     }
+     void refreshTable() {
+         if(auto* table=m_library->getCurrentTrackTableView()) {
+             table->setRx3Browser(true);table->viewport()->installEventFilter(this);
++            table->setRx3ExpandedTracks(m_level==BrowserLevel::Tracks);
+             if(!table->property("rx3ModelConnected").toBool()) {
+                 table->setProperty("rx3ModelConnected",true);
+                 connect(table,&WTrackTableView::rx3ModelChanged,this,[this]{
+-                    if(m_waitingRoot.isEmpty()) {m_loading->hide();m_library->show();}
++                    if(m_level==BrowserLevel::Tracks) {
++                        m_loading->hide();m_library->show();m_emptySpace->hide();
++                    }
+                     refreshTable();updateTrackInfo();
+                 });
+                 connect(table->selectionModel(),&QItemSelectionModel::currentRowChanged,this,[this]{updateTrackInfo();});
+@@ -243,44 +373,177 @@
+         m_breadcrumb->setText(index.data(SidebarModel::IconNameRole).toString() == "tracks" ? "COLLECTION / TRACK" : index.data().toString());
+         QTimer::singleShot(0,this,[this]{refreshTable();});
+     }
++    void showNotice(const QString& message) {
++        m_level=BrowserLevel::Notice;m_sidebar->hide();m_facets->hide();m_library->hide();
++        m_trackInfo->hide();
++        m_preview->hide();m_emptySpace->hide();m_loading->setText(message);m_loading->show();m_focus=NavigationTarget::Categories;
++        refreshTable();
++    }
++    void showComingSoon(const QString& category) {
++        showNotice(QString());
++        m_loading->setText(QStringLiteral(
++                "<div style='text-align:center'>"
++                "<p style='color:#00b8d4;font-size:13px;font-weight:600'>NAUTICMIXXX</p>"
++                "<p style='color:#ffffff;font-size:27px;font-weight:700'>%1</p>"
++                "<p style='color:#b8c1c7;font-size:16px'>COMING SOON</p>"
++                "<p style='color:#849199;font-size:12px'>Available in a future release</p>"
++                "</div>").arg(category.toHtmlEscaped()));
++    }
++    void showTrackList(BrowserLevel returnLevel) {
++        m_returnLevel=returnLevel;m_level=BrowserLevel::Tracks;
++        m_sidebar->hide();m_facets->hide();m_preview->hide();m_loading->hide();m_library->show();
++        m_emptySpace->hide();
++        refreshTable();focusTracks();
++    }
+     void selectCategory(int row) {
+-        if(row<0 || row>=int(m_roots.size())) return;
+-        const QModelIndex root=m_roots[row]; if(!root.isValid()) return;
+-        m_loading->hide();m_library->show();
+-        m_library->search(QString());m_facets->hide();m_facetField.clear();
+-        if(!m_facetFields[row].isEmpty()) {showFacet(m_facetFields[row],root);return;}
+-        m_pages->setCurrentIndex(0); m_sidebar->setRootIndex(root);
+-        m_sidebar->setVisible(m_selectedDevice.isValid() ? row==1 :
+-                root.data(SidebarModel::IconNameRole).toString() != "tracks" && model()->hasChildren(root));
+-        activate(root);
+-        m_focus=m_sidebar->isVisible()?NavigationTarget::Tree:NavigationTarget::TrackList;
+-        if(m_focus==NavigationTarget::TrackList) focusTracks(); else {
++        if(row<0 || row>=m_categoryIds.size() || !m_selectedDevice.isValid()) return;
++        if(deviceStatus(m_selectedDevice)!="ready" || !catalog()) {
++            showSources();
++            return;
++        }
++        const auto label=m_categories->item(row)->text().section('\n',1).toUpper();
++        m_selectedCategory=label;m_search->clear();m_library->search(QString());
++        m_trackInfo->hide();
++        m_pages->setCurrentIndex(0);m_loading->hide();
++        if(label=="TRACK" || label=="TRACKS" || label=="SEARCH") {
++            model()->clicked(m_selectedDevice);
++            showTrackList(BrowserLevel::Categories);
++            m_breadcrumb->setText(label);
++            if(label=="SEARCH") {m_search->show();m_search->setFocus();}
++            return;
++        }
++        if(label=="PLAYLIST") {
++            m_level=BrowserLevel::Hierarchy;
++            m_facets->hide();m_library->hide();m_sidebar->setRootIndex(m_selectedDevice);
++            m_emptySpace->hide();m_preview->show();
++            m_sidebar->show();m_breadcrumb->setText(label);
++            m_focus=NavigationTarget::Tree;
+             m_sidebar->setFocus();
+-            if(model()->rowCount(root)>0) activate(model()->index(0,0,root));
+-        }
+-    }
+-    void showFacet(const QString& field,const QModelIndex& root) {
+-        // Field comes only from the fixed ARTIST/ALBUM/KEY category list.
+-        m_facetField=field;m_sidebar->hide();m_facets->clear();m_facets->show();
+-        m_pages->setCurrentIndex(0);activate(root);
+-        QSqlQuery query(m_backend->trackCollectionManager()->internalCollection()->database());
+-        if(query.exec(QString("SELECT DISTINCT \"%1\" FROM library WHERE mixxx_deleted=0 AND \"%1\" IS NOT NULL AND \"%1\"<>'' ORDER BY \"%1\" COLLATE NOCASE").arg(field))) {
+-            while(query.next()) {auto* item=new QListWidgetItem(query.value(0).toString(),m_facets);item->setSizeHint(QSize(260,44));}
+-        }
+-        m_breadcrumb->setText(field.toUpper());m_focus=NavigationTarget::Facets;m_facets->setFocus();
+-        if(m_facets->count()) {m_facets->setCurrentRow(0);filterFacet();}
+-    }
+-    void filterFacet() {
++            if(model()->rowCount(m_selectedDevice)>0)
++                m_sidebar->selectIndex(model()->index(0,0,m_selectedDevice));
++            updatePlaylistPreview();refreshTable();
++            QTimer::singleShot(0,this,[this]{resizePreviewColumns();});return;
++        }
++        if(label=="HISTORY") {showHistory();return;}
++        const QHash<QString,QString> fields={{"ARTIST","artist"},{"ALBUM","album"},
++                {"ALBUMS","album"},{"GENRE","genre"},{"KEY","key"},
++                {"BPM","bpm"},{"RATING","rating"},{"YEAR","year"},
++                {"LABEL","label"},{"REMIXER","remixer"},{"COLOR","color_id"},
++                {"DATE ADDED","date_added"}};
++        if(fields.contains(label)) {showFacet(fields.value(label));return;}
++        showComingSoon(label);
++    }
++    QString facetValue(const mixxx::rekordbox::RuntimeTrack& track,
++            const QString& field) const {
++        if(field=="artist") return track.artist;
++        if(field=="album") return track.album;
++        if(field=="genre") return track.genre;
++        if(field=="key") return track.key;
++        if(field=="bpm") return track.bpm ? QString::number(*track.bpm,'f',1) : QString();
++        if(field=="rating") return track.rating ? QString::number(*track.rating) : QString();
++        return track.rawMetadata.value(field).toVariant().toString();
++    }
++    void showFacet(const QString& field) {
++        m_facetField=field;m_facetTracks.clear();m_facets->clear();
++        const auto currentCatalog=catalog();
++        if(!currentCatalog) {showNotice("USB unavailable.");return;}
++        const auto tracks=currentCatalog->tracks();
++        auto ids=tracks.keys();std::sort(ids.begin(),ids.end());
++        const QHash<QString,QString> identityFields={{"artist","artist_id"},
++                {"album","album_id"},{"genre","genre_id"},{"key","key_id"},
++                {"label","label_id"},{"remixer","remixer_id"}};
++        QMap<QString,QList<quint32>> groups;
++        QMap<QString,QString> labels;
++        QMap<QString,int> labelCounts;
++        for(const auto id:ids) {
++            const auto& track=tracks.constFind(id).value();
++            const QString value=facetValue(track,field).trimmed();
++            if(value.isEmpty()) continue;
++            const auto identity=track.rawMetadata.value(identityFields.value(field)).toInt();
++            const QString groupKey=identity>0 ? QStringLiteral("id:%1").arg(identity)
++                    : QStringLiteral("value:%1").arg(value);
++            if(!groups.contains(groupKey)) {labels.insert(groupKey,value);++labelCounts[value];}
++            groups[groupKey].append(id);
++        }
++        auto keys=groups.keys();
++        const bool numeric=field=="bpm" || field=="rating" || field=="year";
++        std::sort(keys.begin(),keys.end(),[&](const QString& a,const QString& b) {
++            if(numeric) return labels.value(a).toDouble()<labels.value(b).toDouble();
++            const int comparison=QString::localeAwareCompare(labels.value(a),labels.value(b));
++            return comparison==0 ? a<b : comparison<0;
++        });
++        for(const auto& key:keys) {
++            const auto value=labels.value(key);
++            const QString label=labelCounts.value(value)>1
++                    ? value+QStringLiteral(" (%1)").arg(key.section(':',1)) : value;
++            m_facetTracks.insert(label,groups.value(key));
++            auto* item=new QListWidgetItem(label,m_facets);
++            item->setSizeHint(QSize(260,44));
++        }
++        if(m_facets->count()==0) {
++            showNotice("No "+m_selectedCategory+" values are stored on this USB.");return;
++        }
++        m_level=BrowserLevel::FacetValues;m_sidebar->hide();m_library->hide();m_preview->hide();
++        m_emptySpace->show();m_facets->show();m_breadcrumb->setText(m_selectedCategory);
++        m_focus=NavigationTarget::Facets;
++        if(m_facets->count()) m_facets->setCurrentRow(0);
++        m_facets->setFocus();refreshTable();
++    }
++    void showHistory() {
++        const auto currentCatalog=catalog();
++        if(!currentCatalog) {showNotice("USB unavailable.");return;}
++        m_facetField="history";m_facetTracks.clear();m_facets->clear();
++        const auto tracks=currentCatalog->tracks();
++        for(const auto& history:currentCatalog->histories()) {
++            const QString name=history.name.isEmpty()
++                    ? QStringLiteral("HISTORY %1").arg(history.id) : history.name;
++            const QString label=m_facetTracks.contains(name)
++                    ? name+QStringLiteral(" (%1)").arg(history.id) : name;
++            QList<quint32> ids;
++            for(const auto id:history.trackIds) if(tracks.contains(id)) ids.append(id);
++            m_facetTracks.insert(label,ids);
++            auto* item=new QListWidgetItem(label,m_facets);
++            item->setSizeHint(QSize(260,44));
++        }
++        if(m_facets->count()==0) {
++            showNotice("No Rekordbox history is stored on this USB.");return;
++        }
++        m_level=BrowserLevel::FacetValues;m_sidebar->hide();m_library->hide();m_preview->hide();
++        m_emptySpace->show();m_facets->show();m_breadcrumb->setText("HISTORY");
++        m_focus=NavigationTarget::Facets;m_facets->setCurrentRow(0);
++        m_facets->setFocus();refreshTable();
++    }
++    void chooseFacet() {
+         if(!m_facets->currentItem()) return;
+-        QString value=m_facets->currentItem()->text();
+-        value.replace("\""," ");
+-        m_library->search(m_facetField+":\""+value+"\"");
+-        m_breadcrumb->setText(m_facetField.toUpper()+" / "+m_facets->currentItem()->text());
+-        refreshTable();
+-    }
+-    void chooseFacet() {filterFacet();focusTracks();}
++        const auto value=m_facets->currentItem()->text();
++        auto* feature=m_backend->rekordboxFeature();
++        if(!feature || !feature->showTrackIds(m_currentRoot,
++                m_facetTracks.value(value), m_facetField+":"+value)) {
++            showNotice("USB unavailable.");return;
++        }
++        m_breadcrumb->setText(m_selectedCategory+" / "+value);
++        showTrackList(BrowserLevel::FacetValues);
++    }
++    void enterTree(const QModelIndex& index) {
++        if(!index.isValid() || m_level!=BrowserLevel::Hierarchy) return;
++        m_sidebar->selectIndex(index);m_focus=NavigationTarget::Tree;
++        if(model()->hasChildren(index)) {
++            m_sidebar->setExpanded(index,true);
++            m_breadcrumb->setText(index.data().toString());
++            if(model()->rowCount(index)>0)
++                m_sidebar->selectIndex(model()->index(0,0,index));
++            updatePlaylistPreview();
++            return;
++        }
++        activate(index);
++        m_breadcrumb->setText(index.data().toString());
++        showTrackList(BrowserLevel::Hierarchy);
++    }
+     void restoreNavigationFocus(NavigationTarget focus) {
+         if(m_pages->currentIndex()==1) {m_focus=NavigationTarget::Source;m_sources->setFocus();return;}
++        if(m_level==BrowserLevel::Categories || m_level==BrowserLevel::Notice) {
++            m_focus=NavigationTarget::Categories;m_categories->setFocus();return;
++        }
+         if(focus==NavigationTarget::Tree && m_sidebar->isVisible()) {m_focus=NavigationTarget::Tree;m_sidebar->setFocus();}
+         else if(focus==NavigationTarget::Facets && m_facets->isVisible()) {m_focus=NavigationTarget::Facets;m_facets->setFocus();}
+         else if(focus==NavigationTarget::Categories) {m_focus=NavigationTarget::Categories;m_categories->setFocus();}
+@@ -304,42 +567,19 @@
+     QString deviceStatus(const QPersistentModelIndex& device) const {
+         return device.data(SidebarModel::DataRole).toList().value(2).toString();
+     }
+-    void updateSelectedDevice() {
+-        if(m_waitingRoot.isEmpty()) return;
+-        if(!m_selectedDevice.isValid() || deviceRoot(m_selectedDevice)!=m_waitingRoot) {
+-            m_loading->setText("USB disconnected. Waiting for reconnection…");
+-            m_loading->show();m_library->hide();
+-            return;
+-        }
+-        const QString status=deviceStatus(m_selectedDevice);
+-        if(status=="ready") {
+-            m_waitingRoot.clear();
+-            selectCategory(m_categories->currentRow()>=0 ? m_categories->currentRow() : 1);
+-        } else if(status=="error") {
+-            m_loading->setText("Unable to read this Rekordbox USB.");
+-        } else {
+-            m_loading->setText("Reading USB…");
+-        }
++    bool deviceReady(const QPersistentModelIndex& device) const {
++        if(!device.isValid() || deviceStatus(device)!="ready") return false;
++        auto* feature=m_backend->rekordboxFeature();
++        const auto currentCatalog=feature ? feature->catalogForRoot(deviceRoot(device)) : nullptr;
++        return currentCatalog && !currentCatalog->browseMenu().categories.isEmpty();
+     }
+     void onDeviceModelChanged() {
+-        if(m_pages->currentIndex()==1) refreshSources();
+-        else {
+-            if(!m_selectedDevice.isValid() && !m_currentRoot.isEmpty()) {
+-                m_waitingRoot=m_currentRoot;
+-                for(int i=0;i<model()->rowCount();++i) {
+-                    const auto root=model()->index(i,0);
+-                    if(root.data(SidebarModel::IconNameRole).toString()!="rekordbox") continue;
+-                    for(int r=0;r<model()->rowCount(root);++r) {
+-                        const auto device=model()->index(r,0,root);
+-                        if(device.data(SidebarModel::DataRole).toList().value(0).toString()!=m_currentRoot) continue;
+-                        m_selectedDevice=device;
+-                        m_sidebar->setRootIndex(device);
+-                        populateCategories();
+-                        break;
+-                    }
+-                }
+-            }
+-            updateSelectedDevice();
++        if(m_pages->currentIndex()==1) {refreshSources();return;}
++        if(!deviceReady(m_selectedDevice)) {
++            m_selectedDevice=QPersistentModelIndex();
++            m_currentRoot.clear();
++            m_preview->hide();
++            showSources();
+         }
+     }
+     void refreshSources() {
+@@ -356,7 +596,10 @@
+             if(root.data(SidebarModel::IconNameRole).toString()!="rekordbox") continue;
+             for(int r=0;r<model()->rowCount(root);++r) {
+                 const auto device=model()->index(r,0,root);
+-                auto* item=new QTreeWidgetItem(m_sources,{"▣   "+device.data().toString()+"                  ›"});
++                const QString suffix=deviceReady(device) ? QStringLiteral("  ›")
++                        : deviceStatus(device)=="error" ? QStringLiteral("  ·  ERROR")
++                        : QStringLiteral("  ·  READING…");
++                auto* item=new QTreeWidgetItem(m_sources,{"▣   "+device.data().toString()+suffix});
+                 item->setData(0,Qt::UserRole,device.data(SidebarModel::DataRole).toList().value(0));
+                 m_devices.push_back(device);
+             }
+@@ -375,7 +618,7 @@
+         if(row>=0 && row<int(m_devices.size())) {
+             source=m_devices[row].data().toString();
+             const auto data=m_devices[row].data(SidebarModel::DataRole).toList();
+-            if(data.value(2).toString()=="ready") {
++            if(deviceReady(m_devices[row])) {
+                 songs=data.value(3).toString();playlists=data.value(4).toString();
+             }
+             if(!data.isEmpty()) {
+@@ -388,47 +631,44 @@
+         }
+         const QString status=row>=0 && row<int(m_devices.size())
+                 ? deviceStatus(m_devices[row]) : QString();
++        const bool ready=row>=0 && row<int(m_devices.size()) && deviceReady(m_devices[row]);
+         m_info->setText("INFO\n\n"+source+"\n\nStatus                 "+
+-                (status=="ready"?"Ready":status=="error"?"Error":"Reading USB…")+
++                (ready?"Ready":status=="error"?"Error":status=="ready"?"Unavailable":"Reading USB…")+
+                 "\n\nSongs                 "+songs+"\n\nPlaylists              "+playlists+
+                 "\n\nTotal                   "+total+" GB\n\nAvailable             "+available+
+-                " GB\n\nBackground Color    ○ Default");
++                " GB\n\nBackground Color    ○ Default\n\n"+
++                (ready ? QStringLiteral("Press ENTER to browse.")
++                        : status=="error" ? QStringLiteral("Unable to read this Rekordbox USB.")
++                        : status=="ready" ? QStringLiteral("No browse categories are available on this USB.")
++                        : QStringLiteral("Preparing the USB library. Browsing opens when Ready.")));
+     }
+     void chooseSource() {
+         const int row=m_sources->indexOfTopLevelItem(m_sources->currentItem());
+         if(row<0 || row>=int(m_devices.size())) return;
++        const QModelIndex device=m_devices[row];
++        if(!deviceReady(device)) {updateSourceInfo(row);return;}
++        m_selectedDevice=device;
++        m_currentRoot=deviceRoot(m_selectedDevice);
+         m_pages->setCurrentIndex(0);
+-        {
+-            const QModelIndex device=m_devices[row]; if(!device.isValid()) {showSources();return;}
+-            m_selectedDevice=device;
+-            m_waitingRoot=deviceRoot(m_selectedDevice);
+-            m_currentRoot=m_waitingRoot;
+-            m_source->setText("▣  SOURCE");m_facets->hide();
+-            populateCategories();
+-            m_categories->setCurrentRow(1);
+-            m_sidebar->setRootIndex(device);m_sidebar->show();
+-            m_focus=NavigationTarget::Tree;m_sidebar->setFocus();
+-            if(deviceStatus(m_selectedDevice)!="ready") {
+-                m_library->hide();m_loading->setText("Reading USB…");m_loading->show();
+-                updateSelectedDevice();
+-            } else {
+-                m_waitingRoot.clear();
+-                selectCategory(1);
+-            }
+-        }
++        m_source->setText("▣  SOURCE");m_facets->hide();m_sidebar->hide();
++        m_preview->hide();m_trackInfo->hide();m_loading->hide();m_library->hide();
++        m_emptySpace->show();
++        populateCategories();
++        m_focus=NavigationTarget::Categories;m_categories->setFocus();
+     }
+     void move(int delta) {
+-        if(m_focus==NavigationTarget::Facets) {m_facets->setCurrentRow(qBound(0,m_facets->currentRow()+delta,m_facets->count()-1));filterFacet();return;}
+-        if(m_focus==NavigationTarget::Source) {int row=m_sources->indexOfTopLevelItem(m_sources->currentItem()); m_sources->setCurrentItem(m_sources->topLevelItem(qBound(0,row+delta,m_sources->topLevelItemCount()-1)));return;}
+-        if(m_focus==NavigationTarget::Categories) {m_categories->setCurrentRow(qBound(0,m_categories->currentRow()+delta,m_categories->count()-1));return;}
++        if(m_focus==NavigationTarget::Facets) {if(m_facets->count()) m_facets->setCurrentRow(qBound(0,m_facets->currentRow()+delta,m_facets->count()-1));return;}
++        if(m_focus==NavigationTarget::Source) {if(m_sources->topLevelItemCount()) {int row=m_sources->indexOfTopLevelItem(m_sources->currentItem()); m_sources->setCurrentItem(m_sources->topLevelItem(qBound(0,row+delta,m_sources->topLevelItemCount()-1)));}return;}
++        if(m_focus==NavigationTarget::Categories) {if(m_categories->count()) m_categories->setCurrentRow(qBound(0,m_categories->currentRow()+delta,m_categories->count()-1));return;}
+         if(m_focus==NavigationTarget::TrackList) {if(auto* table=m_library->getCurrentTrackTableView()) table->moveSelection(delta);return;}
+-        QModelIndex index=m_sidebar->currentIndex();
++        QModelIndex index=selectedTreeIndex();
+         if(!index.isValid() || index==m_sidebar->rootIndex()) index=model()->index(0,0,m_sidebar->rootIndex());
+         for(int n=0;n<qAbs(delta);++n) {
+             const auto next=delta>0?m_sidebar->indexBelow(index):m_sidebar->indexAbove(index);
+             if(next.isValid()) index=next;
+         }
+-        activate(index);
++        m_sidebar->selectIndex(index);
++        updatePlaylistPreview();
+     }
+     void enter() {
+         if(m_focus==NavigationTarget::Facets) {chooseFacet();return;}
+@@ -438,31 +678,55 @@
+         // on the track list is deliberately a no-op instead of unexpectedly
+         // navigating backwards or bypassing the deck-specific load controls.
+         if(m_focus==NavigationTarget::TrackList) return;
+-        const auto index=m_sidebar->currentIndex();
+-        if(index.isValid() && model()->hasChildren(index)) {m_sidebar->setExpanded(index,!m_sidebar->isExpanded(index)); if(m_sidebar->isExpanded(index)) activate(model()->index(0,0,index));}
+-        else focusTracks();
++        enterTree(selectedTreeIndex());
+     }
+     void back() {
+         if(m_focus==NavigationTarget::Source) {
+-            if(!m_selectedDevice.isValid()) return;
++            if(!deviceReady(m_selectedDevice)) return;
+             m_pages->setCurrentIndex(0); m_focus=NavigationTarget::Categories; m_categories->setFocus();return;
+         }
+-        if(m_focus==NavigationTarget::TrackList && m_facets->isVisible()) {m_focus=NavigationTarget::Facets;m_facets->setFocus();return;}
+-        if(m_focus==NavigationTarget::TrackList && m_sidebar->isVisible()) {m_focus=NavigationTarget::Tree; m_sidebar->setFocus();return;}
+-        if(m_focus==NavigationTarget::Tree) {
+-            const auto parent=m_sidebar->currentIndex().parent();
+-            if(parent.isValid() && parent!=m_sidebar->rootIndex()) {activate(parent);m_sidebar->collapse(parent);return;}
+-        }
+-        if(m_focus!=NavigationTarget::Categories) {m_focus=NavigationTarget::Categories;m_categories->setFocus();return;}
++        if(m_level==BrowserLevel::Tracks) {
++            m_level=m_returnLevel;m_library->hide();m_trackInfo->hide();
++            m_emptySpace->setVisible(m_level!=BrowserLevel::Hierarchy);
++            m_preview->setVisible(m_level==BrowserLevel::Hierarchy);
++            refreshTable();
++            if(m_level==BrowserLevel::Hierarchy) {
++                m_sidebar->show();m_focus=NavigationTarget::Tree;
++                m_sidebar->setFocus();updatePlaylistPreview();return;
++            }
++            if(m_level==BrowserLevel::FacetValues) {
++                m_facets->show();m_focus=NavigationTarget::Facets;m_facets->setFocus();return;
++            }
++        }
++        if(m_level==BrowserLevel::Hierarchy && m_focus==NavigationTarget::Tree) {
++            const auto parent=selectedTreeIndex().parent();
++            if(parent.isValid() && parent!=m_sidebar->rootIndex()) {
++                m_sidebar->selectIndex(parent);m_sidebar->collapse(parent);
++                updatePlaylistPreview();return;
++            }
++        }
++        if(m_level!=BrowserLevel::Categories) {
++            m_level=BrowserLevel::Categories;m_sidebar->hide();m_facets->hide();
++            m_preview->hide();m_loading->hide();m_library->hide();m_search->hide();
++            m_emptySpace->show();
++            m_breadcrumb->setText(m_selectedDevice.data().toString());
++            m_focus=NavigationTarget::Categories;m_categories->setFocus();refreshTable();return;
++        }
+         showSources();
+     }
+     QLabel* m_trackInfo;
+     QLabel* m_loading;
++    QWidget* m_preview;
++    QLabel* m_previewHeader;
++    QTableWidget* m_previewTracks;
++    QLabel* m_previewMessage;
++    QWidget* m_emptySpace;
+     WLibrary* m_library;
+     Library* m_backend;
+     QListWidget* m_facets;
+     QString m_facetField;
+-    std::vector<QString> m_facetFields;
++    QMap<QString,QList<quint32>> m_facetTracks;
++    QList<quint16> m_categoryIds;
+     WLibrarySidebar* m_sidebar;
+     QPushButton* m_source;
+     QLabel* m_breadcrumb;
+@@ -472,11 +736,13 @@
+     QStackedWidget* m_pages;
+     QTreeWidget* m_sources;
+     QPersistentModelIndex m_selectedDevice;
+-    std::vector<QPersistentModelIndex> m_roots, m_devices;
++    std::vector<QPersistentModelIndex> m_devices;
+     std::vector<std::unique_ptr<ControlObject>> m_controls;
+     NavigationTarget m_focus=NavigationTarget::Categories;
+     NavigationTarget m_resumeFocus=NavigationTarget::TrackList;
++    BrowserLevel m_level=BrowserLevel::Categories;
++    BrowserLevel m_returnLevel=BrowserLevel::Categories;
++    QString m_selectedCategory;
+     bool m_refreshingSources=false;
+-    QString m_waitingRoot;
+     QString m_currentRoot;
+ };
+diff --git a/src/widget/wtracktableview.h b/src/widget/wtracktableview.h
+--- a/src/widget/wtracktableview.h
++++ b/src/widget/wtracktableview.h
+@@ -32,8 +32,10 @@
+     void currentChanged(const QModelIndex& current, const QModelIndex& previous) override;
+ #endif
+     void setRx3Browser(bool enabled);
++    void setRx3ExpandedTracks(bool expanded);
+     void applyRx3Columns();
+     bool m_rx3Browser = false;
++    bool m_rx3ExpandedTracks = false;
+     void contextMenuEvent(QContextMenuEvent * event) override;
+     QString columnNameOfIndex(const QModelIndex& index) const;
+     void onSearch(const QString& text) override;
+diff --git a/src/widget/wtracktableview.cpp b/src/widget/wtracktableview.cpp
+--- a/src/widget/wtracktableview.cpp
++++ b/src/widget/wtracktableview.cpp
+@@ -44,6 +44,15 @@
+         // unit of compilation and cannot be reused here!
+         QStringLiteral("[Library]"),
+         QStringLiteral("VScrollBarPos")};
++
++QFont rx3RowFont(int rowHeight, bool compact) {
++    QFont font(QStringLiteral("Arial"));
++    font.setPixelSize(qMax(compact ? 14 : 12,
++            qRound(rowHeight * (compact ? 0.42 : 0.5))));
++    font.setWeight(QFont::Normal);
++    font.setLetterSpacing(QFont::PercentageSpacing, compact ? 94 : 97);
++    return font;
++}
+ 
+ 
+ class Rx3TrackHeader : public WTrackTableViewHeader {
+@@ -157,9 +166,16 @@
+             }
+         } else {
+             QString label = field == "tracknumber" ? QString::number(index.row()+1).rightJustified(3, '0') : index.data().toString();
++            if (field == "bpm") {
++                bool ok = false;
++                const double value = index.data(Qt::EditRole).toDouble(&ok);
++                label = ok && value > 0 ? QString::number(value, 'f', 1) : QStringLiteral("—");
++            }
+             if (field == "title") label.prepend(QString::fromUtf8("♪  "));
+ 
+-            QFont font("Arial"); font.setPixelSize(qMax(12, option.rect.height()/2)); p->setFont(font);
++            const bool compact = field == "bpm" || field == "genre";
++            const QFont font = rx3RowFont(option.rect.height(), compact);
++            p->setFont(font);
+             p->setPen(Qt::white);
+             QRect r = option.rect.adjusted(7, 0, -6, 0);
+             if (field == "artist") {
+@@ -1391,7 +1407,8 @@
+     if (!enabled || !model()) return;
+     const auto* tm = getTrackModel();
+     if (!tm) return;
+-    for (const auto& field : {LIBRARYTABLE_PREVIEW, LIBRARYTABLE_TRACKNUMBER, LIBRARYTABLE_TITLE, LIBRARYTABLE_ARTIST}) {
++    for (const auto& field : {LIBRARYTABLE_PREVIEW, LIBRARYTABLE_TRACKNUMBER,
++                 LIBRARYTABLE_TITLE, LIBRARYTABLE_ARTIST, LIBRARYTABLE_BPM, LIBRARYTABLE_GENRE}) {
+         const int column = tm->fieldIndex(field);
+         if (column < 0) continue;
+         if (!dynamic_cast<Rx3TrackDelegate*>(itemDelegateForColumn(column))) {
+@@ -1403,8 +1420,14 @@
+     setShowGrid(false);
+     setAlternatingRowColors(true);
+     verticalHeader()->hide();
+-    horizontalHeader()->setStretchLastSection(true);
++    horizontalHeader()->setStretchLastSection(false);
+     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
++    applyRx3Columns();
++}
++
++void WTrackTableView::setRx3ExpandedTracks(bool expanded) {
++    if (m_rx3ExpandedTracks == expanded) return;
++    m_rx3ExpandedTracks = expanded;
+     applyRx3Columns();
+ }
+ 
+@@ -1412,7 +1435,11 @@
+     if (!m_rx3Browser || !model()) return;
+     const auto* tm = getTrackModel();
+     if (!tm) return;
+-    const QStringList fields = {LIBRARYTABLE_PREVIEW, LIBRARYTABLE_COVERART, LIBRARYTABLE_TRACKNUMBER, LIBRARYTABLE_TITLE, LIBRARYTABLE_ARTIST};
++    const QStringList fields = m_rx3ExpandedTracks
++            ? QStringList{LIBRARYTABLE_PREVIEW, LIBRARYTABLE_TITLE,
++                    LIBRARYTABLE_ARTIST, LIBRARYTABLE_BPM, LIBRARYTABLE_GENRE}
++            : QStringList{LIBRARYTABLE_PREVIEW, LIBRARYTABLE_COVERART,
++                    LIBRARYTABLE_TRACKNUMBER, LIBRARYTABLE_TITLE, LIBRARYTABLE_ARTIST};
+     for (int c = 0; c < model()->columnCount(); ++c) {
+         setColumnHidden(c, !fields.contains(model()->headerData(c, Qt::Horizontal, TrackModel::kHeaderNameRole).toString()));
+     }
+@@ -1422,6 +1449,32 @@
+     verticalHeader()->setDefaultSectionSize(row);
+     horizontalHeader()->setFixedHeight(row);
+     int position = 0;
++    if (m_rx3ExpandedTracks) {
++        const QFontMetrics bpmMetrics(rx3RowFont(row, true));
++        const int bpm = qMax(
++                qMax(bpmMetrics.horizontalAdvance(QStringLiteral("000.0")) +
++                                qRound(18 * scale),
++                        QFontMetrics(horizontalHeader()->font())
++                                        .horizontalAdvance(QStringLiteral("BPM")) +
++                                qRound(14 * scale)),
++                qRound(74 * scale));
++        const int genre = bpm * 2;
++        const int preview = qBound(qRound(110*scale), viewport()->width()/5, qRound(208*scale));
++        const int flexible = qMax(0, viewport()->width() - preview - bpm - genre - 4);
++        const int title = qRound(flexible * 0.55);
++        const int artist = flexible - title;
++        for (const auto& field : fields) {
++            const int c = tm->fieldIndex(field);
++            if (c < 0) continue;
++            horizontalHeader()->moveSection(horizontalHeader()->visualIndex(c), position++);
++            const int width = field == LIBRARYTABLE_PREVIEW ? preview
++                    : field == LIBRARYTABLE_TITLE ? title
++                    : field == LIBRARYTABLE_ARTIST ? artist
++                    : field == LIBRARYTABLE_BPM ? bpm : genre;
++            horizontalHeader()->resizeSection(c, qMax(1, width));
++        }
++        return;
++    }
+     for (const auto& field : fields) {
+         const int c = tm->fieldIndex(field);
+         if (c < 0) continue;
+diff --git a/src/test/rekordboxdatabase_test.cpp b/src/test/rekordboxdatabase_test.cpp
+--- a/src/test/rekordboxdatabase_test.cpp
++++ b/src/test/rekordboxdatabase_test.cpp
+@@ -1,6 +1,7 @@
+ #include <gtest/gtest.h>
+ 
+ #include <QtEndian>
++#include <iostream>
+ 
+ #include "library/rekordbox/rekordboxdatabase.h"
+ 
+@@ -112,6 +113,82 @@
+     ASSERT_EQ(result.rows.size(), 2);
+     EXPECT_EQ(result.rows.at(0).tableType, 3);
+     EXPECT_EQ(result.bytes, bytes);
++}
++
++TEST(RekordboxDatabaseTest, ReadsExportedBrowseOrderAndSpecialVisibility) {
++    DatabaseDocument document;
++    document.kind = DatabaseKind::Main;
++    document.pageSize = 512;
++    document.bytes = QByteArray(256, '\0');
++    const auto descriptor = [&](int offset, quint16 id, const QByteArray& name) {
++        put16(&document.bytes, offset, id);
++        document.bytes[offset + 4] = static_cast<char>(name.size() * 2 + 3);
++        document.bytes.replace(offset + 5, name.size(), name);
++        document.rows.append({16, 1, static_cast<quint32>(document.rows.size()),
++                offset, name.size() + 5});
++    };
++    descriptor(0, 4, "TRACK");
++    descriptor(24, 17, "PLAYLIST");
++    descriptor(48, 27, "MATCHING");
++    const auto entry = [&](int offset, quint16 id, quint8 visibility, quint16 position) {
++        put16(&document.bytes, offset, id);
++        document.bytes[offset + 5] = static_cast<char>(visibility);
++        put16(&document.bytes, offset + 6, position);
++        document.rows.append({17, 2, static_cast<quint32>(document.rows.size()), offset, 8});
++    };
++    entry(80, 4, 0, 2);
++    entry(88, 17, 0, 1);
++    entry(96, 27, 2, 3);
++    entry(104, 7, 1, 0); // Hidden.
++    entry(112, 999, 0, 4); // Unknown descriptor cannot become a category.
++    const auto menu = readBrowseMenu(document);
++    EXPECT_TRUE(menu.fromExport);
++    ASSERT_EQ(menu.categories.size(), 3);
++    EXPECT_EQ(menu.categories.at(0).label, "PLAYLIST");
++    EXPECT_EQ(menu.categories.at(1).label, "TRACK");
++    EXPECT_EQ(menu.categories.at(2).label, "MATCHING");
++    EXPECT_EQ(menu.categories.at(2).visibility, 2);
++    EXPECT_FALSE(menu.diagnostics.isEmpty());
++}
++
++TEST(RekordboxDatabaseTest, ReadsHistoryEntriesInExportedOrder) {
++    DatabaseDocument document;
++    document.kind = DatabaseKind::Main;
++    document.pageSize = 512;
++    document.bytes = QByteArray(128, '\0');
++    put32(&document.bytes, 0, 20);
++    document.bytes[4] = 13;
++    document.bytes.replace(5, 5, "Set 1");
++    document.rows.append({11, 1, 0, 0, 10});
++    put32(&document.bytes, 32, 4);
++    put32(&document.bytes, 36, 20);
++    put32(&document.bytes, 40, 2);
++    document.rows.append({12, 2, 0, 32, 12});
++    put32(&document.bytes, 48, 9);
++    put32(&document.bytes, 52, 20);
++    put32(&document.bytes, 56, 1);
++    document.rows.append({12, 2, 1, 48, 12});
++    const auto index = readHistoryIndex(document);
++    ASSERT_EQ(index.histories.size(), 1);
++    EXPECT_EQ(index.histories.first().name, "Set 1");
++    EXPECT_EQ(index.histories.first().trackIds, (QList<quint32>{9, 4}));
++}
++
++TEST(RekordboxDatabaseTest, ReadsMountedExportMenuWhenProvided) {
++    const QString path = qEnvironmentVariable("NAUTIC_REKORDBOX_PDB");
++    if (path.isEmpty()) GTEST_SKIP() << "Set NAUTIC_REKORDBOX_PDB for read-only USB QA";
++    const auto document = readDatabaseFile(path, DatabaseKind::Main);
++    ASSERT_TRUE(document.valid()) << document.error.toStdString();
++    const auto menu = readBrowseMenu(document);
++    ASSERT_TRUE(menu.fromExport);
++    ASSERT_FALSE(menu.categories.isEmpty());
++    quint16 lastPosition = 0;
++    for (const auto& category : menu.categories) {
++        EXPECT_GT(category.position, lastPosition);
++        EXPECT_FALSE(category.label.isEmpty());
++        lastPosition = category.position;
++        std::cout << category.position << " " << category.label.toStdString() << "\n";
++    }
+ }
+ } // namespace
+ 

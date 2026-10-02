@@ -49,11 +49,4 @@ else
   printf '%s\n' 'mixxx-test no está compilado; reconstruye la app para ejecutar la suite nativa.'
 fi
 
-if [ -d tmp/mixxx-native-rebuild/stage/NauticMixxx.app ] ||
-   [ -d tmp/v1.1/stage/NauticMixxx.app ] ||
-   [ -d ../stage-v1/NauticMixxx.app ] ||
-   [ -d ../build/NauticMixxx.app ]; then
-  printf 'NauticMixxx %s listo para empaquetar.\n' "$(cat VERSION)"
-else
-  printf 'Fuentes NauticMixxx %s validadas; reconstruye la app antes de empaquetar.\n' "$(cat VERSION)"
-fi
+printf 'Fuentes NauticMixxx %s validadas; comprueba el bundle de esta versión antes de empaquetar.\n' "$(cat VERSION)"

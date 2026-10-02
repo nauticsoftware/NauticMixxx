@@ -7,13 +7,6 @@ version=$(cat "$project/VERSION")
 release_dir=${1:-"$project/build/release-candidate/$version"}
 archive="$release_dir/NauticMixxx-$version-macOS-arm64.zip"
 output="$release_dir/NauticMixxx-$version-macOS-arm64.dmg"
-background="$project/packaging/DMG_PROJECT/DMG_BG.jpg"
-if [ -f "$background" ]; then
-  set -- --background "$background"
-else
-  set --
-fi
-
 command -v create-dmg >/dev/null 2>&1 || {
   printf 'Falta create-dmg. Instálalo con: brew install create-dmg\n' >&2
   exit 1
@@ -44,11 +37,10 @@ if [ -e "$output" ]; then
   mv "$output" "$temp/previous.dmg"
 fi
 
-# Keep the DMG usable when the optional 600×360 background is unavailable.
+# The project icon is generated from branding/ and the DMG needs no project folder.
 create-dmg \
   --volname "NauticMixxx $version" \
   --volicon "$icon" \
-  "$@" \
   --window-pos 200 120 \
   --window-size 600 360 \
   --icon-size 112 \

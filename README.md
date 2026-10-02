@@ -1,4 +1,4 @@
-# NauticMixxx 1.2.0
+# NauticMixxx 1.3.0
 
 ![NauticMixxx](branding/NauticMixxx.png)
 ![NauticMixxx2](branding/NauticMixxx2.png)
@@ -6,6 +6,8 @@
 NauticMixxx is an open-source community edition of Mixxx 2.5.6. It brings an XDJ-RX3-inspired two-deck display to Mixxx, with a dedicated Hercules DJControl Inpulse 500 mapping.
 
 Version 1.2 fixes the USB Rekordbox workflow and performance preferences: Pioneer Cue, ±6% pitch, first-sound loading when a marker exists, remaining time, beat countdown, visual waveform normalization, highest-quality pitch-bend engine, and orange loop/hot-loop defaults. It disables local library scanning, audio analysis, ReplayGain and waveform disk caching. The waveform menu has BLUE, RGB and 3Band. The Hercules DJControl Inpulse 500 automatically uses the custom RX3 mapping when detected.
+
+Version 1.3 detects authorized Rekordbox USB drives at startup and when connected. SOURCE waits until the exported catalog and categories are ready before opening the drive. Highlighting a playlist previews its tracks; pressing ENTER opens the full track table. The available categories follow their exported Rekordbox order. This release has been tested on macOS Apple Silicon with a real Rekordbox USB drive.
 
 ## Features
 
@@ -17,12 +19,12 @@ Version 1.2 fixes the USB Rekordbox workflow and performance preferences: Pionee
 
 ## Download and install
 
-Download NauticMixxx 1.2.0 directly from the [public release](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.2.0):
+Download the macOS Apple Silicon build of NauticMixxx 1.3.0 from the [public release](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.3.0):
 
-- [Windows x64 installer EXE](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.2.0/NauticMixxx-1.2.0-Windows-x64-Setup.exe)
-- [macOS Apple Silicon DMG](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.2.0/NauticMixxx-1.2.0-macOS-arm64.dmg)
+- [macOS Apple Silicon DMG](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.3.0/NauticMixxx-1.3.0-macOS-arm64.dmg)
+- [Windows x64 installer 1.2.0](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.2.0/NauticMixxx-1.2.0-Windows-x64-Setup.exe)
 
-On Windows, download and run the EXE. It installs the native NauticMixxx program, RX3 skin, controller mappings, effects and the same preset choices as macOS. No BAT, ZIP extraction, compiler, or existing Mixxx installation is required. The app and profile are separate from official Mixxx. Uninstall from Windows Settings; personal settings remain in `%LOCALAPPDATA%\NauticMixxx`.
+The Windows download remains at version 1.2.0 while the native 1.3.0 Windows build is validated. It installs the native NauticMixxx program, RX3 skin, controller mappings and effects. The app and profile are separate from official Mixxx. Uninstall from Windows Settings; personal settings remain in `%LOCALAPPDATA%\NauticMixxx`.
 
 On macOS, open the DMG and drag `NauticMixxx.app` to Applications. This build is ad-hoc signed rather than Apple-notarized, so macOS may ask you to confirm its first launch. See the [English installation guide](docs/INSTALLATION-EN.md).
 

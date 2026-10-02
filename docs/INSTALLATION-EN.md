@@ -1,10 +1,10 @@
-# Install NauticMixxx 1.2.0
+# Install NauticMixxx 1.3.0 on macOS
 
 ## macOS Apple Silicon
 
 Requires macOS 11 or later and an Apple Silicon Mac.
 
-1. Put `NauticMixxx-1.2.0-macOS-arm64.dmg` and `SHA256SUMS.txt` in the same directory. Run `shasum -a 256 NauticMixxx-1.2.0-macOS-arm64.dmg` and compare the result with the DMG entry in `SHA256SUMS.txt`.
+1. Put `NauticMixxx-1.3.0-macOS-arm64.dmg` and `SHA256SUMS.txt` in the same directory. Run `shasum -a 256 NauticMixxx-1.3.0-macOS-arm64.dmg` and compare the result with the DMG entry in `SHA256SUMS.txt`.
 2. Open the DMG and drag **NauticMixxx.app** to Applications. The alternative ZIP includes the same app and `CONFIGURE-AND-OPEN.command` to prepare its profile and launch it.
 3. On first launch, macOS may ask you to confirm opening this ad hoc signed community build. Right-click the app and choose **Open**.
 4. Select your audio output and, if applicable, microphone input under **Preferences → Sound Hardware**.
@@ -13,9 +13,9 @@ The native app browses Rekordbox USB media and does not request or scan a local 
 
 The Inpulse 500 custom RX3 mapping is selected automatically when the device is detected. Connecting another controller while one is already active may require restarting the app. Check audio, CUE, jog wheels and loops before a live set.
 
-First-sound loading uses an existing marker. A USB track without that marker loads at its beginning because NauticMixxx 1.2 does not analyze audio to create one.
+SOURCE waits for the USB catalog to finish loading before opening the drive. In PLAYLIST, highlight a playlist to preview its tracks on the right, then press ENTER to open the full track table. First-sound loading uses an existing marker. A USB track without that marker loads at its beginning because NauticMixxx does not analyze audio to create one.
 
-## Windows x64
+## Windows x64 — version 1.2.0
 
 Download [NauticMixxx-1.2.0-Windows-x64-Setup.exe](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.2.0/NauticMixxx-1.2.0-Windows-x64-Setup.exe) and run it directly on Windows 10/11 x64. The installer is a native NSIS EXE and includes the complete NauticMixxx application. It does not need an existing Mixxx install or another download.
 

@@ -1,0 +1,822 @@
+diff --git a/src/library/library.cpp b/src/library/library.cpp
+index 146bb06..23f6b6a 100644
+--- a/src/library/library.cpp
++++ b/src/library/library.cpp
+@@ -193,10 +193,8 @@ Library::Library(
+         addFeature(new TraktorFeature(this, m_pConfig));
+     }
+ 
+-    // TODO(XXX) Rekordbox feature added persistently as the only way to enable it to
+-    // dynamically appear/disappear when correctly prepared removable devices
+-    // are mounted/unmounted would be to have some form of timed thread to check
+-    // periodically. Not ideal performance wise.
++    // The persistent feature discovers and prepares removable exports in the
++    // background, independently of the currently displayed library view.
+     if (m_pConfig->getValue(
+                 ConfigKey(kConfigGroup, "ShowRekordboxLibrary"), true)) {
+         addFeature(new RekordboxFeature(this, m_pConfig));
+diff --git a/src/library/rekordbox/rekordboxfeature.cpp b/src/library/rekordbox/rekordboxfeature.cpp
+index 036a892..96ae869 100644
+--- a/src/library/rekordbox/rekordboxfeature.cpp
++++ b/src/library/rekordbox/rekordboxfeature.cpp
+@@ -6,9 +6,12 @@
+ #include <QDir>
+ #include <QFileDialog>
+ #include <QFileInfo>
++#include <QGuiApplication>
+ #include <QMessageBox>
+ #include <QSet>
++#include <QStorageInfo>
+ #include <QThread>
++#include <QTimer>
+ #include <QVariant>
+ #include <QtConcurrentRun>
+ 
+@@ -20,7 +23,6 @@
+ #include "moc_rekordboxfeature.cpp"
+ #include "util/sandbox.h"
+ #include "widget/wlibrary.h"
+-#include "widget/wlibrarytextbrowser.h"
+ 
+ namespace {
+ 
+@@ -29,6 +31,9 @@ const QString kAllTracksItem = QStringLiteral("rekordbox-runtime-all");
+ const QString kPlaylistItem = QStringLiteral("rekordbox-runtime-playlist");
+ const QString kAuthorizedUsbRootsSettingsKey =
+         QStringLiteral("mixxx.rekordboxfeature.sandboxed_usb_roots");
++const QString kStatusPreparing = QStringLiteral("preparing");
++const QString kStatusReady = QStringLiteral("ready");
++const QString kStatusError = QStringLiteral("error");
+ 
+ QString findRekordboxPdbPath(const QString& devicePath) {
+     return mixxx::rekordbox::databasePath(devicePath);
+@@ -105,6 +110,15 @@ std::unique_ptr<TreeItem> makeRuntimePlaylistItem(
+     return item;
+ }
+ 
++int countPlaylists(const QList<mixxx::rekordbox::RuntimePlaylistNode>& nodes) {
++    int count = 0;
++    for (const auto& node : nodes) {
++        count += node.isFolder ? 0 : 1;
++        count += countPlaylists(node.children);
++    }
++    return count;
++}
++
+ } // namespace
+ 
+ RekordboxFeature::RekordboxFeature(
+@@ -124,9 +138,28 @@ RekordboxFeature::RekordboxFeature(
+             this,
+             &RekordboxFeature::onTracksFound);
+     m_pSidebarModel->setRootItem(TreeItem::newRoot(this));
++    m_mountTimer.setInterval(2000);
++    connect(&m_mountTimer, &QTimer::timeout, this, &RekordboxFeature::checkMountedVolumes);
++    if (auto* app = qobject_cast<QGuiApplication*>(QCoreApplication::instance())) {
++        connect(app, &QGuiApplication::applicationStateChanged, this,
++                [this](Qt::ApplicationState state) {
++                    if (state == Qt::ApplicationActive) {
++                        checkMountedVolumes();
++                        startDiscovery();
++                    }
++                });
++    }
++    QTimer::singleShot(0, this, [this] {
++        checkMountedVolumes();
++        m_mountTimer.start();
++    });
+ }
+ 
+ RekordboxFeature::~RekordboxFeature() {
++    m_mountTimer.stop();
++    if (m_loadingSession) {
++        m_loadingSession->invalidate();
++    }
+     try {
+         m_devicesFuture.waitForFinished();
+     } catch (...) {
+@@ -146,21 +179,8 @@ RekordboxFeature::~RekordboxFeature() {
+ void RekordboxFeature::bindLibraryWidget(
+         WLibrary* pLibraryWidget,
+         KeyboardEventFilter* keyboard) {
++    Q_UNUSED(pLibraryWidget);
+     Q_UNUSED(keyboard);
+-    auto pEdit = make_parented<WLibraryTextBrowser>(pLibraryWidget);
+-    pEdit->setHtml(formatRootViewHtml());
+-    pEdit->setOpenLinks(false);
+-    connect(pEdit,
+-            &WLibraryTextBrowser::anchorClicked,
+-            this,
+-            &RekordboxFeature::htmlLinkClicked);
+-    pLibraryWidget->registerView(QStringLiteral("REKORDBOXHOME"), pEdit);
+-}
+-
+-void RekordboxFeature::htmlLinkClicked(const QUrl& link) {
+-    if (link.path() == QStringLiteral("refresh")) {
+-        activate();
+-    }
+ }
+ 
+ QVariant RekordboxFeature::title() {
+@@ -175,45 +195,82 @@ TreeItemModel* RekordboxFeature::sidebarModel() const {
+     return m_pSidebarModel;
+ }
+ 
+-QString RekordboxFeature::formatRootViewHtml() const {
+-    const auto title = tr("Rekordbox USB (read-only)");
+-    const auto summary = tr(
+-            "Reads a Pioneer/Rekordbox export directly from a USB or SD device. "
+-            "Tracks are temporary: Mixxx does not import them into the local "
+-            "collection, analyze them, or write metadata to the device.<br/><br/>"
+-            "Currently available:");
+-    const QStringList items{
+-            tr("Folders and playlists"),
+-            tr("PDB track metadata"),
+-            tr("PQTZ beat grids"),
+-            tr("PCOB/PCO2 hot cues, loops and primary memory cue"),
+-            tr("Bounded, owner-validated ANLZ data"),
+-            tr("Lazy ANLZ waveforms projected into Mixxx when a track is loaded"),
+-    };
+-    QString html = QStringLiteral("<h2>%1</h2><p>%2</p><ul>")
+-                           .arg(title, summary);
+-    for (const auto& item : items) {
+-        html += QStringLiteral("<li>%1</li>").arg(item);
+-    }
+-    html += QStringLiteral("</ul><p>%1</p>")
+-                    .arg(tr("All Rekordbox memory markers remain available in the "
+-                            "temporary runtime catalog. Mixxx currently projects the first "
+-                            "memory point as its single Main Cue."));
+-    html += QStringLiteral("<a style=\"color:#0496FF;\" href=\"refresh\">%1</a>")
+-                    .arg(tr("Refresh attached Rekordbox devices"));
+-    return html;
+-}
+-
+ void RekordboxFeature::refreshLibraryModels() {
+-    activate();
++    startDiscovery();
+ }
+ 
+ void RekordboxFeature::activate() {
++    startDiscovery();
++}
++
++void RekordboxFeature::checkMountedVolumes() {
++    QStringList roots;
++    for (const auto& volume : QStorageInfo::mountedVolumes()) {
++        if (!volume.isValid() || !volume.isReady()) {
++            continue;
++        }
++#if defined(Q_OS_MACOS)
++        if (!volume.rootPath().startsWith(QStringLiteral("/Volumes/"))) {
++            continue;
++        }
++#endif
++        roots.append(QDir::cleanPath(volume.rootPath()));
++    }
++    roots.removeDuplicates();
++    roots.sort();
++    const bool firstScan = !std::exchange(m_initialMountScanDone, true);
++    if (roots != m_mountedRoots) {
++        const auto previous = m_mountedRoots;
++        m_mountedRoots = roots;
++        for (const auto& removed : previous) {
++            if (!roots.contains(removed)) {
++                m_askedVolumes.remove(removed);
++                ++m_generations[removed];
++                m_rekordboxSecurityTokens.remove(removed);
++                if (m_loadingRoot == removed && m_loadingSession) {
++                    m_loadingSession->invalidate();
++                }
++            }
++        }
++        startDiscovery();
++        // A freshly mounted export may still be finishing its filesystem
++        // registration when the first discovery starts.
++        QTimer::singleShot(3000, this, &RekordboxFeature::startDiscovery);
++#if defined(Q_OS_MACOS)
++        SettingsDAO settings(
++                m_pLibrary->trackCollectionManager()->internalCollection()->database());
++        const auto savedRoots = settings.getValue(kAuthorizedUsbRootsSettingsKey)
++                                        .split(QChar(';'), Qt::SkipEmptyParts);
++        const bool knownVolumeMounted = std::any_of(roots.cbegin(), roots.cend(),
++                [&](const QString& root) { return savedRoots.contains(root); });
++        const bool promptOnFirstScan = firstScan && !knownVolumeMounted;
++        for (const auto& added : roots) {
++            if ((firstScan && !promptOnFirstScan) || previous.contains(added) ||
++                    savedRoots.contains(added) ||
++                    m_askedVolumes.contains(added) || m_authorizationPending) {
++                continue;
++            }
++            m_askedVolumes.insert(added);
++            m_authorizationPending = true;
++            QTimer::singleShot(500, this, [this, added] {
++                if (m_mountedRoots.contains(added)) {
++                    authorizeVolume(added);
++                }
++                m_authorizationPending = false;
++            });
++            break;
++        }
++#endif
++    }
++}
++
++void RekordboxFeature::startDiscovery() {
+     if (m_discoveryPending || m_parsePending) {
+         m_refreshRequested = true;
+         return;
+     }
+     QStringList manuallyAuthorizedDevicePaths;
++    QString rootNeedingAccess;
+ 
+ #if defined(Q_OS_MACOS)
+     // Opening an unapproved removable volume from a worker can block forever
+@@ -227,77 +284,80 @@ void RekordboxFeature::activate() {
+             ? QStringList()
+             : savedRoots.split(QChar(';'), Qt::SkipEmptyParts);
+ 
+-    m_rekordboxSecurityTokens.clear();
+-    QStringList rootsToPersist;
+     for (const auto& storedRoot : storedRoots) {
+         const QDir rootDir(storedRoot);
+         if (!rootDir.exists()) {
+             continue;
+         }
+-        if (Sandbox::enabled()) {
++        if (Sandbox::enabled() && !m_rekordboxSecurityTokens.contains(rootDir.absolutePath())) {
+             auto token = Sandbox::openSecurityTokenForDir(rootDir, false);
+             if (token.isNull()) {
++                if (rootNeedingAccess.isEmpty() && !m_askedVolumes.contains(storedRoot)) {
++                    rootNeedingAccess = storedRoot;
++                }
+                 continue;
+             }
+-            m_rekordboxSecurityTokens.append(token);
++            m_rekordboxSecurityTokens.insert(rootDir.absolutePath(), token);
+         }
+         manuallyAuthorizedDevicePaths.append(rootDir.absolutePath());
+-        rootsToPersist.append(rootDir.absolutePath());
+-    }
+-
+-    if (manuallyAuthorizedDevicePaths.isEmpty()) {
+-        const auto selectedPath = QFileDialog::getExistingDirectory(nullptr,
+-                tr("Select your Rekordbox USB drive"),
+-                QStringLiteral("/Volumes"),
+-                QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+-        if (!selectedPath.isEmpty()) {
+-            const auto deviceRoot = rekordboxDeviceRootFromSelection(selectedPath);
+-            if (deviceRoot.isEmpty()) {
+-                QMessageBox::warning(nullptr,
+-                        tr("Invalid Rekordbox USB drive"),
+-                        tr("The selected folder does not contain "
+-                           "PIONEER/rekordbox/export.pdb."));
+-            } else {
+-                bool authorized = true;
+-                if (Sandbox::enabled()) {
+-                    auto token = Sandbox::openSecurityTokenForDir(
+-                            QDir(deviceRoot), true);
+-                    authorized = !token.isNull();
+-                    if (authorized) {
+-                        m_rekordboxSecurityTokens.append(token);
+-                    }
+-                }
+-                if (authorized) {
+-                    manuallyAuthorizedDevicePaths.append(deviceRoot);
+-                    rootsToPersist.append(deviceRoot);
+-                } else {
+-                    QMessageBox::warning(nullptr,
+-                            tr("Could not authorize Rekordbox USB drive"),
+-                            tr("Mixxx could not save read permission for the "
+-                               "selected drive."));
+-                }
+-            }
+-        }
+     }
+-    settings.setValue(kAuthorizedUsbRootsSettingsKey,
+-            rootsToPersist.join(QChar(';')));
+ #endif
+ 
+     m_discoveryPending = true;
+     m_devicesFuture = QtConcurrent::run(
+             findRekordboxDevices, manuallyAuthorizedDevicePaths);
+     m_devicesFutureWatcher.setFuture(m_devicesFuture);
+-    m_title = tr("(loading) Rekordbox");
+-    emit featureIsLoading(this, true);
+-    // Existing cover-art workers retain only a path and cannot enforce the
+-    // removable-session capability after asynchronous dispatch.
+-    emit enableCoverArtDisplay(false);
+-    emit switchToView(QStringLiteral("REKORDBOXHOME"));
+-    emit disableSearch();
++#if defined(Q_OS_MACOS)
++    if (!rootNeedingAccess.isEmpty() && !m_authorizationPending) {
++        m_askedVolumes.insert(rootNeedingAccess);
++        m_authorizationPending = true;
++        QTimer::singleShot(0, this, [this, rootNeedingAccess] {
++            authorizeVolume(rootNeedingAccess);
++            m_authorizationPending = false;
++        });
++    }
++#endif
++}
++
++void RekordboxFeature::authorizeVolume(const QString& root) {
++#if defined(Q_OS_MACOS)
++    const auto selectedPath = QFileDialog::getExistingDirectory(nullptr,
++            tr("Allow access to a Rekordbox USB drive"), root,
++            QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
++    if (selectedPath.isEmpty()) {
++        return;
++    }
++    const auto deviceRoot = rekordboxDeviceRootFromSelection(selectedPath);
++    if (deviceRoot.isEmpty()) {
++        QMessageBox::warning(nullptr, tr("Invalid Rekordbox USB drive"),
++                tr("The selected folder does not contain PIONEER/rekordbox/export.pdb."));
++        return;
++    }
++    if (Sandbox::enabled()) {
++        auto token = Sandbox::openSecurityTokenForDir(QDir(deviceRoot), true);
++        if (token.isNull()) {
++            QMessageBox::warning(nullptr, tr("Could not authorize Rekordbox USB drive"),
++                    tr("Read access to the selected drive could not be saved."));
++            return;
++        }
++        m_rekordboxSecurityTokens.insert(deviceRoot, token);
++    }
++    SettingsDAO settings(
++            m_pLibrary->trackCollectionManager()->internalCollection()->database());
++    auto roots = settings.getValue(kAuthorizedUsbRootsSettingsKey)
++                         .split(QChar(';'), Qt::SkipEmptyParts);
++    if (!roots.contains(deviceRoot)) {
++        roots.append(deviceRoot);
++        settings.setValue(kAuthorizedUsbRootsSettingsKey, roots.join(QChar(';')));
++    }
++    startDiscovery();
++#else
++    Q_UNUSED(root);
++#endif
+ }
+ 
+ void RekordboxFeature::activateChild(const QModelIndex& index) {
+-    if (!index.isValid() || m_discoveryPending || m_parsePending) {
++    if (!index.isValid()) {
+         return;
+     }
+     auto* item = static_cast<TreeItem*>(index.internalPointer());
+@@ -312,23 +372,21 @@ void RekordboxFeature::activateChild(const QModelIndex& index) {
+     const auto kind = data[1].toString();
+ 
+     if (kind == kDeviceItem) {
+-        m_parsePending = true;
+-        m_loadingRoot = root;
+-        m_tracksFuture = QtConcurrent::run([root]() {
+-            auto session =
+-                    std::make_shared<mixxx::rekordbox::RekordboxUsbSession>(root);
+-            session->load();
+-            return session;
+-        });
+-        m_tracksFutureWatcher.setFuture(m_tracksFuture);
++        m_selectedRoot = root;
++        enqueueLoad(root);
+         return;
+     }
+ 
++    m_selectedRoot = root;
+     const auto session = m_sessions.value(root);
+     if (!session ||
+             session->state() != mixxx::rekordbox::UsbSessionState::Ready) {
++        enqueueLoad(root);
+         return;
+     }
++    // Existing cover-art workers retain only a path and cannot enforce the
++    // removable-session capability after asynchronous dispatch.
++    emit enableCoverArtDisplay(false);
+     if (kind == kAllTracksItem) {
+         m_runtimeTrackModel.showAllTracks(session);
+         emit showTrackModel(&m_proxyTrackModel);
+@@ -350,6 +408,66 @@ void RekordboxFeature::activateChild(const QModelIndex& index) {
+     emit showTrackModel(&m_proxyTrackModel);
+ }
+ 
++void RekordboxFeature::setDeviceStatus(
++        const QString& root, const QString& status, int songs, int playlists) {
++    auto* treeRoot = m_pSidebarModel->getRootItem();
++    for (int row = 0; row < treeRoot->childRows(); ++row) {
++        auto* item = treeRoot->child(row);
++        auto data = item->getData().toList();
++        if (data.value(0).toString() != root) {
++            continue;
++        }
++        while (data.size() < 5) {
++            data.append(QVariant());
++        }
++        data[2] = status;
++        data[3] = songs;
++        data[4] = playlists;
++        item->setData(data);
++        m_pSidebarModel->triggerRepaint(m_pSidebarModel->index(row, 0));
++        break;
++    }
++}
++
++void RekordboxFeature::enqueueLoad(const QString& root) {
++    if (!m_devices.contains(root) ||
++            m_devices.value(root).state != mixxx::rekordbox::DeviceState::Readable ||
++            m_sessions.contains(root) || m_queuedRoots.contains(root) ||
++            (m_parsePending && m_loadingRoot == root)) {
++        return;
++    }
++    m_queuedRoots.insert(root);
++    m_pendingRoots.append(root);
++    setDeviceStatus(root, kStatusPreparing);
++    startNextLoad();
++}
++
++void RekordboxFeature::startNextLoad() {
++    if (m_parsePending) {
++        return;
++    }
++    while (!m_pendingRoots.isEmpty()) {
++        const auto root = m_pendingRoots.takeFirst();
++        m_queuedRoots.remove(root);
++        if (!m_devices.contains(root) || m_sessions.contains(root)) {
++            continue;
++        }
++        m_parsePending = true;
++        m_loadingRoot = root;
++        m_loadingGeneration = m_generations.value(root);
++        m_loadingSession =
++                std::make_shared<mixxx::rekordbox::RekordboxUsbSession>(root);
++        const auto session = m_loadingSession;
++        m_tracksFuture = QtConcurrent::run([session]() {
++            QThread::currentThread()->setPriority(QThread::LowPriority);
++            session->load();
++            return session;
++        });
++        m_tracksFutureWatcher.setFuture(m_tracksFuture);
++        return;
++    }
++}
++
+ void RekordboxFeature::onRekordboxDevicesFound() {
+     m_discoveryPending = false;
+     QList<mixxx::rekordbox::DiscoveredDevice> found;
+@@ -357,10 +475,8 @@ void RekordboxFeature::onRekordboxDevicesFound() {
+         found = m_devicesFuture.result();
+     } catch (...) {
+         qWarning() << "Failed to discover Rekordbox devices";
+-        m_title = tr("Rekordbox");
+-        emit featureLoadingFinished(this);
+         if (std::exchange(m_refreshRequested, false)) {
+-            activate();
++            startDiscovery();
+         }
+         return;
+     }
+@@ -377,12 +493,27 @@ void RekordboxFeature::onRekordboxDevicesFound() {
+         if (retained != found.cend()) {
+             continue;
+         }
++        ++m_generations[path];
++        m_pendingRoots.removeAll(path);
++        m_queuedRoots.remove(path);
++        m_loadAttempts.remove(path);
++        if (m_loadingRoot == path && m_loadingSession) {
++            m_loadingSession->invalidate();
++        }
+         const auto session = m_sessions.take(path);
+         if (session) {
+             session->invalidate();
+-            removedSession = true;
++            removedSession |= m_selectedRoot == path;
+         }
+         m_devices.remove(path);
++        if (std::none_of(found.cbegin(), found.cend(), [&](const auto& device) {
++                    return device.snapshot.root == path;
++                })) {
++            m_rekordboxSecurityTokens.remove(path);
++        }
++        if (m_selectedRoot == path) {
++            m_selectedRoot.clear();
++        }
+         m_pSidebarModel->removeRows(row, 1);
+     }
+     if (removedSession) {
+@@ -397,16 +528,24 @@ void RekordboxFeature::onRekordboxDevicesFound() {
+         m_devices.insert(device.snapshot.root, device.snapshot);
+         additions.push_back(std::make_unique<TreeItem>(device.label,
+                 QVariant(QVariantList{device.snapshot.root,
+-                        kDeviceItem})));
++                        kDeviceItem,
++                        device.snapshot.state == mixxx::rekordbox::DeviceState::Readable
++                                ? kStatusPreparing
++                                : kStatusError,
++                        -1,
++                        -1})));
+     }
+     if (!additions.empty()) {
+         m_pSidebarModel->insertTreeItemRows(
+                 std::move(additions), root->childRows());
+     }
+-    m_title = tr("Rekordbox");
+-    emit featureLoadingFinished(this);
++    for (const auto& device : found) {
++        if (device.snapshot.state == mixxx::rekordbox::DeviceState::Readable) {
++            enqueueLoad(device.snapshot.root);
++        }
++    }
+     if (std::exchange(m_refreshRequested, false)) {
+-        activate();
++        startDiscovery();
+     }
+ }
+ 
+@@ -419,13 +558,37 @@ void RekordboxFeature::onTracksFound() {
+         qWarning() << "Rekordbox runtime session worker failed";
+     }
+     const auto rootPath = std::exchange(m_loadingRoot, QString());
++    m_loadingSession.reset();
++    const bool currentGeneration =
++            m_generations.value(rootPath) == m_loadingGeneration;
+     if (!session ||
+             session->state() != mixxx::rekordbox::UsbSessionState::Ready ||
+-            !m_devices.contains(rootPath)) {
++            !m_devices.contains(rootPath) || !currentGeneration) {
+         qWarning() << "Failed to load Rekordbox runtime session:"
+                    << (session ? session->error()
+                                : QStringLiteral("worker returned no session"));
++        if (currentGeneration && m_devices.contains(rootPath)) {
++            const int attempts = ++m_loadAttempts[rootPath];
++            const auto error = session ? session->errorCode()
++                                       : mixxx::rekordbox::UsbSessionError::ChangedDevice;
++            const bool transient = error == mixxx::rekordbox::UsbSessionError::MissingDevice ||
++                    error == mixxx::rekordbox::UsbSessionError::UnreadableDevice ||
++                    error == mixxx::rekordbox::UsbSessionError::IncompleteExport ||
++                    error == mixxx::rekordbox::UsbSessionError::ChangedDevice;
++            if (transient && attempts < 4) {
++                const auto generation = m_loadingGeneration;
++                QTimer::singleShot(1000 * (1 << (attempts - 1)), this,
++                        [this, rootPath, generation] {
++                            if (m_generations.value(rootPath) == generation) {
++                                enqueueLoad(rootPath);
++                            }
++                        });
++            } else {
++                setDeviceStatus(rootPath, kStatusError);
++            }
++        }
+     } else {
++        m_loadAttempts.remove(rootPath);
+         const auto previous = m_sessions.value(rootPath);
+         if (previous && previous != session) {
+             previous->invalidate();
+@@ -450,13 +613,17 @@ void RekordboxFeature::onTracksFound() {
+             }
+             data[1] = kAllTracksItem;
+             item->setData(data);
+-            m_pSidebarModel->triggerRepaint();
+-            m_runtimeTrackModel.showAllTracks(session);
+-            emit showTrackModel(&m_proxyTrackModel);
++            if (m_selectedRoot == rootPath) {
++                m_runtimeTrackModel.showAllTracks(session);
++                emit showTrackModel(&m_proxyTrackModel);
++            }
++            setDeviceStatus(rootPath, kStatusReady,
++                    catalog->tracks().size(), countPlaylists(catalog->playlists()));
+             break;
+         }
+     }
++    startNextLoad();
+     if (std::exchange(m_refreshRequested, false)) {
+-        activate();
++        startDiscovery();
+     }
+ }
+diff --git a/src/library/rekordbox/rekordboxfeature.h b/src/library/rekordbox/rekordboxfeature.h
+index f623b65..6773c1e 100644
+--- a/src/library/rekordbox/rekordboxfeature.h
++++ b/src/library/rekordbox/rekordboxfeature.h
+@@ -5,6 +5,8 @@
+ #include <QFuture>
+ #include <QFutureWatcher>
+ #include <QHash>
++#include <QSet>
++#include <QTimer>
+ #include <QtConcurrentRun>
+ 
+ #include <memory>
+@@ -38,11 +40,14 @@ class RekordboxFeature final : public LibraryFeature {
+     void onRekordboxDevicesFound();
+     void onTracksFound();
+ 
+-  private slots:
+-    void htmlLinkClicked(const QUrl& link);
+-
+   private:
+-    QString formatRootViewHtml() const;
++    void checkMountedVolumes();
++    void startDiscovery();
++    void enqueueLoad(const QString& root);
++    void startNextLoad();
++    void setDeviceStatus(const QString& root, const QString& status,
++            int songs = -1, int playlists = -1);
++    void authorizeVolume(const QString& root);
+ 
+     parented_ptr<TreeItemModel> m_pSidebarModel;
+     mixxx::rekordbox::RekordboxRuntimeTrackModel m_runtimeTrackModel;
+@@ -55,13 +60,25 @@ class RekordboxFeature final : public LibraryFeature {
+     QFuture<std::shared_ptr<mixxx::rekordbox::RekordboxUsbSession>> m_tracksFuture;
+     QHash<QString, mixxx::rekordbox::DeviceSnapshot> m_devices;
+     QHash<QString, std::shared_ptr<mixxx::rekordbox::RekordboxUsbSession>> m_sessions;
++    QStringList m_pendingRoots;
++    QSet<QString> m_queuedRoots;
++    QHash<QString, quint64> m_generations;
++    QHash<QString, int> m_loadAttempts;
++    QSet<QString> m_askedVolumes;
++    QStringList m_mountedRoots;
++    QTimer m_mountTimer;
++    std::shared_ptr<mixxx::rekordbox::RekordboxUsbSession> m_loadingSession;
+     QString m_loadingRoot;
++    QString m_selectedRoot;
++    quint64 m_loadingGeneration{0};
+     bool m_discoveryPending{false};
+     bool m_parsePending{false};
+     bool m_refreshRequested{false};
++    bool m_authorizationPending{false};
++    bool m_initialMountScanDone{false};
+     QString m_title;
+ 
+     // Keep security-scoped bookmarks active while metadata and audio are read
+     // from a removable volume on sandboxed macOS.
+-    QList<SecurityTokenPointer> m_rekordboxSecurityTokens;
++    QHash<QString, SecurityTokenPointer> m_rekordboxSecurityTokens;
+ };
+diff --git a/src/widget/wrx3browser.h b/src/widget/wrx3browser.h
+index 2d60c95..47593ee 100644
+--- a/src/widget/wrx3browser.h
++++ b/src/widget/wrx3browser.h
+@@ -128,9 +128,9 @@ class WRx3Browser : public QWidget, public WBaseWidget {
+         } });
+         makeControl("open", [this](double value){ if(value > 0) openBrowser(); });
+         QTimer::singleShot(0, this, [this]{ showSources(); refreshTable(); });
+-        connect(m_sidebar->model(), &QAbstractItemModel::rowsInserted, this, [this]{ if(m_pages->currentIndex()==1) refreshSources(); });
+-        connect(m_sidebar->model(), &QAbstractItemModel::rowsRemoved, this, [this]{ if(m_pages->currentIndex()==1) refreshSources(); });
+-        connect(m_sidebar->model(), &QAbstractItemModel::dataChanged, this, [this]{ if(m_pages->currentIndex()==1) refreshSources(); });
++        connect(m_sidebar->model(), &QAbstractItemModel::rowsInserted, this, [this]{ onDeviceModelChanged(); });
++        connect(m_sidebar->model(), &QAbstractItemModel::rowsRemoved, this, [this]{ onDeviceModelChanged(); });
++        connect(m_sidebar->model(), &QAbstractItemModel::dataChanged, this, [this]{ onDeviceModelChanged(); });
+     }
+     ~WRx3Browser() override = default;
+   protected:
+@@ -215,7 +215,10 @@ class WRx3Browser : public QWidget, public WBaseWidget {
+             table->setRx3Browser(true);table->viewport()->installEventFilter(this);
+             if(!table->property("rx3ModelConnected").toBool()) {
+                 table->setProperty("rx3ModelConnected",true);
+-                connect(table,&WTrackTableView::rx3ModelChanged,this,[this]{m_loading->hide();m_library->show();refreshTable();updateTrackInfo();});
++                connect(table,&WTrackTableView::rx3ModelChanged,this,[this]{
++                    if(m_waitingRoot.isEmpty()) {m_loading->hide();m_library->show();}
++                    refreshTable();updateTrackInfo();
++                });
+                 connect(table->selectionModel(),&QItemSelectionModel::currentRowChanged,this,[this]{updateTrackInfo();});
+             }
+         }
+@@ -293,18 +296,58 @@ class WRx3Browser : public QWidget, public WBaseWidget {
+     void showSources() {
+         m_pages->setCurrentIndex(1);m_breadcrumb->setText("SOURCE");m_focus=NavigationTarget::Source;
+         refreshSources();
+-        // Device discovery is lazy in Mixxx. Entering SOURCE must request it,
+-        // even when the user has never selected the native Rekordbox feature.
+-        for(int i=0;i<model()->rowCount();++i) {
+-            const auto root=model()->index(i,0);
+-            if(root.data(SidebarModel::IconNameRole).toString()=="rekordbox") {model()->clicked(root);break;}
+-        }
+         m_sources->setFocus();
+     }
++    QString deviceRoot(const QPersistentModelIndex& device) const {
++        return device.data(SidebarModel::DataRole).toList().value(0).toString();
++    }
++    QString deviceStatus(const QPersistentModelIndex& device) const {
++        return device.data(SidebarModel::DataRole).toList().value(2).toString();
++    }
++    void updateSelectedDevice() {
++        if(m_waitingRoot.isEmpty()) return;
++        if(!m_selectedDevice.isValid() || deviceRoot(m_selectedDevice)!=m_waitingRoot) {
++            m_loading->setText("USB disconnected. Waiting for reconnection…");
++            m_loading->show();m_library->hide();
++            return;
++        }
++        const QString status=deviceStatus(m_selectedDevice);
++        if(status=="ready") {
++            m_waitingRoot.clear();
++            selectCategory(m_categories->currentRow()>=0 ? m_categories->currentRow() : 1);
++        } else if(status=="error") {
++            m_loading->setText("Unable to read this Rekordbox USB.");
++        } else {
++            m_loading->setText("Reading USB…");
++        }
++    }
++    void onDeviceModelChanged() {
++        if(m_pages->currentIndex()==1) refreshSources();
++        else {
++            if(!m_selectedDevice.isValid() && !m_currentRoot.isEmpty()) {
++                m_waitingRoot=m_currentRoot;
++                for(int i=0;i<model()->rowCount();++i) {
++                    const auto root=model()->index(i,0);
++                    if(root.data(SidebarModel::IconNameRole).toString()!="rekordbox") continue;
++                    for(int r=0;r<model()->rowCount(root);++r) {
++                        const auto device=model()->index(r,0,root);
++                        if(device.data(SidebarModel::DataRole).toList().value(0).toString()!=m_currentRoot) continue;
++                        m_selectedDevice=device;
++                        m_sidebar->setRootIndex(device);
++                        populateCategories();
++                        break;
++                    }
++                }
++            }
++            updateSelectedDevice();
++        }
++    }
+     void refreshSources() {
+         if(m_refreshingSources) return;
+         m_refreshingSources=true;
+         const int previous=qMax(0,m_sources->indexOfTopLevelItem(m_sources->currentItem()));
++        const QString previousRoot=m_sources->currentItem()
++                ? m_sources->currentItem()->data(0,Qt::UserRole).toString() : QString();
+         m_sources->clear();m_devices.clear();
+         // Enumerate current feature indexes, since a provider may have reset
+         // its child model during discovery.
+@@ -313,13 +356,17 @@ class WRx3Browser : public QWidget, public WBaseWidget {
+             if(root.data(SidebarModel::IconNameRole).toString()!="rekordbox") continue;
+             for(int r=0;r<model()->rowCount(root);++r) {
+                 const auto device=model()->index(r,0,root);
+-                new QTreeWidgetItem(m_sources,{"▣   "+device.data().toString()+"                  ›"});
++                auto* item=new QTreeWidgetItem(m_sources,{"▣   "+device.data().toString()+"                  ›"});
++                item->setData(0,Qt::UserRole,device.data(SidebarModel::DataRole).toList().value(0));
+                 m_devices.push_back(device);
+             }
+         }
+-        m_sources->setCurrentItem(m_sources->topLevelItem(qMin(previous,m_sources->topLevelItemCount()-1)));
++        int selected=qMin(previous,m_sources->topLevelItemCount()-1);
++        for(int row=0;row<m_sources->topLevelItemCount();++row)
++            if(m_sources->topLevelItem(row)->data(0,Qt::UserRole).toString()==previousRoot) {selected=row;break;}
++        m_sources->setCurrentItem(m_sources->topLevelItem(selected));
+         m_refreshingSources=false;
+-        updateSourceInfo(qMin(previous,m_sources->topLevelItemCount()-1));
++        updateSourceInfo(selected);
+     }
+     void updateSourceInfo(int row) {
+         if(m_refreshingSources) return;
+@@ -328,6 +375,9 @@ class WRx3Browser : public QWidget, public WBaseWidget {
+         if(row>=0 && row<int(m_devices.size())) {
+             source=m_devices[row].data().toString();
+             const auto data=m_devices[row].data(SidebarModel::DataRole).toList();
++            if(data.value(2).toString()=="ready") {
++                songs=data.value(3).toString();playlists=data.value(4).toString();
++            }
+             if(!data.isEmpty()) {
+                 QStorageInfo volume(data.first().toString());
+                 if(volume.isValid() && volume.isReady()) {
+@@ -336,7 +386,13 @@ class WRx3Browser : public QWidget, public WBaseWidget {
+                 }
+             }
+         }
+-        m_info->setText("INFO\n\n"+source+"\n\nSongs                 "+songs+"\n\nPlaylists              "+playlists+"\n\nTotal                   "+total+" GB\n\nAvailable             "+available+" GB\n\nBackground Color    ○ Default");
++        const QString status=row>=0 && row<int(m_devices.size())
++                ? deviceStatus(m_devices[row]) : QString();
++        m_info->setText("INFO\n\n"+source+"\n\nStatus                 "+
++                (status=="ready"?"Ready":status=="error"?"Error":"Reading USB…")+
++                "\n\nSongs                 "+songs+"\n\nPlaylists              "+playlists+
++                "\n\nTotal                   "+total+" GB\n\nAvailable             "+available+
++                " GB\n\nBackground Color    ○ Default");
+     }
+     void chooseSource() {
+         const int row=m_sources->indexOfTopLevelItem(m_sources->currentItem());
+@@ -345,15 +401,20 @@ class WRx3Browser : public QWidget, public WBaseWidget {
+         {
+             const QModelIndex device=m_devices[row]; if(!device.isValid()) {showSources();return;}
+             m_selectedDevice=device;
++            m_waitingRoot=deviceRoot(m_selectedDevice);
++            m_currentRoot=m_waitingRoot;
+             m_source->setText("▣  SOURCE");m_facets->hide();
+             populateCategories();
+             m_categories->setCurrentRow(1);
+             m_sidebar->setRootIndex(device);m_sidebar->show();
+             m_focus=NavigationTarget::Tree;m_sidebar->setFocus();
+-            if(model()->rowCount(device)==0) {
++            if(deviceStatus(m_selectedDevice)!="ready") {
+                 m_library->hide();m_loading->setText("Reading USB…");m_loading->show();
++                updateSelectedDevice();
++            } else {
++                m_waitingRoot.clear();
++                selectCategory(1);
+             }
+-            QTimer::singleShot(15000,this,[this]{if(m_loading->isVisible()) m_loading->setText("USB unavailable. Open SOURCE to retry.");});
+         }
+     }
+     void move(int delta) {
+@@ -416,4 +477,6 @@ class WRx3Browser : public QWidget, public WBaseWidget {
+     NavigationTarget m_focus=NavigationTarget::Categories;
+     NavigationTarget m_resumeFocus=NavigationTarget::TrackList;
+     bool m_refreshingSources=false;
++    QString m_waitingRoot;
++    QString m_currentRoot;
+ };

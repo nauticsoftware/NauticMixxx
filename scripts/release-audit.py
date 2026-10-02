@@ -29,7 +29,6 @@ PUBLIC_INPUTS = [
     ROOT / "controllers/Hercules_DJControl_Inpulse_500_RX3",
     ROOT / "effects",
     ROOT / "branding/iCon-macOS-Dark-1024x1024@1x.png",
-    ROOT / "packaging/DMG_PROJECT/DMG_BG.jpg",
     ROOT / "packaging/macos",
     ROOT / "packaging/windows",
 ]
@@ -78,13 +77,15 @@ def audit(paths: list[Path]) -> list[str]:
 
 def validate_metadata() -> list[str]:
     errors: list[str] = []
+    if (ROOT / "packaging/DMG_PROJECT").exists():
+        errors.append("la carpeta antigua de proyecto DMG debe eliminarse")
     skin = ET.parse(ROOT / "skins/XDJ_RX3_Mixxx/skin.xml")
     if skin.findtext("manifest/title") != "NauticMixxx":
         errors.append("el título de la skin no es NauticMixxx")
     if skin.findtext("manifest/version") != VERSION:
         errors.append("la versión de la skin no coincide con VERSION")
-    if len(list((ROOT / "patches").glob("00[0-9][0-9]-*.patch"))) != 12:
-        errors.append("deben existir exactamente doce parches numerados")
+    if len(list((ROOT / "patches").glob("00[0-9][0-9]-*.patch"))) != 14:
+        errors.append("deben existir exactamente catorce parches numerados")
     required = [
         ROOT / "branding/iCon.icon/icon.json",
         ROOT / "branding/NauticMixxx.png",

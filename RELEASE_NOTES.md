@@ -1,3 +1,25 @@
+# NauticMixxx 1.3.0 — 2026-10-01
+
+## Navegación USB en macOS Apple Silicon
+
+- Detecta y prepara en segundo plano los USB exportados por Rekordbox al iniciar
+  la aplicación o conectarlos. SOURCE indica «READING…» y no permite entrar
+  hasta que el catálogo, las playlists y las categorías exportadas estén listos.
+- Muestra las categorías visibles en el orden exportado por Rekordbox. Dentro
+  de PLAYLIST, resaltar una lista previsualiza sus pistas a la derecha; ENTER
+  o doble clic abre la tabla completa. Las carpetas previsualizan sus listas.
+- La tabla completa conserva PREVIEW, TRACK y ARTIST, y muestra BPM y GENRE
+  con texto compacto. MATCHING y FOLDER muestran «COMING SOON».
+- Se probó con un USB real: 1133 canciones, 6 playlists y 10 categorías. Pasaron
+  40 pruebas dirigidas de catálogo, playlists, base Rekordbox y display. La
+  prueba física de conexión en caliente y del controlador sigue pendiente.
+
+El paquete macOS ARM64 está firmado de forma ad hoc y no está notarizado. El
+instalador Windows publicado permanece en 1.2.0 hasta validar su compilación
+nativa 1.3.0. El icono de la aplicación se genera desde `branding/`.
+
+---
+
 # NauticMixxx 1.2.0 — 2026-09-30
 
 ## Actualización de waveforms y modo USB

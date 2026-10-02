@@ -1,5 +1,38 @@
 # Historial de cambios
 
+## 1.3.0 — 2026-10-01
+
+- El USB Rekordbox se detecta y prepara en segundo plano al iniciar la app o
+  conectar el dispositivo, sin depender de abrir SOURCE.
+- SOURCE conserva la selección durante la lectura y muestra el contenido al
+  terminar. El estado proviene de la sesión real, sin el plazo artificial de
+  15 segundos ni la página HTML original de Rekordbox.
+- Las conexiones nuevas requieren conceder acceso a macOS una vez cuando el
+  sistema no dispone de una autorización previa.
+- SOURCE muestra primero las categorías visibles y su orden exportado en el USB.
+  Resaltar una categoría o carpeta no abre su contenido; ENTER lo confirma y
+  BACK regresa al nivel anterior.
+- SOURCE mantiene el dispositivo en espera hasta que el catálogo, las playlists
+  y las categorías estén listos. No permite entrar durante la lectura ni
+  presenta las dos categorías provisionales.
+- Al resaltar una playlist se ven sus pistas en el panel derecho, sin entrar
+  ni cargar una pista. Las carpetas muestran sus playlists hijas. ENTER o doble
+  clic abre la playlist y conserva la tabla completa actual.
+- Las listas finales ocultan la columna intermedia y muestran PREVIEW, TRACK,
+  ARTIST, BPM y GENRE. ARTIST, ALBUM y otros filtros se resuelven desde el
+  catálogo temporal, sin recurrir a la biblioteca local.
+- La revisión de prueba r2 calcula el ancho de BPM con la misma fuente que
+  dibuja sus valores y asigna a GENRE el doble de ese ancho. Ambas columnas
+  muestran una fuente normal más compacta y con menos espacio entre letras.
+- HISTORY tiene lector de índices propio. MATCHING y FOLDER conservan su
+  entrada exportada y muestran COMING SOON. REC queda reservado para una
+  versión futura y no aparece si el USB no lo exporta.
+- Parches nativos 0013–0014; arranque con el USB NAUTICBOY ya conectado y
+  lectura real del menú comprobados en macOS. Conexión en caliente, historial
+  con datos y comparación física con RX3 siguen pendientes.
+- El icono canónico está en `branding/`; se retiró su copia antigua dentro de
+  `packaging/` y los scripts de publicación dejaron de depender de ella.
+
 ## Actualización de waveforms — candidata de calibración
 
 - Blue/RGB recuperan signo y nivel real del PCM durante la carga; conservan el

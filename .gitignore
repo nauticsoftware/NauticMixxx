@@ -36,6 +36,5 @@ notarytool-profile.*
 .env.*
 !.env.example
 
-# Generated DMG project outputs
-packaging/DMG_PROJECT/*.dmg
-packaging/DMG_PROJECT/*.dmgcanvas/
+# Retired DMG project folder. The canonical icon is under branding/.
+/packaging/DMG_PROJECT/

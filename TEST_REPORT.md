@@ -1,4 +1,40 @@
-# Informe de validación — NauticMixxx 1.2.0
+# Informe de validación — NauticMixxx
+
+## v1.3 en desarrollo — navegador USB
+
+- `mixxx` y `mixxx-test` compilan en macOS ARM64 con el parche 0014.
+- 36 pruebas dirigidas de DeviceSQL, playlists y catálogo temporal aprobadas;
+  una leyó en sólo lectura el `export.pdb` real de NAUTICBOY y confirmó las diez
+  categorías visibles y su orden exportado.
+- Los 14 parches se aplicaron secuencialmente sobre la fuente oficial 2.5.6
+  con `git apply --whitespace=error`; auditoría pública 1.3.0 correcta.
+- Una inspección visual de la compilación de prueba detectó la barra de
+  categorías centrada cuando era el único widget visible y una señal que podía
+  volver a mostrar la tabla antes de confirmar categoría. Ambos caminos se
+  corrigieron y recompilaron. El usuario confirmó que la prueba funciona, pero
+  sus capturas mostraron BPM elidido y GENRE demasiado estrecho.
+- La revisión `test-candidate/1.3.0-r2` corrige el cálculo del ancho de BPM con
+  la fuente real de la celda, compacta BPM y GENRE y conserva GENRE al doble de
+  ancho. Compilación nativa y 34 pruebas dirigidas aprobadas. La app firmada
+  arrancó con perfil independiente. El icono del bundle y el que devuelve
+  macOS para Finder coinciden con el icono propio de la última release candidate.
+  La verificación visual de las nuevas columnas quedó pendiente porque macOS
+  estaba bloqueado durante la inspección.
+- La revisión `test-candidate/1.3.0-r3` mantiene SOURCE durante la lectura y
+  sólo permite entrar cuando la sesión, el catálogo y el menú exportado están
+  listos. Con el USB real, SOURCE mostró «READING…» y después Ready (1133
+  canciones, 6 playlists). La interacción con la app comprobó la vista previa de
+  CALIBRATION_WAVEFORM (9 temas), _HOUSE (4 playlists) y NAUTICtracks (18
+  temas), y que ENTER abre la tabla completa de NAUTICtracks. Se recompiló la
+  unidad del navegador, se enlazaron la app y `mixxx-test`, pasaron 40 pruebas
+  dirigidas, la auditoría pública 1.3.0 y la firma del bundle. Finder devolvió
+  el icono propio de NauticMixxx. Las capturas automáticas de la ventana
+  permanecieron desactualizadas tras la primera pantalla; la comprobación del
+  contenido se hizo con el árbol de accesibilidad de la app en ejecución.
+- MATCHING, FOLDER y REC están aplazadas por decisión del usuario. HISTORY se
+  probó con filas sintéticas; el USB disponible no contiene historial real.
+
+## v1.2.0 — 2026-09-30
 
 Fecha: 2026-09-30. Base: Mixxx 2.5.6.
 

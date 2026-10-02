@@ -12,7 +12,7 @@ Requisitos: Xcode Command Line Tools, CMake, Ninja, Git y unos 8 GB libres.
 ```
 
 El script descarga las entradas verificadas, aplica `patches/0001` a
-`0012`, compila `NauticMixxx.app`, ejecuta las pruebas RX3, instala skin y
+`0014`, compila `NauticMixxx.app`, ejecuta las pruebas RX3, instala skin y
 mapping dentro del bundle, genera el icono y firma de forma ad hoc.
 
 Variables opcionales:
@@ -29,7 +29,7 @@ Para generar el instalador nativo completo, instala Visual Studio 2022 con C++, 
 ./scripts/build-mixxx-rx3-windows.ps1 -WorkRoot C:\nauticmixxx-build -Jobs 4
 ```
 
-El script descarga fuentes y dependencias verificadas, aplica los parches NauticMixxx, compila, ejecuta la suite RX3 y crea `build/NauticMixxx-1.2.0-Windows-x64-Setup.exe`. El workflow público usa el runner estándar Windows gratuito para repositorios públicos, prueba la instalación y desinstalación reales y carga directamente el EXE en el release. No usa almacenamiento de artifacts de Actions.
+El script descarga fuentes y dependencias verificadas, aplica los parches NauticMixxx, compila, ejecuta la suite RX3 y crea el instalador EXE de la versión indicada en `VERSION`. El workflow público prueba la instalación y desinstalación reales antes de cargarlo en el release. La compilación Windows 1.3.0 requiere esa validación antes de publicarse.
 
 ## Fuentes correspondientes
 

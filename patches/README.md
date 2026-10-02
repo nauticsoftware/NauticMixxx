@@ -1,5 +1,27 @@
 # NauticMixxx native patches
 
+## 0014 — Categorías exportadas y lista RX3 expandida para v1.3
+
+Aplica después de 0013. Lee las categorías visibles y su orden de las tablas
+16/17 de `export.pdb` y los asocia a la sesión temporal del USB. SOURCE deja
+la selección en la barra de categorías; terminar de preparar el dispositivo
+no abre PLAYLIST. TRACK, PLAYLIST y las agrupaciones de metadatos admitidas
+requieren confirmación para entrar, y BACK restaura el nivel anterior. Las
+listas finales ocultan la columna intermedia y muestran PREVIEW, TRACK,
+ARTIST, BPM y GENRE. MATCHING y FOLDER exportadas muestran un panel
+«COMING SOON»; REC queda para una versión futura. El USB permanece en sólo
+lectura.
+
+## 0013 — Preparación automática de USB Rekordbox para v1.3
+
+Aplica después de 0001–0012. Inicia la detección de volúmenes y la lectura de
+catálogos al arrancar y al conectar un USB, sin depender de SOURCE. Conserva
+autorizaciones macOS para unidades desconectadas, prepara cada sesión en segundo
+plano, rechaza resultados de conexiones anteriores y muestra el estado real del
+dispositivo en la skin. Elimina la vista HTML original de Rekordbox y el mensaje
+que pedía reabrir SOURCE. El candidato macOS v1.3 se comprobó con un USB
+Rekordbox real; la conexión en caliente sigue pendiente de prueba física.
+
 ## 0012 — NauticMixxx 1.2 USB preferences
 
 Apply after 0001–0011. This patch enforces Rekordbox USB operation on startup,

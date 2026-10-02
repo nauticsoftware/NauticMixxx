@@ -1,3 +1,25 @@
+# NauticMixxx 1.3.0 — 2026-10-01
+
+## Rekordbox USB browsing on macOS Apple Silicon
+
+- Detects and prepares exported USB drives in the background at startup and
+  when they are connected. SOURCE shows “READING…” and opens a drive only
+  after its catalog, playlists and exported categories are ready.
+- Shows visible categories in their Rekordbox export order. Highlighting a
+  playlist previews its tracks on the right; ENTER or double click opens the
+  full table. Folders preview their child playlists.
+- The full table displays PREVIEW, TRACK, ARTIST, BPM and GENRE with compact
+  text. MATCHING and FOLDER are marked “COMING SOON”.
+- Tested with a real USB drive containing 1,133 songs, 6 playlists and 10
+  categories. Forty focused catalog, playlist, Rekordbox database and display
+  tests passed. Physical hot plug and controller checks remain pending.
+
+The macOS arm64 app is ad hoc signed and not notarized. The published Windows
+installer remains at 1.2.0 until its native 1.3.0 build is validated. The app
+icon is generated from `branding/`.
+
+---
+
 # NauticMixxx 1.2.0 — 2026-09-30
 
 ## Waveforms
