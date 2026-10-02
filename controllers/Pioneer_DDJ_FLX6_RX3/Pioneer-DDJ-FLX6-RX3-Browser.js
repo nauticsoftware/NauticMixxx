@@ -12,7 +12,11 @@ NauticFLX6Browser.nativeBrowser = function() {
 };
 
 NauticFLX6Browser.isOpen = function() {
-    return Math.round(engine.getValue("[Tab]", "current")) === 1;
+    if (Math.round(engine.getValue("[Tab]", "current")) === 1) return true;
+    // Stock Mixxx skins do not have NauticMixxx's [Tab] page. In that case
+    // VIEW opens the browser through the standard maximized-library control.
+    return !NauticFLX6Browser.nativeBrowser() &&
+            engine.getValue("[Skin]", "show_maximized_library") > 0;
 };
 
 NauticFLX6Browser.open = function() {
