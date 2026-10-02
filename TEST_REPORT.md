@@ -1,6 +1,6 @@
 # Informe de validación — NauticMixxx
 
-## v1.3 en desarrollo — navegador USB
+## v1.3.0 — navegador USB
 
 - `mixxx` y `mixxx-test` compilan en macOS ARM64 con el parche 0014.
 - 36 pruebas dirigidas de DeviceSQL, playlists y catálogo temporal aprobadas;
@@ -33,6 +33,18 @@
   contenido se hizo con el árbol de accesibilidad de la app en ejecución.
 - MATCHING, FOLDER y REC están aplazadas por decisión del usuario. HISTORY se
   probó con filas sintéticas; el USB disponible no contiene historial real.
+
+### Windows x64 — v1.3.0
+
+- Los 14 parches compilaron con CMake/Ninja y Visual Studio 2022 en el runner
+  público `windows-2022`. Pasaron 78 pruebas nativas RX3/beatgrid/cue, sin fallas.
+- NSIS generó `NauticMixxx-1.3.0-Windows-x64-Setup.exe` con el icono oficial
+  derivado de `branding/`. El instalador y la aplicación instalada se identifican
+  como NauticMixxx.
+- La instalación y desinstalación silenciosa verificaron ejecutable, skin, perfil,
+  preferencias USB, controladores y efectos; se conservó el perfil personal.
+- [Ejecución pública](https://github.com/nauticsoftware/NauticMixxx/actions/runs/36953168670).
+  Siguen pendientes las pruebas físicas del controlador y USB en Windows.
 
 ## v1.2.0 — 2026-09-30
 
