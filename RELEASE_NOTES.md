@@ -1,6 +1,6 @@
 # NauticMixxx 1.3.0 — 2026-10-01
 
-## Navegación USB en macOS Apple Silicon
+## Navegación USB en macOS Apple Silicon y Windows x64
 
 - Detecta y prepara en segundo plano los USB exportados por Rekordbox al iniciar
   la aplicación o conectarlos. SOURCE indica «READING…» y no permite entrar
@@ -14,9 +14,11 @@
   40 pruebas dirigidas de catálogo, playlists, base Rekordbox y display. La
   prueba física de conexión en caliente y del controlador sigue pendiente.
 
-El paquete macOS ARM64 está firmado de forma ad hoc y no está notarizado. El
-instalador Windows publicado permanece en 1.2.0 hasta validar su compilación
-nativa 1.3.0. El icono de la aplicación se genera desde `branding/`.
+El paquete macOS ARM64 está firmado de forma ad hoc y no está notarizado.
+El instalador nativo Windows x64 incluye los cambios de navegación USB de 1.3.0
+y pasó 78 pruebas nativas más la instalación y desinstalación silenciosa.
+La prueba física con controlador y USB en Windows sigue pendiente. El icono
+de la aplicación se genera desde `branding/`.
 
 ---
 

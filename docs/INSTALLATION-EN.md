@@ -1,4 +1,4 @@
-# Install NauticMixxx 1.3.0 on macOS
+# Install NauticMixxx 1.3.0
 
 ## macOS Apple Silicon
 
@@ -15,9 +15,11 @@ The Inpulse 500 custom RX3 mapping is selected automatically when the device is 
 
 SOURCE waits for the USB catalog to finish loading before opening the drive. In PLAYLIST, highlight a playlist to preview its tracks on the right, then press ENTER to open the full track table. First-sound loading uses an existing marker. A USB track without that marker loads at its beginning because NauticMixxx does not analyze audio to create one.
 
-## Windows x64 — version 1.2.0
+## Windows x64 — version 1.3.0
 
-Download [NauticMixxx-1.2.0-Windows-x64-Setup.exe](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.2.0/NauticMixxx-1.2.0-Windows-x64-Setup.exe) and run it directly on Windows 10/11 x64. The installer is a native NSIS EXE and includes the complete NauticMixxx application. It does not need an existing Mixxx install or another download.
+Download [NauticMixxx-1.3.0-Windows-x64-Setup.exe](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.3.0/NauticMixxx-1.3.0-Windows-x64-Setup.exe) and run it directly on Windows 10/11 x64. The installer is a native NSIS EXE and includes the complete NauticMixxx application. It does not need an existing Mixxx install or another download.
+
+In 1.3.0, SOURCE waits for the USB catalog to finish loading before opening the drive; highlighting a playlist previews its tracks and ENTER opens the full table.
 
 Setup installs the app under `%LOCALAPPDATA%\Programs\NauticMixxx` and applies the macOS RX3 settings to a separate profile under `%LOCALAPPDATA%\NauticMixxx`. It installs the XDJ RX3 skin, custom Hercules Inpulse 500 mapping, optional FLX6 browser mapping, four Sound Color FX chains, 3-Band waveform default, Rekordbox USB-only browsing, disabled analysis and ReplayGain, Pioneer Cue, ±6% tempo, and the other portable preferences. Existing personal settings are backed up before the managed RX3 preferences are merged. Audio devices, channel routing and music paths depend on the Windows laptop and must be selected there.
 

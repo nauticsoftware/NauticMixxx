@@ -1,6 +1,6 @@
 # NauticMixxx 1.3.0 — 2026-10-01
 
-## Rekordbox USB browsing on macOS Apple Silicon
+## Rekordbox USB browsing on macOS Apple Silicon and Windows x64
 
 - Detects and prepares exported USB drives in the background at startup and
   when they are connected. SOURCE shows “READING…” and opens a drive only
@@ -14,9 +14,10 @@
   categories. Forty focused catalog, playlist, Rekordbox database and display
   tests passed. Physical hot plug and controller checks remain pending.
 
-The macOS arm64 app is ad hoc signed and not notarized. The published Windows
-installer remains at 1.2.0 until its native 1.3.0 build is validated. The app
-icon is generated from `branding/`.
+The macOS arm64 app is ad hoc signed and not notarized. The native Windows x64
+installer includes the 1.3.0 USB browsing changes and passed 78 native tests
+plus silent installation and uninstallation checks. Physical controller and Rekordbox USB
+checks on Windows remain pending. The app icon is generated from `branding/`.
 
 ---
 

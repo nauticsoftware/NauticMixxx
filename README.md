@@ -19,12 +19,12 @@ Version 1.3 detects authorized Rekordbox USB drives at startup and when connecte
 
 ## Download and install
 
-Download the macOS Apple Silicon build of NauticMixxx 1.3.0 from the [public release](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.3.0):
+Download NauticMixxx 1.3.0 from the [public release](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.3.0):
 
 - [macOS Apple Silicon DMG](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.3.0/NauticMixxx-1.3.0-macOS-arm64.dmg)
-- [Windows x64 installer 1.2.0](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.2.0/NauticMixxx-1.2.0-Windows-x64-Setup.exe)
+- [Windows x64 installer](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.3.0/NauticMixxx-1.3.0-Windows-x64-Setup.exe)
 
-The Windows download remains at version 1.2.0 while the native 1.3.0 Windows build is validated. It installs the native NauticMixxx program, RX3 skin, controller mappings and effects. The app and profile are separate from official Mixxx. Uninstall from Windows Settings; personal settings remain in `%LOCALAPPDATA%\NauticMixxx`.
+The Windows installer includes the native NauticMixxx program, RX3 skin, controller mappings and effects. The app and profile are separate from official Mixxx. Uninstall from Windows Settings; personal settings remain in `%LOCALAPPDATA%\NauticMixxx`.
 
 On macOS, open the DMG and drag `NauticMixxx.app` to Applications. This build is ad-hoc signed rather than Apple-notarized, so macOS may ask you to confirm its first launch. See the [English installation guide](docs/INSTALLATION-EN.md).
 

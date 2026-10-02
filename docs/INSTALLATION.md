@@ -1,4 +1,4 @@
-# Instalar NauticMixxx 1.3.0 en macOS
+# Instalar NauticMixxx 1.3.0
 
 ## macOS Apple Silicon
 
@@ -15,9 +15,11 @@ El Inpulse 500 usa automáticamente el mapeo RX3 personalizado al detectarse. Co
 
 SOURCE espera a que la lectura del USB termine antes de permitir el acceso. Dentro de PLAYLIST, resalta una lista para ver sus pistas a la derecha y pulsa ENTER para abrir su tabla completa. La opción **primer sonido** requiere que el marcador ya exista en los metadatos. En una pista USB sin ese marcador, la carga comienza al principio porque NauticMixxx no analiza el audio para generarlo.
 
-## Windows x64 — versión 1.2.0
+## Windows x64 — versión 1.3.0
 
-Descarga directamente [NauticMixxx-1.2.0-Windows-x64-Setup.exe](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.2.0/NauticMixxx-1.2.0-Windows-x64-Setup.exe) y ejecútalo en Windows 10/11 x64. El instalador NSIS incluye el programa nativo; no necesita un BAT, descomprimir un ZIP ni instalar Mixxx oficial.
+Descarga directamente [NauticMixxx-1.3.0-Windows-x64-Setup.exe](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.3.0/NauticMixxx-1.3.0-Windows-x64-Setup.exe) y ejecútalo en Windows 10/11 x64. El instalador NSIS incluye el programa nativo; no necesita un BAT, descomprimir un ZIP ni instalar Mixxx oficial.
+
+En 1.3.0, SOURCE espera a que la lectura del USB termine antes de abrirlo; resaltar una playlist muestra sus pistas y ENTER abre la tabla completa.
 
 La aplicación queda en `%LOCALAPPDATA%\Programs\NauticMixxx` y utiliza un perfil propio en `%LOCALAPPDATA%\NauticMixxx`. El instalador aplica las mismas preferencias portables de la edición Mac: skin RX3, 3-Band, USB Rekordbox, análisis y ReplayGain desactivados, Pioneer Cue, tempo ±6 %, mapeo Hercules Inpulse 500, mapeo opcional FLX6 y cuatro Sound Color FX. Conserva los datos personales y hace una copia de la configuración anterior al actualizarla. Selecciona el dispositivo de audio y sus canales en la PC Windows.
 
