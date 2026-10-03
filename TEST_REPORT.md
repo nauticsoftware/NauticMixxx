@@ -1,6 +1,6 @@
 # Informe de validación — NauticMixxx
 
-## v1.5.0 — public preview validation
+## v1.5.0 — release validation
 
 ### Linux extension — 3 October 2026
 
@@ -22,7 +22,7 @@
   storage allowance and expire after one day.
 - [Linux / Raspberry Pi build and hardware test guide](docs/LINUX-RASPBERRY-PI.md).
 
-### Original macOS/Windows preview
+### Original macOS/Windows release builds
 
 - Jog curve tests: slow/fast bounds, both directions and unchanged scratch,
   pause, SHIFT, loop and beatgrid paths pass.

@@ -1,4 +1,4 @@
-# NauticMixxx 1.5.0 — public preview
+# NauticMixxx 1.5.0 — public release
 
 - **English by default:** new app configurations and installation profiles use `en_US`, independently of the OS language. Explicit language choices still apply.
 - **Leave BROWSE without loading:** on Inpulse 500, hold ASSISTANT for 600 ms to return to PERFORMANCE. A tap opens SOURCE on release. SHIFT + ASSISTANT keeps its side-panel action; holding BROWSE still enters GRID.

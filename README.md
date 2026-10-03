@@ -1,4 +1,4 @@
-# NauticMixxx 1.5.0 — public preview
+# NauticMixxx 1.5.0 — public release
 
 ![NauticMixxx2](branding/NauticMixxx2.png)
 ![NauticMixxx](branding/NauticMixxx_Home.png)
@@ -12,7 +12,7 @@ Version 1.3 detects authorized Rekordbox USB drives at startup and when connecte
 
 Version 1.4 corrects tagged Rekordbox MP3 timing when macOS CoreAudio confirms gapless trimming, keeping beatgrids, cues, loops and waveforms on the decoded audio timeline. It also centres the startup logo. METRONOME measurements reached less than 0.6 ms maximum MP3 grid-to-kick error at 44.1 and 48 kHz; physical audio comparison and Windows MP3 timing remain unmeasured. See the [timing report](docs/BEATGRID-TIMING-1.4.md).
 
-Version 1.5 adds mouse-free navigation presets for seven Pioneer/Roland models, a gentler Inpulse 500 jog rim curve, and a 600 ms ASSISTANT hold to leave BROWSE without loading. New app configurations default to English. This public preview needs physical controller validation; read the [controller behavior guide](docs/CONTROLLERS-RX3-1.5-EN.md) and [jog calibration guide](docs/JOG-CALIBRATION-1.5-EN.md).
+Version 1.5 adds mouse-free navigation presets for seven Pioneer/Roland models, a gentler Inpulse 500 jog rim curve, and a 600 ms ASSISTANT hold to leave BROWSE without loading. New app configurations default to English. Physical controller validation is still pending; read the [controller behavior guide](docs/CONTROLLERS-RX3-1.5-EN.md) and [jog calibration guide](docs/JOG-CALIBRATION-1.5-EN.md).
 
 ## Features
 
@@ -26,7 +26,7 @@ Version 1.5 adds mouse-free navigation presets for seven Pioneer/Roland models, 
 
 ## Download and install
 
-Download the NauticMixxx 1.5.0 public preview from the [release page](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.5.0):
+Download NauticMixxx 1.5.0 from the [release page](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.5.0):
 
 - [macOS Apple Silicon DMG](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.5.0/NauticMixxx-1.5.0-macOS-arm64.dmg)
 - [Windows x64 installer](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.5.0/NauticMixxx-1.5.0-Windows-x64-Setup.exe)
