@@ -19,7 +19,8 @@ with tempfile.TemporaryDirectory() as directory:
         gl = subprocess.run(['glxinfo', '-B'], stdout=output, stderr=output, env=env)
         if gl.returncode:
             raise RuntimeError('Xvfb Mesa OpenGL context unavailable')
-        app = subprocess.Popen([str(prefix / 'bin/nauticmixxx')], stdout=output, stderr=output, env=env)
+        app = subprocess.Popen([str(prefix / 'bin/nauticmixxx'), '--log-level', 'debug',
+                                '--log-flush-level', 'debug'], stdout=output, stderr=output, env=env)
         try:
             ready = False
             for _ in range(45):
@@ -38,6 +39,13 @@ with tempfile.TemporaryDirectory() as directory:
                     break
             if not ready or app.poll() is not None:
                 raise RuntimeError(f'RX3 GUI did not stay running; see {log}')
+        except Exception:
+            output.flush()
+            print(log.read_text(errors='replace')[-30000:], file=sys.stderr)
+            internal = profile / 'mixxx.log'
+            if internal.is_file():
+                print(internal.read_text(errors='replace')[-30000:], file=sys.stderr)
+            raise
         finally:
             app.terminate()
             try:

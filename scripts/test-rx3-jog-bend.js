@@ -1,10 +1,9 @@
-import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
-import vm from "node:vm";
-import {fileURLToPath} from "node:url";
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
 
-const here = path.dirname(fileURLToPath(import.meta.url));
+const here = __dirname;
 const source = fs.readFileSync(path.join(here, "../controllers",
     "Hercules_DJControl_Inpulse_500_RX3",
     "Hercules-DJControl-Inpulse-500-RX3-script.js"), "utf8");
