@@ -107,11 +107,21 @@ requested. Fork the repository publicly, open **Actions â†’ NauticMixxx Linux â†
 Run workflow**. The workflow builds both architectures, runs RX3 native tests,
 checks packaged identity/profile behavior and starts the GUI under Xvfb/Mesa.
 
-Artifacts are retained for seven days to limit storage. They contain the
-distribution-specific staged program, test XML, build metadata and a checksum.
-They are test candidates, not verified Pi installers. A virtual Mesa render does
-not validate the Pi GPU or low-latency USB audio. Private forks have different
-GitHub billing limits; this free build plan assumes a public repository.
+By default, **no build artifacts or caches are uploaded**. Build/test results
+remain in the workflow log. This avoids accumulating artifact storage, which has
+a separate quota: GitHub Free includes 500 MB shared with Packages; excess
+storage can be billed when payment is enabled. Public runner minutes being free
+does not make artifact storage unlimited. A completely local build needs no
+GitHub Actions allowance at all.
+
+The optional `keep_artifacts` checkbox retains distribution-specific staged
+programs, test XML, build metadata and checksums for **one day**. Enable it only
+within your account's available storage allowance, or keep it off for this
+zero-artifact-storage route. A short retention period alone does not guarantee
+zero charges. These packages are test candidates, not verified Pi installers.
+A virtual Mesa render does not validate the Pi GPU or low-latency USB audio.
+Private forks have different GitHub billing limits; this remote build plan
+assumes a public repository.
 
 Results: [Linux workflow runs](https://github.com/nauticsoftware/NauticMixxx/actions/workflows/linux-native.yml).
 
@@ -120,6 +130,9 @@ Results: [Linux workflow runs](https://github.com/nauticsoftware/NauticMixxx/act
 1. Use the normal desktop session and verify hardware-accelerated Mesa/OpenGL.
    `glxinfo -B` from `mesa-utils` can help diagnose the driver. Software rendering
    may start the app but is not evidence of adequate DJ performance.
+   Mesa documents the Pi 4's V3D driver, but desktop OpenGL and OpenGL ES are
+   different APIs. The Qt build and desktop session must provide the context
+   used by this app; GLES support alone does not establish RX3 compatibility.
 2. Start at a moderate display resolution and lower waveform refresh rate if
    necessary. The RX3 skin uses shader waveforms; do not assume a Pi can sustain
    the default 60 fps. Record the actual resolution, frame rate and CPU load.
@@ -185,5 +198,8 @@ Guide: https://github.com/nauticsoftware/NauticMixxx/blob/main/docs/LINUX-RASPBE
 - [Mixxx: compiling on Linux](https://github.com/mixxxdj/mixxx/wiki/Compiling-On-Linux)
 - [Mixxx 2.5.6 dependency recipe](https://github.com/mixxxdj/mixxx/blob/2.5.6/tools/debian_buildenv.sh)
 - [Mixxx hardware compatibility](https://github.com/mixxxdj/mixxx/wiki/Hardware-Compatibility)
+- [Mixxx shader waveform architecture](https://mixxx.org/news/2024-02-23-improved-waveforms/)
+- [Mesa V3D driver](https://docs.mesa3d.org/drivers/v3d.html)
 - [Raspberry Pi OS documentation](https://www.raspberrypi.com/documentation/computers/os.html)
 - [GitHub standard runners and public repository pricing](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
+- [GitHub Actions artifact storage quotas and billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions)

@@ -13,7 +13,7 @@ if dpkg-query -W -f='${Status}' libjack-jackd2-0 2>/dev/null | grep -q 'install 
   jack=libjack-jackd2-dev
 fi
 $elevation apt-get install -y --no-install-recommends \
-  build-essential cmake ninja-build pkg-config git curl ca-certificates python3 python3-pil \
+  build-essential cmake ninja-build pkg-config git curl ca-certificates python3 python3-pil fonts-open-sans \
   libavcodec-dev libavformat-dev libavutil-dev libswresample-dev \
   libchromaprint-dev libebur128-dev libfftw3-dev libflac-dev libgmock-dev libgtest-dev \
   libgl1-mesa-dev libhidapi-dev libid3tag0-dev liblilv-dev libmad0-dev libmodplug-dev \

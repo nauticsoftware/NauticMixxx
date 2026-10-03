@@ -6635,7 +6635,15 @@ diff --git a/src/library/trackcollection.cpp b/src/library/trackcollection.cpp
 index d3f551a..1c949eb 100644
 --- a/src/library/trackcollection.cpp
 +++ b/src/library/trackcollection.cpp
-@@ -551,6 +551,10 @@ bool TrackCollection::updateAutoDjCrate(
+@@ -3,6 +3,7 @@
+ #include "library/basetrackcache.h"
+ #include "library/trackset/crate/crate.h"
+ #include "moc_trackcollection.cpp"
+ #include "track/globaltrackcache.h"
++#include "track/track.h"
+ #include "util/assert.h"
+ #include "util/db/sqltransaction.h"
+@@ -551,6 +552,10 @@ bool TrackCollection::updateAutoDjCrate(
  bool TrackCollection::saveTrack(Track* pTrack) const {
      DEBUG_ASSERT_QOBJECT_THREAD_AFFINITY(this);
  
@@ -6646,7 +6654,7 @@ index d3f551a..1c949eb 100644
      return m_trackDao.saveTrack(pTrack);
  }
  
-@@ -581,6 +585,10 @@ TrackId TrackCollection::addTrack(
+@@ -581,6 +586,10 @@ TrackId TrackCollection::addTrack(
          bool unremove) {
      DEBUG_ASSERT_QOBJECT_THREAD_AFFINITY(this);
  

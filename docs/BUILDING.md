@@ -31,6 +31,22 @@ Para generar el instalador nativo completo, instala Visual Studio 2022 con C++, 
 
 El script descarga fuentes y dependencias verificadas, aplica los parches NauticMixxx, compila, ejecuta la suite RX3 y crea el instalador EXE de la versión indicada en `VERSION`. El workflow público prueba la instalación y desinstalación reales antes de cargarlo en el release. La versión Windows 1.4.0 pasó 93 pruebas nativas, con cuatro fixtures opcionales omitidos, y la validación del instalador en el [workflow público](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37141825488).
 
+## Linux de 64 bits y Raspberry Pi 4
+
+La [guía Linux / Raspberry Pi en inglés](LINUX-RASPBERRY-PI.md) documenta la
+compilación nativa gratuita, las dependencias de Debian/Ubuntu y las pruebas
+necesarias en una Pi real. El repositorio contiene overlays: no se compila con
+`cmake -S .` directamente desde su raíz.
+
+```sh
+./scripts/install-linux-build-deps.sh
+RX3_BUILD_JOBS=1 ./scripts/build-mixxx-rx3-linux.sh
+```
+
+El workflow manual Linux usa runners públicos estándar x86_64 y ARM64. Sus
+artefactos dependen de la distribución y no son instaladores universales para
+Raspberry Pi OS. La Pi 4 sigue siendo un objetivo experimental.
+
 ## Fuentes correspondientes
 
 `python3 scripts/package-release.py` empaqueta el árbol completo de Mixxx ya

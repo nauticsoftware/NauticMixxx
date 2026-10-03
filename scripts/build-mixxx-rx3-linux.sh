@@ -10,6 +10,9 @@ case "$(uname -s)/$(uname -m)" in
   Linux/aarch64|Linux/x86_64) ;;
   *) printf 'Use 64-bit Linux (aarch64 or x86_64). See docs/LINUX-RASPBERRY-PI.md.\n' >&2; exit 1 ;;
 esac
+if [ "$(getconf LONG_BIT)" != 64 ]; then
+  printf 'A 64-bit kernel alone is insufficient; install a 64-bit userland.\n' >&2; exit 1
+fi
 case "$jobs" in ''|*[!0-9]*|0) printf 'RX3_BUILD_JOBS must be a positive integer.\n' >&2; exit 1 ;; esac
 case "$tests" in ON|OFF) ;; *) printf 'RX3_BUILD_TESTING must be ON or OFF.\n' >&2; exit 1 ;; esac
 mkdir -p "$work"

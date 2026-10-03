@@ -2,6 +2,11 @@ name: NauticMixxx Linux
 
 on:
   workflow_dispatch:
+    inputs:
+      keep_artifacts:
+        description: Keep test packages for 1 day (uses your Actions storage quota)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -25,7 +30,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 180
     env:
-      RX3_BUILD_ROOT: ${{ github.workspace }}/build/test-candidate/1.5.0-linux-${{ matrix.arch }}
+      RX3_BUILD_ROOT: ${{ github.workspace }}/build/test-candidate/linux-${{ matrix.arch }}
       RX3_BUILD_JOBS: '4'
     steps:
       - uses: actions/checkout@v4
@@ -48,13 +53,14 @@ jobs:
           python3 scripts/test-linux-package.py --stage "$RX3_BUILD_ROOT/stage"
           xvfb-run -a python3 scripts/smoke-linux-gui.py "$RX3_BUILD_ROOT/stage" "$RX3_BUILD_ROOT"
       - name: Package distribution-specific test candidate
+        if: inputs.keep_artifacts
         run: |
           version=$(cat VERSION)
           tar -czf "$RX3_BUILD_ROOT/NauticMixxx-$version-Ubuntu-24.04-${{ matrix.arch }}.tar.gz" -C "$RX3_BUILD_ROOT" stage
           cd "$RX3_BUILD_ROOT"
           sha256sum NauticMixxx-*.tar.gz > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && inputs.keep_artifacts
         with:
           name: nauticmixxx-ubuntu-24.04-${{ matrix.arch }}-${{ github.run_id }}
           path: |
@@ -64,5 +70,5 @@ jobs:
             ${{ env.RX3_BUILD_ROOT }}/stage/rx3-build.json
             ${{ env.RX3_BUILD_ROOT }}/gui-smoke.log
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 1
           compression-level: 0
