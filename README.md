@@ -1,4 +1,4 @@
-# NauticMixxx 1.5.0 — public release
+# NauticMixxx 1.5.0
 
 ![NauticMixxx2](branding/NauticMixxx2.png)
 ![NauticMixxx](branding/NauticMixxx_Home.png)
