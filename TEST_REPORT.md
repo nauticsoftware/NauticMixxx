@@ -24,7 +24,7 @@
   Instalación y desinstalación del EXE real correctas, conservando el perfil.
   Las siete imágenes del icono del instalador y de la app coinciden exactamente
   con el ICO generado desde el PNG canónico.
-  [Ejecución pública](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37140784715).
+  [Ejecución pública](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37141825488).
 - Los MP3 se midieron con CoreAudio. FFmpeg 6 no abrió estos MP3. No se midió
   salida física de CUE ni latencia; no hay comparación física de Windows.
 

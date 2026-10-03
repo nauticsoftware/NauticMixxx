@@ -29,7 +29,7 @@ Para generar el instalador nativo completo, instala Visual Studio 2022 con C++, 
 ./scripts/build-mixxx-rx3-windows.ps1 -WorkRoot C:\nauticmixxx-build -Jobs 4
 ```
 
-El script descarga fuentes y dependencias verificadas, aplica los parches NauticMixxx, compila, ejecuta la suite RX3 y crea el instalador EXE de la versión indicada en `VERSION`. El workflow público prueba la instalación y desinstalación reales antes de cargarlo en el release. La versión Windows 1.4.0 pasó 93 pruebas nativas, con cuatro fixtures opcionales omitidos, y la validación del instalador en el [workflow público](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37140784715).
+El script descarga fuentes y dependencias verificadas, aplica los parches NauticMixxx, compila, ejecuta la suite RX3 y crea el instalador EXE de la versión indicada en `VERSION`. El workflow público prueba la instalación y desinstalación reales antes de cargarlo en el release. La versión Windows 1.4.0 pasó 93 pruebas nativas, con cuatro fixtures opcionales omitidos, y la validación del instalador en el [workflow público](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37141825488).
 
 ## Fuentes correspondientes
 
