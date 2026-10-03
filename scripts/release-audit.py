@@ -35,6 +35,7 @@ PUBLIC_INPUTS = [
     ROOT / "branding/iCon-macOS-Dark-1024x1024@1x.png",
     ROOT / "packaging/macos",
     ROOT / "packaging/windows",
+    ROOT / "packaging/linux",
 ]
 BLOCKED_NAMES = {".DS_Store", "mixxxdb.sqlite", "mixxx.cfg", "effects.xml", "compile_flags.txt"}
 BLOCKED_SUFFIXES = {".p12", ".mobileprovision", ".provisionprofile", ".key"}

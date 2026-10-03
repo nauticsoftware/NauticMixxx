@@ -40,6 +40,10 @@ DEFAULT_APP = next(
 )
 FALLBACK_APP = APP_ROOT / "build/NauticMixxx.app"
 PUBLIC_SCRIPT_PATHS = [
+    "scripts/build-mixxx-rx3-linux.sh",
+    "scripts/install-linux-build-deps.sh",
+    "scripts/test-linux-package.py",
+    "scripts/smoke-linux-gui.py",
     "scripts/build-app-icon-macos.sh",
     "scripts/build-app-icon-windows.py",
     "scripts/build-mixxx-rx3-macos.sh",
@@ -236,6 +240,7 @@ def create_source_archive(output: Path) -> None:
             add_tree(archive, ROOT / directory, f"{prefix}/{directory}")
         add_tree(archive, ROOT / "packaging/macos", f"{prefix}/packaging/macos")
         add_tree(archive, ROOT / "packaging/windows", f"{prefix}/packaging/windows")
+        add_tree(archive, ROOT / "packaging/linux", f"{prefix}/packaging/linux")
         add_tree(
             archive,
             ROOT / "branding/iCon-macOS-Dark-1024x1024@1x.png",
@@ -276,6 +281,7 @@ def create_github_source_zip(output: Path) -> None:
         "branding/iCon-macOS-Dark-1024x1024@1x.png",
         "packaging/macos",
         "packaging/windows",
+        "packaging/linux",
         "controllers",
         "vendor",
         "effects",

@@ -47,6 +47,24 @@ On Windows, use PowerShell's `Get-FileHash -Algorithm SHA256` and compare the re
 
 ## Test or build
 
+### Linux and Raspberry Pi
+
+A free native build recipe is available for 64-bit Linux. Raspberry Pi 4 with
+64-bit Raspberry Pi OS is an experimental target; physical GPU, audio and
+controller testing is pending. Read the [Linux / Raspberry Pi guide](docs/LINUX-RASPBERRY-PI.md)
+for dependencies, memory settings, troubleshooting and free GitHub Actions builds.
+
+```sh
+./scripts/install-linux-build-deps.sh
+RX3_BUILD_JOBS=1 ./scripts/build-mixxx-rx3-linux.sh
+```
+
+The script downloads the official Mixxx base and applies the NauticMixxx patches.
+Compiling this overlay repository's root directly does not work. Linux artifacts
+are distribution-specific test candidates, rather than universal Pi installers.
+
+### macOS and controller tests
+
 For a physical Inpulse 500 test, follow the [hardware test guide](docs/HARDWARE_TEST.md). The optional FLX6 browser mapping has been checked in software but has not yet been tested on physical DDJ-FLX6 hardware.
 
 To validate the source checkout or build the native macOS app:

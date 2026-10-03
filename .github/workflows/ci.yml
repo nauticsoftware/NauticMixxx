@@ -38,3 +38,4 @@ jobs:
           python3 scripts/test-pioneer-roland-presets.py
           python3 scripts/test-windows-installer-contract.py
           python3 scripts/test-windows-skin-package.py
+          python3 scripts/test-linux-package.py

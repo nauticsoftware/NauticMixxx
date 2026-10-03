@@ -1,0 +1,68 @@
+name: NauticMixxx Linux
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nauticmixxx-linux-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Free standard runners for public repositories; no paid runner fallback.
+    if: github.event.repository.private == false
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: aarch64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    env:
+      RX3_BUILD_ROOT: ${{ github.workspace }}/build/test-candidate/1.5.0-linux-${{ matrix.arch }}
+      RX3_BUILD_JOBS: '4'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install free native build dependencies
+        run: |
+          ./scripts/install-linux-build-deps.sh
+          sudo apt-get install -y --no-install-recommends xvfb xauth mesa-utils desktop-file-utils
+      - name: Audit public inputs and Linux profile contract
+        run: |
+          python3 scripts/release-audit.py
+          python3 scripts/test-linux-package.py
+          python3 scripts/test-pioneer-roland-presets.py
+          node scripts/test-pioneer-roland-browser.js
+          node scripts/test-rx3-jog-bend.js
+          node scripts/test-rx3-browser-exit.js
+      - name: Build and run native RX3 tests
+        run: ./scripts/build-mixxx-rx3-linux.sh
+      - name: Check staged app and start GUI with Mesa
+        run: |
+          python3 scripts/test-linux-package.py --stage "$RX3_BUILD_ROOT/stage"
+          xvfb-run -a python3 scripts/smoke-linux-gui.py "$RX3_BUILD_ROOT/stage" "$RX3_BUILD_ROOT"
+      - name: Package distribution-specific test candidate
+        run: |
+          version=$(cat VERSION)
+          tar -czf "$RX3_BUILD_ROOT/NauticMixxx-$version-Ubuntu-24.04-${{ matrix.arch }}.tar.gz" -C "$RX3_BUILD_ROOT" stage
+          cd "$RX3_BUILD_ROOT"
+          sha256sum NauticMixxx-*.tar.gz > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nauticmixxx-ubuntu-24.04-${{ matrix.arch }}-${{ github.run_id }}
+          path: |
+            ${{ env.RX3_BUILD_ROOT }}/NauticMixxx-*.tar.gz
+            ${{ env.RX3_BUILD_ROOT }}/SHA256SUMS.txt
+            ${{ env.RX3_BUILD_ROOT }}/rx3-tests.xml
+            ${{ env.RX3_BUILD_ROOT }}/stage/rx3-build.json
+            ${{ env.RX3_BUILD_ROOT }}/gui-smoke.log
+          if-no-files-found: warn
+          retention-days: 7
+          compression-level: 0
