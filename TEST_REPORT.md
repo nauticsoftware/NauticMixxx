@@ -2,6 +2,28 @@
 
 ## v1.5.0 — public preview validation
 
+### Linux extension — 3 October 2026
+
+- Ubuntu 24.04 x86_64 and ARM64 compiled natively with all 17 patches,
+  portable CPU optimization and precompiled headers disabled. Each target
+  passed 30 native RX3/timing tests; four optional USB/calibration fixtures
+  were skipped. [Ubuntu evidence](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37158960601).
+- Debian 12 ARM64 compiled in a native Bookworm container with GCC 12.2.
+  The same 30 native tests passed and four optional fixtures were skipped.
+  [Debian evidence](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37159816188).
+- All three targets passed controller browser/jog/exit tests, isolated
+  English-profile and user-data preservation checks, ELF architecture and
+  project icon checksum checks, desktop entry validation, and RX3 GUI startup
+  under virtual X11/Mesa. No physical Pi GPU or audio/controller was tested.
+- Fixed the missing `track/track.h` dependency exposed by building without
+  precompiled headers. The Debian controller test also works on Node 18.
+- The manual workflows use free standard public runners. Artifact uploads and
+  caches are disabled by default; optional test packages consume the account's
+  storage allowance and expire after one day.
+- [Linux / Raspberry Pi build and hardware test guide](docs/LINUX-RASPBERRY-PI.md).
+
+### Original macOS/Windows preview
+
 - Jog curve tests: slow/fast bounds, both directions and unchanged scratch,
   pause, SHIFT, loop and beatgrid paths pass.
 - ASSISTANT gesture tests: native and stock browser, 599/600 ms threshold,

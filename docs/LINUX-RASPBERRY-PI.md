@@ -5,8 +5,8 @@
 Yes: NauticMixxx is based on Mixxx 2.5.6, which supports Linux. The repository now
 includes a native 64-bit Linux build recipe, using free software and distribution
 packages. No paid compiler, Windows/macOS license, subscription, or cross compiler
-is required. You still need an existing computer/Pi, storage, power and Internet
-access; this does not make those physical costs disappear.
+is required. This free software/build route assumes you already have the
+computer/Pi, storage, power and Internet access.
 
 **Raspberry Pi 4 is an experimental target.** A successful ARM64 server build
 does not prove that a Pi 4 can render the RX3 display and play two decks without
@@ -24,12 +24,31 @@ Without the user's original build log, the cause of their failure is unknown.
 
 | System | Status |
 | --- | --- |
-| Ubuntu 24.04 x86_64 | Native build and test workflow provided; see linked Actions results |
-| Ubuntu 24.04 ARM64 | Native build and test workflow provided; not Pi hardware |
-| Debian 12 ARM64 | Separate native Bookworm container workflow; closer to Raspberry Pi OS Bookworm's userland, not Pi hardware |
+| Ubuntu 24.04 x86_64 | Native build, RX3 tests, package/profile checks and virtual GUI startup passed |
+| Ubuntu 24.04 ARM64 | Same checks passed on a native ARM runner; not Pi hardware |
+| Debian 12 ARM64 | Native build, RX3 tests, package/profile checks and virtual GUI startup passed in a Bookworm container; not Pi hardware |
 | Raspberry Pi OS 64-bit desktop, Debian 12 Bookworm / 13 Trixie | Native build recipe; physical Pi testing pending |
 | 32-bit Raspberry Pi OS (`armv7l`/`armhf`) | Not supported by this initial recipe |
 | Headless / Raspberry Pi OS Lite | Needs a graphical desktop and working OpenGL; not the initial target |
+
+On 3 October 2026, both Ubuntu architectures passed the
+[native Linux workflow](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37158960601)
+at commit `845b4d3`. Each run executed 34 native tests: 30 passed and four optional
+tests were skipped because external real-USB/calibration fixtures were absent.
+Controller browser/jog/exit tests, the isolated profile contract, 64-bit ELF
+architecture, desktop entry, project icon checksum and RX3 GUI startup under
+Xvfb/Mesa also passed. This confirms compilation and virtual startup, not
+physical audio, controller response or sustained Pi performance.
+
+The initial build exposed a missing `track/track.h` include in the USB-only
+patch when precompiled headers were disabled. That dependency is now explicit;
+the verified recipe keeps precompiled headers disabled for its lower-memory path.
+
+The [Debian 12 ARM64 run](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37159816188)
+also passed at commit `95d0a6e`, using GCC/Qt from Debian Bookworm and the same
+native tests, package/profile checks and virtual desktop startup. The build
+uses portable ARM optimization. No Pi GPU or audio device was connected to
+that runner. The controller test scripts also support Debian's Node 18.
 
 Prefer a 64-bit desktop OS on Pi 4. Check the installed userland, not only the
 kernel: `getconf LONG_BIT` must return `64`, and `dpkg --print-architecture` must
