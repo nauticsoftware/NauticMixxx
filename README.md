@@ -2,6 +2,7 @@
 
 ![NauticMixxx2](branding/NauticMixxx2.png)
 ![NauticMixxx](branding/NauticMixxx_Home.png)
+![NauticMixxx](branding/NauticMixxx_Performance.png)
 
 NauticMixxx is an open-source community edition of Mixxx 2.5.6. It brings an XDJ-RX3-inspired two-deck display to Mixxx, with a dedicated Hercules DJControl Inpulse 500 mapping.
 
