@@ -87,8 +87,9 @@ def main() -> int:
         errors,
     )
     require(
-        'QString("♪\\nTRACK")' in browser and 'QString("♫\\nPLAYLIST")' in browser,
-        "faltan las únicas dos categorías permitidas para el USB",
+        'const auto menu=currentCatalog->browseMenu();' in browser
+        and 'for(const auto& category : menu.categories)' in browser,
+        "las categorías no se leen del menú del USB Rekordbox",
         errors,
     )
 

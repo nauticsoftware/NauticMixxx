@@ -5,7 +5,7 @@
 - Proyecto: [Mixxx](https://github.com/mixxxdj/mixxx)
 - Versión base: 2.5.6
 - Licencia: GNU GPL v2.0 o posterior
-- Modificación: ocho parches reproducibles en `patches/`
+- Modificación: quince parches reproducibles en `patches/`
 
 Los binarios incluyen el texto de licencia y los avisos de las bibliotecas que
 Mixxx distribuye. El archivo de fuentes correspondiente permite reconstruir la
@@ -30,3 +30,9 @@ incluyen sus marcas ni sus recursos gráficos.
 
 El mapping incluido se basa en el mapping de Mixxx para Hercules DJControl
 Inpulse 500 y conserva la licencia y cabeceras originales de sus archivos.
+
+## Pioneer DDJ-FLX4
+
+El preset completo para DDJ-FLX4 conserva el mapping y script original de
+Mixxx 2.5.6, con sus autores y licencia GPL. La navegación RX3 adapta el aporte
+de [muehlauer al issue #3](https://github.com/nauticsoftware/NauticMixxx/issues/3).
