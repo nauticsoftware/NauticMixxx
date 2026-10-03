@@ -292,6 +292,8 @@ def create_github_source_zip(output: Path) -> None:
         "LICENSE.md",
         "branding/NauticMixxx.png",
         "branding/NauticMixxx2.png",
+        "branding/NauticMixxx_Home.png",
+        "branding/NauticMixxx_Performance.png",
         "README.md",
         "RELEASE_NOTES.md",
         "RELEASE_NOTES_EN.md",
