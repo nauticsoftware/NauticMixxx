@@ -29,6 +29,8 @@ PUBLIC_INPUTS = [
     ROOT / "controllers/Hercules_DJControl_Inpulse_500_RX3",
     ROOT / "controllers/Pioneer_DDJ_FLX4_RX3",
     ROOT / "controllers/Pioneer_DDJ_FLX6_RX3",
+    ROOT / "controllers/Pioneer_Roland_RX3",
+    ROOT / "vendor/controller-mappings",
     ROOT / "effects",
     ROOT / "branding/iCon-macOS-Dark-1024x1024@1x.png",
     ROOT / "packaging/macos",
@@ -86,8 +88,8 @@ def validate_metadata() -> list[str]:
         errors.append("el título de la skin no es NauticMixxx")
     if skin.findtext("manifest/version") != VERSION:
         errors.append("la versión de la skin no coincide con VERSION")
-    if len(list((ROOT / "patches").glob("00[0-9][0-9]-*.patch"))) != 15:
-        errors.append("deben existir exactamente quince parches numerados")
+    if len(list((ROOT / "patches").glob("00[0-9][0-9]-*.patch"))) != 17:
+        errors.append("deben existir exactamente diecisiete parches numerados")
     required = [
         ROOT / "branding/iCon.icon/icon.json",
         ROOT / "branding/NauticMixxx.png",

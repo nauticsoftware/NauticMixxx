@@ -87,6 +87,12 @@ DJCi500.rx3BrowserHoldTimer = null;
 DJCi500.rx3BrowserHoldConsumed = false;
 DJCi500.rx3BrowserPressedAt = 0;
 DJCi500.rx3BrowserIgnoreUntil = 0;
+DJCi500.rx3AssistantPressed = false;
+DJCi500.rx3AssistantPressedAt = 0;
+DJCi500.rx3AssistantHoldTimer = null;
+DJCi500.rx3AssistantHoldConsumed = false;
+DJCi500.rx3AssistantCanExit = false;
+DJCi500.rx3AssistantExitHoldMs = 600;
 DJCi500.rx3GridTicksPerStep = 4;
 DJCi500.rx3GridRemainders = {};
 
@@ -335,6 +341,25 @@ DJCi500.rx3BeatJumpPadValues = {
 // enough to reach a specific phrase in the track.
 DJCi500.rx3FastSeekSecondsPerRevolution = 12;
 
+// The Inpulse 500 reports jog-edge velocity in CC 0x09 (1..63), not a
+// displacement in track frames. Mixxx's jog control applies another 0.1 gain
+// and a 25-buffer moving average. Strengthen the first slow step and
+// compress fast turns. The final feel requires a physical controller test.
+// These are mapper values, not Pioneer hardware calibration values.
+// As in the DDJ-SX mapper, a separate sensitivity multiplier lets the user
+// tune the bend without changing scratch or SHIFT search.
+DJCi500.rx3JogBendSensitivity = 1.0;
+DJCi500.rx3JogBendSlow = 1.9;
+DJCi500.rx3JogBendFast = 2.4;
+DJCi500.rx3ShapeJogBend = function(tickVelocity) {
+    if (!Number.isFinite(tickVelocity) || tickVelocity === 0) return 0;
+    const magnitude = Math.min(63, Math.abs(tickVelocity));
+    const normalized = Math.log(magnitude) / Math.log(63);
+    const bend = DJCi500.rx3JogBendSlow +
+        (DJCi500.rx3JogBendFast - DJCi500.rx3JogBendSlow) * normalized;
+    return Math.sign(tickVelocity) * bend * DJCi500.rx3JogBendSensitivity;
+};
+
 // Pioneer-style loop IN/OUT adjustment follows the platter at its nominal
 // 33 1/3 RPM: one revolution edits roughly 1.8 seconds of audio. Loop points
 // are written directly in stereo sample positions, deliberately bypassing
@@ -488,17 +513,60 @@ DJCi500.rx3PulseBrowserControl = function(control, value) {
     engine.setValue("[RX3Browser]", control, 0);
 };
 
-// ASSISTANT is the controller-independent SOURCE command. SHIFT + ASSISTANT
-// retains the existing STATUS / BEAT FX shortcut.
-DJCi500.rx3AssistantButton = function(_channel, _control, value) {
-    if (value !== 0x7F) {
+DJCi500.rx3CancelAssistantTimer = function() {
+    if (DJCi500.rx3AssistantHoldTimer !== null) {
+        engine.stopTimer(DJCi500.rx3AssistantHoldTimer);
+        DJCi500.rx3AssistantHoldTimer = null;
+    }
+};
+
+DJCi500.rx3AssistantLongPress = function() {
+    DJCi500.rx3AssistantHoldTimer = null;
+    if (!DJCi500.rx3AssistantPressed || !DJCi500.rx3AssistantCanExit ||
+            DJCi500.rx3AssistantHoldConsumed) return;
+    DJCi500.rx3AssistantHoldConsumed = true;
+    DJCi500.rx3ShowPerformance();
+};
+
+// Short ASSISTANT opens SOURCE on release. Holding it for 600 ms in BROWSE
+// returns to PERFORMANCE; release must not reopen SOURCE after that gesture.
+// SHIFT + ASSISTANT operates STATUS / BEAT FX once per press.
+DJCi500.rx3AssistantButton = function(_channel, _control, value, status) {
+    const pressed = value > 0 && (status & 0xF0) !== 0x80;
+    if (pressed) {
+        if (DJCi500.rx3AssistantPressed) return;
+        DJCi500.rx3AssistantPressed = true;
+        DJCi500.rx3AssistantPressedAt = Date.now();
+        DJCi500.rx3AssistantHoldConsumed = false;
+        DJCi500.rx3AssistantCanExit = false;
+        const shifted = (DJCi500.deckA && DJCi500.deckA.isShiftPressed) ||
+            (DJCi500.deckB && DJCi500.deckB.isShiftPressed);
+        if (shifted) {
+            DJCi500.rx3AssistantHoldConsumed = true;
+            DJCi500.rx3ToggleSidePanel();
+        } else {
+            DJCi500.rx3AssistantCanExit =
+                Math.round(engine.getValue("[Tab]", "current")) === 1 ||
+                (!engine.getValue("[RX3Browser]", "enabled") &&
+                    engine.getValue("[Skin]", "show_maximized_library") > 0);
+            if (DJCi500.rx3AssistantCanExit) {
+                DJCi500.rx3AssistantHoldTimer = engine.beginTimer(
+                    DJCi500.rx3AssistantExitHoldMs, DJCi500.rx3AssistantLongPress, true);
+            }
+        }
         return;
     }
-    const shifted = (DJCi500.deckA && DJCi500.deckA.isShiftPressed) ||
-        (DJCi500.deckB && DJCi500.deckB.isShiftPressed);
-    if (shifted) {
-        DJCi500.rx3ToggleSidePanel();
-    } else if (engine.getValue("[RX3Browser]", "enabled")) {
+    if (!DJCi500.rx3AssistantPressed) return;
+    DJCi500.rx3CancelAssistantTimer();
+    if (Date.now() - DJCi500.rx3AssistantPressedAt >= DJCi500.rx3AssistantExitHoldMs) {
+        DJCi500.rx3AssistantLongPress();
+    }
+    const consumed = DJCi500.rx3AssistantHoldConsumed;
+    DJCi500.rx3AssistantPressed = false;
+    DJCi500.rx3AssistantCanExit = false;
+    DJCi500.rx3AssistantHoldConsumed = false;
+    if (consumed) return;
+    if (engine.getValue("[RX3Browser]", "enabled")) {
         DJCi500.rx3PulseBrowserControl("source", 1);
     } else {
         DJCi500.rx3OpenBrowse();
@@ -971,7 +1039,11 @@ DJCi500.Deck = function(deckNumbers, midiChannel) {
                 engine.scratchTick(deck, value);
             } else {
                 if (engine.isScratching(deck)) engine.scratchDisable(deck, false);
-                engine.setValue(`[Channel${deck}]`, "jog", value);
+                // Use the calibrated edge response during playback. Preserve
+                // the existing paused jog search and the touch/scratch path.
+                const bend = engine.getValue(`[Channel${deck}]`, "play") ?
+                    DJCi500.rx3ShapeJogBend(value) : value;
+                engine.setValue(`[Channel${deck}]`, "jog", bend);
             }
         },
         inputTouch: function(_channel, _control, value, _status, _group) {
@@ -2133,6 +2205,9 @@ DJCi500.slicerBeatActive = function(value, group, _control) {
 };
 
 DJCi500.shutdown = function() {
+    DJCi500.rx3CancelAssistantTimer();
+    DJCi500.rx3AssistantPressed = false;
+    DJCi500.rx3AssistantCanExit = false;
     DJCi500.rx3CancelBrowserTimer();
     DJCi500.rx3BrowserPressed = false;
     DJCi500.rx3SetGridMode(false);

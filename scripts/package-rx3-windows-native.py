@@ -17,8 +17,8 @@ NAME = f'NauticMixxx-{VERSION}-Windows-x64-Setup.exe'
 
 def patch_state():
     patches = sorted((ROOT / 'patches').glob('00[0-9][0-9]-*.patch'))
-    if len(patches) != 15:
-        raise ValueError('Expected fifteen NauticMixxx patches')
+    if len(patches) != 17:
+        raise ValueError('Expected seventeen NauticMixxx patches')
     return ','.join(digest(p).upper() for p in patches)
 
 
@@ -100,6 +100,7 @@ def package(runtime, source, output, settings_file=None, makensis='makensis'):
         shutil.copy2(runtime / 'NauticMixxx.ico', icon)
         for directory in ['skins/XDJ_RX3_Mixxx', 'controllers/Hercules_DJControl_Inpulse_500_RX3',
                           'controllers/Pioneer_DDJ_FLX4_RX3', 'controllers/Pioneer_DDJ_FLX6_RX3',
+                          'controllers/Pioneer_Roland_RX3',
                           'effects/chains']:
             shutil.copytree(ROOT / directory, files_root / directory, ignore=shutil.ignore_patterns('.DS_Store', '__pycache__'))
         portable_profile(settings_file, files_root / 'profile/XDJ_RX3_Mixxx.profile.cfg')

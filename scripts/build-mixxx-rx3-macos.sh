@@ -26,7 +26,7 @@ if [ ! -d "$source_tree" ]; then
   tar -xzf "$work/mixxx-2.5.6.tar.gz" -C "$work"
 fi
 if [ -f "$patch_marker" ] && [ "$(cat "$patch_marker")" != "$patch_digest" ]; then
-  printf 'La carpeta fuente no coincide con los quince parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
+  printf 'La carpeta fuente no coincide con los diecisiete parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
   exit 1
 fi
 if [ ! -f "$patch_signature" ]; then
@@ -39,7 +39,7 @@ if [ ! -f "$patch_signature" ]; then
   printf '%s\n' "$patch_digest" > "$patch_marker"
 fi
 if [ ! -f "$patch_marker" ] || [ ! -f "$patch_signature" ] || [ "$(cat "$patch_marker")" != "$patch_digest" ]; then
-  printf 'La carpeta fuente no coincide con los quince parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
+  printf 'La carpeta fuente no coincide con los diecisiete parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
   exit 1
 fi
 deps="$work/buildenv/$deps_name"
@@ -62,6 +62,7 @@ ditto "$project/skins/XDJ_RX3_Mixxx" "$app/Contents/Resources/skins/XDJ_RX3_Mixx
 ditto "$project/controllers/Hercules_DJControl_Inpulse_500_RX3" "$app/Contents/Resources/controllers"
 ditto "$project/controllers/Pioneer_DDJ_FLX4_RX3" "$app/Contents/Resources/controllers"
 ditto "$project/controllers/Pioneer_DDJ_FLX6_RX3" "$app/Contents/Resources/controllers"
+ditto "$project/controllers/Pioneer_Roland_RX3" "$app/Contents/Resources/controllers"
 mkdir -p "$app/Contents/Resources/effects/chains" "$app/Contents/Resources/licenses"
 ditto "$project/effects/chains" "$app/Contents/Resources/effects/chains"
 cp "$project/skins/XDJ_RX3_Mixxx/LICENSE" "$app/Contents/Resources/licenses/NauticMixxx-GPL-3.0.txt"

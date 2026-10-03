@@ -32,7 +32,7 @@
             <control>
                 <group>[Library]</group>
                 <key>DJCi500.rx3AssistantButton</key>
-                <description>ASSISTANT: open SOURCE; SHIFT + ASSISTANT: STATUS / BEAT FX</description>
+                <description>ASSISTANT: short press SOURCE; hold 600 ms in BROWSE to PERFORMANCE; SHIFT: STATUS / BEAT FX</description>
                 <status>0x90</status>
                 <midino>0x03</midino>
                 <options>

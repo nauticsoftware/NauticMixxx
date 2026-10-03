@@ -58,10 +58,15 @@ PUBLIC_SCRIPT_PATHS = [
     "scripts/test-rx3-loop-adjust.js",
     "scripts/test-rx3-sound-color-fx.js",
     "scripts/test-rx3-transport-controls.js",
+    "scripts/test-rx3-jog-bend.js",
+    "scripts/test-rx3-browser-exit.js",
     "scripts/test-rx3-usb-only.py",
     "scripts/test-flx6-browser.js",
     "scripts/test-flx4-browser.js",
     "scripts/test-flx4-preset.py",
+    "scripts/generate-rx3-browser-presets.py",
+    "scripts/test-pioneer-roland-browser.js",
+    "scripts/test-pioneer-roland-presets.py",
     "scripts/validate-release.sh",
     "scripts/rekordbox-calibration.py",
     "scripts/requirements-calibration.txt",
@@ -123,8 +128,8 @@ def validate_inputs(app: Path) -> None:
     if skin_version != VERSION:
         raise ValueError(f"La skin declara {skin_version}; se esperaba {VERSION}")
     patches = sorted((ROOT / "patches").glob("00[0-9][0-9]-*.patch"))
-    if len(patches) != 15:
-        raise ValueError("La release requiere exactamente los quince parches 0001–0015")
+    if len(patches) != 17:
+        raise ValueError("La release requiere exactamente los diecisiete parches 0001–0017")
     if not (SOURCE_ROOT / "src/widget/rx3displaystate.h").is_file():
         raise ValueError("Faltan los fuentes correspondientes parcheados de Mixxx")
     if not app.is_dir() or not (app / "Contents/Info.plist").is_file():
@@ -174,6 +179,7 @@ def prepare_app(source_app: Path, target_app: Path) -> None:
     copy_tree(ROOT / "controllers/Hercules_DJControl_Inpulse_500_RX3", resources / "controllers")
     copy_tree(ROOT / "controllers/Pioneer_DDJ_FLX6_RX3", resources / "controllers")
     copy_tree(ROOT / "controllers/Pioneer_DDJ_FLX4_RX3", resources / "controllers")
+    copy_tree(ROOT / "controllers/Pioneer_Roland_RX3", resources / "controllers")
     copy_tree(ROOT / "effects/chains", resources / "effects/chains")
     profiles = resources / "profiles"
     profiles.mkdir(parents=True, exist_ok=True)
@@ -226,7 +232,7 @@ def create_source_archive(output: Path) -> None:
     prefix = f"{PRODUCT}-{VERSION}-source"
     with tarfile.open(output, "w:gz", format=tarfile.PAX_FORMAT) as archive:
         add_tree(archive, SOURCE_ROOT, f"{prefix}/mixxx-2.5.6")
-        for directory in ["patches", "skins", "controllers", "effects", "profile"]:
+        for directory in ["patches", "skins", "controllers", "vendor", "effects", "profile"]:
             add_tree(archive, ROOT / directory, f"{prefix}/{directory}")
         add_tree(archive, ROOT / "packaging/macos", f"{prefix}/packaging/macos")
         add_tree(archive, ROOT / "packaging/windows", f"{prefix}/packaging/windows")
@@ -271,6 +277,7 @@ def create_github_source_zip(output: Path) -> None:
         "packaging/macos",
         "packaging/windows",
         "controllers",
+        "vendor",
         "effects",
         "patches",
         "profile",
@@ -422,6 +429,10 @@ def main() -> None:
         shutil.copy2(ROOT / "docs/INSTALLATION-EN.md", bundle_root / "README.md")
         shutil.copy2(ROOT / "docs/DDJ-FLX6-EN.md", bundle_root / "DDJ-FLX6-EN.md")
         shutil.copy2(ROOT / "docs/DDJ-FLX4-EN.md", bundle_root / "DDJ-FLX4-EN.md")
+        shutil.copy2(ROOT / "docs/CONTROLLERS-RX3-1.5.md", bundle_root / "CONTROLLERS-RX3-1.5.md")
+        shutil.copy2(ROOT / "docs/JOG-CALIBRATION-1.5.md", bundle_root / "JOG-CALIBRATION-1.5.md")
+        for guide in ("CONTROLLERS-RX3-1.5-EN.md", "JOG-CALIBRATION-1.5-EN.md"):
+            shutil.copy2(ROOT / "docs" / guide, bundle_root / guide)
         shutil.copy2(ROOT / "LICENSE.md", bundle_root)
         shutil.copy2(ROOT / "THIRD_PARTY_NOTICES.md", bundle_root)
         mac_archive = output / f"{PRODUCT}-{VERSION}-macOS-arm64.zip"

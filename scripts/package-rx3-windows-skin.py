@@ -42,7 +42,7 @@ def package(output):
     )
     files_root = destination / 'NauticMixxx-Files'
     files_root.mkdir()
-    for directory in ('skins/XDJ_RX3_Mixxx', 'controllers/Hercules_DJControl_Inpulse_500_RX3', 'controllers/Pioneer_DDJ_FLX6_RX3', 'effects/chains'):
+    for directory in ('skins/XDJ_RX3_Mixxx', 'controllers/Hercules_DJControl_Inpulse_500_RX3', 'controllers/Pioneer_DDJ_FLX4_RX3', 'controllers/Pioneer_DDJ_FLX6_RX3', 'controllers/Pioneer_Roland_RX3', 'effects/chains'):
         shutil.copytree(ROOT / directory, files_root / directory,
                         ignore=shutil.ignore_patterns('.DS_Store', '__pycache__'))
     files = {
@@ -53,6 +53,7 @@ def package(output):
         'packaging/windows/cleanup-public-shortcut.ps1': 'windows/cleanup-public-shortcut.ps1',
         'packaging/windows/README-SKIN.txt': 'README.txt',
         'docs/DDJ-FLX6-EN.md': 'DDJ-FLX6-EN.md',
+        'docs/CONTROLLERS-RX3-1.5.md': 'CONTROLLERS-RX3-1.5.md',
         'profile/XDJ_RX3_Mixxx.profile.cfg': 'profile/XDJ_RX3_Mixxx.profile.cfg',
     }
     for source, target in files.items():

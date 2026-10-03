@@ -24,6 +24,19 @@ OPTIONAL_CONTROLLER_FILES = (
     "Pioneer-DDJ-FLX4-script.js",
     "Pioneer-DDJ-FLX6-RX3-Browser.midi.xml",
     "Pioneer-DDJ-FLX6-RX3-Browser.js",
+    "Nautic-RX3-Browser.js",
+    "DDJ-400-Nautic-RX3.midi.xml",
+    "DDJ-SX-Nautic-RX3.midi.xml",
+    "DDJ-SX2-Nautic-RX3.midi.xml",
+    "DDJ-SX3-Nautic-RX3.midi.xml",
+    "DDJ-WeGO3-Nautic-RX3.midi.xml",
+    "DJ-505-Nautic-RX3.midi.xml",
+    "Pioneer-DDJ-400-script.js",
+    "Pioneer-DDJ-SX-scripts.js",
+    "PIONEER_DDJ-SX2-scripts.js",
+    "Pioneer-DDJ-WeGO3-scripts.js",
+    "Roland_DJ-505-scripts.js",
+    "lodash.mixxx.js",
 )
 EFFECT_CHAIN_FILES = (
     "RX3 REVERB.xml",
@@ -200,7 +213,7 @@ def configure(app: Path, profile_dir: Path, dry_run: bool = False) -> list[str]:
     changes = [
         "RX3 profile updated",
         "Inpulse 500 mapping installed and selected",
-        "optional DDJ-FLX4 and DDJ-FLX6 browser mappings installed but not selected",
+        "optional Pioneer and Roland RX3 browser mappings installed but not selected",
         "Sound Color FX chains installed",
         "FX1–FX4 ordered as Reverb, Ping Pong, Noise and Filter",
         "playhead positioned 25% from the left",

@@ -1,4 +1,4 @@
-# NauticMixxx 1.4.0
+# NauticMixxx 1.5.0 — public preview
 
 ![NauticMixxx](branding/NauticMixxx.png)
 ![NauticMixxx2](branding/NauticMixxx2.png)
@@ -11,18 +11,21 @@ Version 1.3 detects authorized Rekordbox USB drives at startup and when connecte
 
 Version 1.4 corrects tagged Rekordbox MP3 timing when macOS CoreAudio confirms gapless trimming, keeping beatgrids, cues, loops and waveforms on the decoded audio timeline. It also centres the startup logo. METRONOME measurements reached less than 0.6 ms maximum MP3 grid-to-kick error at 44.1 and 48 kHz; physical audio comparison and Windows MP3 timing remain unmeasured. See the [timing report](docs/BEATGRID-TIMING-1.4.md).
 
+Version 1.5 adds mouse-free navigation presets for seven Pioneer/Roland models, a gentler Inpulse 500 jog rim curve, and a 600 ms ASSISTANT hold to leave BROWSE without loading. New app configurations default to English. This public preview needs physical controller validation; read the [controller behavior guide](docs/CONTROLLERS-RX3-1.5-EN.md) and [jog calibration guide](docs/JOG-CALIBRATION-1.5-EN.md).
+
 ## Features
 
 - Scalable PERFORMANCE, BROWSE and STATUS views with stacked waveforms, beatgrid, overviews and eight Hot Cues per deck.
 - Rekordbox USB browsing and loading in the native NauticMixxx app. Its local music-folder browser and scanner are disabled.
 - Hercules DJControl Inpulse 500 mapping with RX3-style browser and loop controls.
 - Optional DDJ-FLX4 mapping with RX3 browser controls. Its bindings passed software validation; physical hardware validation is pending. See the [DDJ-FLX4 guide](docs/DDJ-FLX4-EN.md).
+- v1.5 presets add mouse-free RX3 browsing for DDJ-400, DDJ-SX, DDJ-SX2, DDJ-SX3, DDJ-WeGO3 and Roland DJ-505; see the [controller guide](docs/CONTROLLERS-RX3-1.5-EN.md). Hardware validation is pending.
 - Optional DDJ-FLX6 **browser-only** preset for VIEW, SOURCE, BROWSE, BACK and LOAD 1/2. It does not replace a full controller mapping; see the [DDJ-FLX6 guide](docs/DDJ-FLX6-EN.md).
 - Four Sound Color FX, NauticMixxx branding, reproducible patches, tests and release checksums.
 
 ## Download and install
 
-Download NauticMixxx 1.4.0 from the [public release](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.4.0):
+The latest published version is NauticMixxx 1.4.0. Download it from the [public release](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.4.0):
 
 - [macOS Apple Silicon DMG](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.4.0/NauticMixxx-1.4.0-macOS-arm64.dmg)
 - [Windows x64 installer](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.4.0/NauticMixxx-1.4.0-Windows-x64-Setup.exe)

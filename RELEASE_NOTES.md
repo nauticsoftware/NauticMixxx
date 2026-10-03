@@ -1,3 +1,19 @@
+# NauticMixxx 1.5.0 — vista previa pública
+
+- ASSISTANT mantenido 600 ms sale de BROWSE sin cargar pista; pulsación corta abre SOURCE al soltar.
+- La app y los perfiles nuevos usan inglés por defecto (`en_US`).
+
+- Ajuste inicial del bend del borde del jog Hercules Inpulse 500: responde a
+  giros suaves y limita los desplazamientos rápidos durante reproducción.
+- Presets RX3 completos con navegación sin mouse para DDJ-400, DDJ-SX,
+  DDJ-SX2, DDJ-SX3, DDJ-WeGO3 y Roland DJ-505, más selección automática por
+  modelo. El DDJ-FLX4 conserva su preset completo existente.
+- Las pruebas de software del browser y de los XML pasan. La calibración fina
+  del jog y los siete controladores nuevos requieren prueba física; esta
+  versión todavía no es una publicación.
+
+---
+
 # NauticMixxx 1.4.0 — 2026-10-03
 
 - Corrige en macOS la diferencia entre tiempos Rekordbox y MP3 decodificados

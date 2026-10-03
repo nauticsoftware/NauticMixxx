@@ -1,0 +1,60 @@
+diff --git a/src/controllers/controllermanager.cpp b/src/controllers/controllermanager.cpp
+--- a/src/controllers/controllermanager.cpp
++++ b/src/controllers/controllermanager.cpp
+@@ -53,6 +53,33 @@
+ 
+ constexpr auto kInpulse500Rx3Mapping =
+         "Hercules_DJControl_Inpulse_500_RX3.midi.xml";
++
++QString nauticRx3MappingForDevice(const QString& deviceName) {
++    // Match the model inside the USB MIDI port name. Pioneer and Roland prepend
++    // their vendor names on some platforms, so the XML id alone is insufficient.
++    if (deviceName.contains(QStringLiteral("DJControl Inpulse 500"), Qt::CaseInsensitive)) {
++        return QString::fromLatin1(kInpulse500Rx3Mapping);
++    }
++    struct ModelMapping {
++        const char* model;
++        const char* filename;
++    };
++    static constexpr ModelMapping mappings[] = {
++            {"DDJ-SX3", "DDJ-SX3-Nautic-RX3.midi.xml"},
++            {"DDJ-SX2", "DDJ-SX2-Nautic-RX3.midi.xml"},
++            {"DDJ-SX", "DDJ-SX-Nautic-RX3.midi.xml"},
++            {"DDJ-400", "DDJ-400-Nautic-RX3.midi.xml"},
++            {"DDJ-WeGO3", "DDJ-WeGO3-Nautic-RX3.midi.xml"},
++            {"DDJ-FLX4", "Pioneer-DDJ-FLX4-RX3.midi.xml"},
++            {"DJ-505", "DJ-505-Nautic-RX3.midi.xml"},
++    };
++    for (const auto& mapping : mappings) {
++        if (deviceName.contains(QString::fromLatin1(mapping.model), Qt::CaseInsensitive)) {
++            return QString::fromLatin1(mapping.filename);
++        }
++    }
++    return {};
++}
+ 
+ bool mappingHasExactMidiId(const QString& path, const QString& deviceName) {
+     QFile file(path);
+@@ -291,15 +318,16 @@
+         QString deviceName = sanitizeDeviceName(name);
+ 
+         QString automaticMapping;
+-        const bool isInpulse500 = name.contains(
+-                QStringLiteral("DJControl Inpulse 500"), Qt::CaseInsensitive);
+-        if (isInpulse500) {
+-            QFileInfo customMapping = findMappingFile(
+-                    QString::fromLatin1(kInpulse500Rx3Mapping), mappingPaths);
++        const QString rx3Mapping = nauticRx3MappingForDevice(name);
++        const bool isInpulse500 =
++                rx3Mapping == QString::fromLatin1(kInpulse500Rx3Mapping);
++        if (!rx3Mapping.isEmpty()) {
++            QFileInfo customMapping = findMappingFile(rx3Mapping, mappingPaths);
+             if (customMapping.exists()) {
+                 automaticMapping = customMapping.absoluteFilePath();
+             }
+-        } else {
++        }
++        if (automaticMapping.isEmpty() && !isInpulse500) {
+             for (const QString& path : mappingPaths) {
+                 const QDir mappingDir(path);
+                 for (const QString& fileName : mappingDir.entryList(

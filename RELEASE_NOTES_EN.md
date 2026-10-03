@@ -1,3 +1,17 @@
+# NauticMixxx 1.5.0 — public preview
+
+- **English by default:** new app configurations and installation profiles use `en_US`, independently of the OS language. Explicit language choices still apply.
+- **Leave BROWSE without loading:** on Inpulse 500, hold ASSISTANT for 600 ms to return to PERFORMANCE. A tap opens SOURCE on release. SHIFT + ASSISTANT keeps its side-panel action; holding BROWSE still enters GRID.
+- **Inpulse jog rim:** slow-turn messages have a stronger initial response and fast-turn messages are compressed. Defaults are slow 1.9, fast 2.4 and sensitivity 1.0. Scratch, pause, SHIFT, loops and grid use their existing paths.
+- **Seven complete controller presets:** DDJ-400, DDJ-SX, DDJ-SX2, DDJ-SX3, DDJ-WeGO3, DDJ-FLX4 and Roland DJ-505 offer mouse-free RX3 source/category/track navigation and a VIEW gesture to leave BROWSE. The native app selects presets by MIDI model name.
+- **SX3 is experimental:** the community fragment is reconstructed over its SX2 base; LEDs, pads and channels need hardware confirmation.
+
+Read the [controller behavior guide](docs/CONTROLLERS-RX3-1.5-EN.md) for every button and reassigned function, and the [jog calibration guide](docs/JOG-CALIBRATION-1.5-EN.md) for the curve, Pioneer comparison and physical test procedure. Pioneer/Roland jog sensitivity remains supplied by each original mapping.
+
+Automated script/XML checks cover navigation, preserved mappings, gesture timing and the jog curve. Physical tests on these seven controllers and numerical jog equivalence to XDJ/CDJ are pending. See TEST_REPORT.md for build evidence.
+
+---
+
 # NauticMixxx 1.4.0 — 2026-10-03
 
 ## Rekordbox MP3 timing on macOS

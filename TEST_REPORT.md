@@ -1,5 +1,21 @@
 # Informe de validación — NauticMixxx
 
+## v1.5.0 — public preview validation
+
+- Jog curve tests: slow/fast bounds, both directions and unchanged scratch,
+  pause, SHIFT, loop and beatgrid paths pass.
+- ASSISTANT gesture tests: native and stock browser, 599/600 ms threshold,
+  duplicate presses, Note Off velocity, delayed timers, SHIFT and shutdown
+  cleanup pass; exiting does not load a track or alter transport.
+- Seven Pioneer/Roland preset checks preserve source controls, LOAD, outputs
+  and dependencies. Browser adapter tests cover native and stock Mixxx.
+- MIDI button names checked against official DDJ-400, WeGO3, SX2/SX3 lists
+  and Roland DJ-505 documentation. SX3 remains experimental.
+- Fresh native macOS and Windows compilation is in progress. Results from
+  older binaries are not evidence for the v1.5 native changes.
+- Physical Pioneer/Roland navigation and Inpulse-to-XDJ/CDJ equivalence have
+  not been measured.
+
 ## v1.4.0 — timing de Rekordbox y logo
 
 - Compilación nativa macOS ARM64 con los quince parches. El binario coincide

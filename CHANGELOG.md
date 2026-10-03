@@ -1,5 +1,21 @@
 # Historial de cambios
 
+## 1.5.0 — vista previa pública
+
+- ASSISTANT mantenido 600 ms sale de BROWSE sin cargar pista; pulsación corta abre SOURCE al soltar.
+- La app y los perfiles nuevos usan inglés por defecto (`en_US`).
+
+- Añade presets completos RX3 para Pioneer DDJ-400, DDJ-SX, DDJ-SX2,
+  DDJ-SX3, DDJ-WeGO3 y Roland DJ-505. Integra selección automática por
+  modelo y navegación de USB, categorías y pistas sin mouse. El DDJ-FLX4
+  conserva su preset completo. Guía y límites en
+  `docs/CONTROLLERS-RX3-1.5.md`.
+- Inicia la calibración del borde de los jog wheels del Hercules DJControl
+  Inpulse 500. En reproducción, la nueva curva refuerza los giros lentos y
+  limita los rápidos; scratch, búsqueda en pausa y SHIFT mantienen sus rutas.
+  Parámetros, fundamento y ensayo físico pendiente en
+  `docs/JOG-CALIBRATION-1.5.md`.
+
 ## 1.4.0 — 2026-10-03
 
 - Corrige la diferencia entre los tiempos de MP3 exportados por Rekordbox y

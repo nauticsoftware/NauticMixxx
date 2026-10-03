@@ -1,0 +1,20 @@
+diff --git a/src/util/translations.h b/src/util/translations.h
+--- a/src/util/translations.h
++++ b/src/util/translations.h
+@@ -20,14 +20,13 @@
+                 pConfig->getResourcePath() + QStringLiteral("translations/");
+ 
+         // Set the default locale, if specified via command line or config
+-        // file. If neither is the case, the default locale will be the
+-        // system's locale.
++        // file. NauticMixxx defaults to English when neither is specified.
+         QString customLocaleString;
+         if (!cmdlineLocaleString.isEmpty()) {
+             customLocaleString = cmdlineLocaleString;
+         } else {
+             customLocaleString = pConfig->getValue(
+-                    ConfigKey("[Config]", "Locale"), QString());
++                    ConfigKey("[Config]", "Locale"), QStringLiteral("en_US"));
+         }
+ 
+         if (!customLocaleString.isEmpty()) {

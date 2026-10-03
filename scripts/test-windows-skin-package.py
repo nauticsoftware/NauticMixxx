@@ -35,13 +35,16 @@ with tempfile.TemporaryDirectory(prefix='rx3-skin-package-') as directory:
         manifest = json.loads(package.read(prefix + 'NauticMixxx-Files/payload-sha256.json'))
         assert manifest['product'] == 'NauticMixxx'
         assert manifest['kind'] == 'skin-only'
-        assert manifest['version'] == module.VERSION == '1.2.0'
+        assert manifest['version'] == module.VERSION == (ROOT / 'VERSION').read_text().strip()
         assert manifest['entryPoint'] == 'INSTALL-WINDOWS.bat'
         assert manifest['uninstallEntryPoint'] == 'UNINSTALL-WINDOWS.bat'
         assert len(manifest['files']) > 20
         flx6_xml = prefix + 'NauticMixxx-Files/controllers/Pioneer_DDJ_FLX6_RX3/Pioneer-DDJ-FLX6-RX3-Browser.midi.xml'
         flx6_js = prefix + 'NauticMixxx-Files/controllers/Pioneer_DDJ_FLX6_RX3/Pioneer-DDJ-FLX6-RX3-Browser.js'
         assert flx6_xml in names and flx6_js in names
+        for model in ('DDJ-400', 'DDJ-SX', 'DDJ-SX2', 'DDJ-SX3', 'DDJ-WeGO3', 'DJ-505'):
+            assert prefix + f'NauticMixxx-Files/controllers/Pioneer_Roland_RX3/{model}-Nautic-RX3.midi.xml' in names
+        assert prefix + 'NauticMixxx-Files/controllers/Pioneer_Roland_RX3/Nautic-RX3-Browser.js' in names
         assert prefix + 'NauticMixxx-Files/DDJ-FLX6-EN.md' in names
         mapping = ET.fromstring(package.read(flx6_xml))
         bindings = {(control.findtext('status'), control.findtext('midino'))

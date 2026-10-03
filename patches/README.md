@@ -1,5 +1,18 @@
 # NauticMixxx native patches
 
+## 0017 — English by default
+
+New configurations use `en_US` independently of the operating-system language.
+Explicit user language preferences and command-line overrides still apply.
+Installation profiles also set `Locale en_US`.
+
+## 0016 — Selección automática de controladores RX3 para v1.5
+
+Prioriza los presets completos de DDJ-400, DDJ-SX, DDJ-SX2, DDJ-SX3,
+DDJ-WeGO3, DDJ-FLX4 y Roland DJ-505 cuando el nombre del puerto MIDI contiene
+el modelo. Conserva la búsqueda normal de mappings si falta el preset RX3.
+La detección y los mensajes de navegación requieren prueba con cada equipo.
+
 ## 0015 — Timing del decodificador Rekordbox para v1.4
 
 Aplica después de 0014. Proyecta grid, cues, loops y waveforms sobre la
@@ -79,7 +92,7 @@ Requirements: Xcode command-line tools, CMake, Ninja, Python 3, Git, curl and un
 sh scripts/build-mixxx-rx3-macos.sh
 ```
 
-The script downloads official Mixxx 2.5.6 source and the official 2.5 ARM64 dependency environment, verifies both SHA-256 digests, applies all fifteen patches, builds the app and runs the RX3 tests. It writes a signed bundle to `tmp/mixxx-native-rebuild/stage/NauticMixxx.app`; it does not install or modify controller settings. Use `RX3_BUILD_ROOT` to choose another build/cache directory and `RX3_BUILD_JOBS` to adjust parallelism. Allow roughly 8 GB of free disk space.
+The script downloads official Mixxx 2.5.6 source and the official 2.5 ARM64 dependency environment, verifies both SHA-256 digests, applies all seventeen patches, builds the app and runs the RX3 tests. It writes a signed bundle to `tmp/mixxx-native-rebuild/stage/NauticMixxx.app`; it does not install or modify controller settings. Use `RX3_BUILD_ROOT` to choose another build/cache directory and `RX3_BUILD_JOBS` to adjust parallelism. Allow roughly 8 GB of free disk space.
 
 ## Patch 0009: public product identity
 

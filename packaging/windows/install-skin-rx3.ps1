@@ -201,7 +201,11 @@ try {
     New-Item -ItemType Directory -Path $controllers, $chains -Force | Out-Null
     Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'controllers\Hercules_DJControl_Inpulse_500_RX3') -File |
         Copy-Item -Destination $controllers -Force
+    Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'controllers\Pioneer_DDJ_FLX4_RX3') -File |
+        Copy-Item -Destination $controllers -Force
     Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'controllers\Pioneer_DDJ_FLX6_RX3') -File |
+        Copy-Item -Destination $controllers -Force
+    Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'controllers\Pioneer_Roland_RX3') -File |
         Copy-Item -Destination $controllers -Force
     Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'effects\chains') -File |
         Copy-Item -Destination $chains -Force
