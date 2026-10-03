@@ -18,7 +18,7 @@ else
 fi
 
 printf '%s\n' '4/6 XML de skin, mapping y efectos'
-find skins/XDJ_RX3_Mixxx controllers/Hercules_DJControl_Inpulse_500_RX3 controllers/Pioneer_DDJ_FLX6_RX3 effects \
+find skins/XDJ_RX3_Mixxx controllers/Hercules_DJControl_Inpulse_500_RX3 controllers/Pioneer_DDJ_FLX4_RX3 controllers/Pioneer_DDJ_FLX6_RX3 effects \
   -type f -name '*.xml' -exec xmllint --noout {} +
 
 printf '%s\n' '5/6 JavaScript del controlador'
@@ -28,6 +28,8 @@ node scripts/test-rx3-loop-adjust.js
 node scripts/test-rx3-sound-color-fx.js
 node scripts/test-rx3-transport-controls.js
 node scripts/test-flx6-browser.js
+node scripts/test-flx4-browser.js
+python3 scripts/test-flx4-preset.py
 
 printf '%s\n' '6/6 Pruebas nativas'
 native_test=../build/mixxx-test

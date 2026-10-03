@@ -1,5 +1,12 @@
 # Informe de validación — NauticMixxx
 
+## v1.3.1 — mapeos de controladores
+
+- En macOS, el Inpulse 500 conectado inició con el mapeo RX3 activo y sin la excepción `trigger` del arranque. La prueba utilizó un perfil aislado.
+- El estado de la página lateral se consulta al pulsar el botón; las pruebas cubren los dos sentidos del cambio y un cambio previo desde la pantalla.
+- El preset DDJ-FLX4 conserva sus entradas MIDI originales y añade los controles RX3 de navegación. Las pruebas de JavaScript, XML y bindings pasaron; aún falta una prueba con hardware FLX4.
+- El paquete macOS 1.3.1 pasó la verificación estricta de firma, versión, mapeo Inpulse incluido e icono NauticMixxx. La validación de Windows x64 requiere el workflow nativo de GitHub Actions.
+
 ## v1.3.0 — navegador USB
 
 - `mixxx` y `mixxx-test` compilan en macOS ARM64 con el parche 0014.

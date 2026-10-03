@@ -19,6 +19,9 @@ CONTROLLER_FILES = (
     "midi-components-0.0.js",
 )
 OPTIONAL_CONTROLLER_FILES = (
+    "Pioneer-DDJ-FLX4-RX3.midi.xml",
+    "Pioneer-DDJ-FLX4-RX3-Browser.js",
+    "Pioneer-DDJ-FLX4-script.js",
     "Pioneer-DDJ-FLX6-RX3-Browser.midi.xml",
     "Pioneer-DDJ-FLX6-RX3-Browser.js",
 )
@@ -197,7 +200,7 @@ def configure(app: Path, profile_dir: Path, dry_run: bool = False) -> list[str]:
     changes = [
         "RX3 profile updated",
         "Inpulse 500 mapping installed and selected",
-        "optional DDJ-FLX6 browser mapping installed but not selected",
+        "optional DDJ-FLX4 and DDJ-FLX6 browser mappings installed but not selected",
         "Sound Color FX chains installed",
         "FX1–FX4 ordered as Reverb, Ping Pong, Noise and Filter",
         "playhead positioned 25% from the left",

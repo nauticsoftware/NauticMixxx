@@ -1,3 +1,9 @@
+## 1.3.1 — 2026-10-02
+
+- Corrige el fallo al iniciar el mapeo Hercules DJControl Inpulse 500 cuando el control de la página lateral aún no existe. El botón consulta el estado actual al pulsarlo.
+- Incluye el mapeo DDJ-FLX4 con navegación RX3 aportado por la comunidad y validado por pruebas automáticas; pendiente de prueba física.
+- Actualiza los paquetes nativos macOS y Windows, preservando el icono propio de NauticMixxx.
+
 # Historial de cambios
 
 ## 1.3.0 — 2026-10-01

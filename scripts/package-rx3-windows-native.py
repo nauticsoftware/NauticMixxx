@@ -99,7 +99,8 @@ def package(runtime, source, output, settings_file=None, makensis='makensis'):
         icon = files_root / 'NauticMixxx.ico'
         shutil.copy2(runtime / 'NauticMixxx.ico', icon)
         for directory in ['skins/XDJ_RX3_Mixxx', 'controllers/Hercules_DJControl_Inpulse_500_RX3',
-                          'controllers/Pioneer_DDJ_FLX6_RX3', 'effects/chains']:
+                          'controllers/Pioneer_DDJ_FLX4_RX3', 'controllers/Pioneer_DDJ_FLX6_RX3',
+                          'effects/chains']:
             shutil.copytree(ROOT / directory, files_root / directory, ignore=shutil.ignore_patterns('.DS_Store', '__pycache__'))
         portable_profile(settings_file, files_root / 'profile/XDJ_RX3_Mixxx.profile.cfg')
         for name in ['LICENSE', 'THIRD_PARTY_NOTICES.md']:

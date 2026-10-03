@@ -1,3 +1,9 @@
+# NauticMixxx 1.3.1 — 2026-10-02
+
+Esta revisión corrige un error que podía desactivar el mapeo **Hercules DJControl Inpulse 500** al iniciar. El control de la página lateral se consulta cuando se pulsa el botón, una vez disponible la interfaz. La corrección se probó con un Inpulse 500 conectado en macOS.
+
+Se incorpora el mapeo **DDJ-FLX4** con navegación RX3, validado automáticamente; aún no se ha comprobado con hardware FLX4. Se incluyen paquetes actualizados para macOS Apple Silicon y Windows x64.
+
 # NauticMixxx 1.3.0 — 2026-10-01
 
 ## Navegación USB en macOS Apple Silicon y Windows x64

@@ -37,6 +37,7 @@ Section "NauticMixxx" MainSection
   File /r "${PAYLOAD}\skins\XDJ_RX3_Mixxx\*"
   SetOutPath "$LOCALAPPDATA\NauticMixxx\controllers"
   File /r "${PAYLOAD}\controllers\Hercules_DJControl_Inpulse_500_RX3\*"
+  File /r "${PAYLOAD}\controllers\Pioneer_DDJ_FLX4_RX3\*"
   File /r "${PAYLOAD}\controllers\Pioneer_DDJ_FLX6_RX3\*"
   SetOutPath "$LOCALAPPDATA\NauticMixxx\effects\chains"
   File /r "${PAYLOAD}\effects\chains\*"

@@ -27,6 +27,10 @@ const sandbox = {
         setValue(group, control, value) {
             values.set(key(group, control), value);
             sets.push({group, control, value});
+            if (group === "[RX3SidePanel]" && value === 1 &&
+                    (control === "status" || control === "beatfx")) {
+                values.set(key(group, "current"), control === "status" ? 0 : 1);
+            }
         },
     },
     midi: {
@@ -50,6 +54,21 @@ const deckA = {currentDeck: "[Channel1]", isShiftPressed: false, loopAdjustMode:
 const deckB = {currentDeck: "[Channel2]", isShiftPressed: false, loopAdjustMode: null};
 mapping.deckA = deckA;
 mapping.deckB = deckB;
+
+values.set(key("[RX3SidePanel]", "current"), 0);
+mapping.rx3ToggleSidePanel();
+assert.equal(values.get(key("[RX3SidePanel]", "current")), 1,
+    "SHIFT + ASSISTANT switches STATUS to BEAT FX");
+mapping.rx3ToggleSidePanel();
+assert.equal(values.get(key("[RX3SidePanel]", "current")), 0,
+    "SHIFT + ASSISTANT switches BEAT FX back to STATUS");
+values.set(key("[RX3SidePanel]", "current"), 1);
+mapping.rx3ToggleSidePanel();
+assert.equal(values.get(key("[RX3SidePanel]", "current")), 0,
+    "hardware follows a page changed on screen");
+assert.doesNotMatch(source,
+    /makeConnection\(\s*"\[RX3SidePanel\]",\s*"current"/,
+    "startup must not connect to a skin-only control before the skin loads");
 
 mapping.rx3ToggleSlip(deckA, 0x7F);
 assert.equal(values.get(key("[Channel1]", "slip_enabled")), 1);

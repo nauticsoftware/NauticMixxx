@@ -154,11 +154,10 @@ DJCi500.rx3ToggleVinyl = function(deckData, midiStatus) {
 };
 
 // XDJ-RX3 side panel. Page 0 is BEAT FX and page 1 is STATUS / HOT CUES.
-// The controls are created by the skin's WidgetStack.
-// The hardware display opens on STATUS / HOT CUE, matching the RX3
-// performance screen. SHIFT + ASSISTANT can still toggle to BEAT FX.
-DJCi500.rx3StatusVisible = true;
-DJCi500.rx3SidePanelConnection = null;
+// The controls are created by the skin's WidgetStack, which can load after
+// the controller script. Page 0 is STATUS and page 1 is BEAT FX.
+// SHIFT + ASSISTANT toggles between them without a startup connection to a
+// skin-only control that might not exist yet.
 
 // Set initial state for vinyl mode button
 DJCi500.initialVinylMode = true;
@@ -479,13 +478,9 @@ DJCi500.rx3FastSeek = function(group, tickDelta, wheelResolution) {
     engine.setValue(group, "playposition", nextPosition);
 };
 
-DJCi500.rx3SidePanelChanged = function(value) {
-    DJCi500.rx3StatusVisible = (value === 1);
-};
-
 DJCi500.rx3ToggleSidePanel = function() {
-    DJCi500.rx3StatusVisible = !DJCi500.rx3StatusVisible;
-    engine.setValue("[RX3SidePanel]", DJCi500.rx3StatusVisible ? "status" : "beatfx", 1);
+    const currentPage = engine.getValue("[RX3SidePanel]", "current");
+    engine.setValue("[RX3SidePanel]", currentPage === 0 ? "beatfx" : "status", 1);
 };
 
 DJCi500.rx3PulseBrowserControl = function(control, value) {
@@ -1562,10 +1557,6 @@ DJCi500.init = function() {
     DJCi500.rx3SoundColorFxTimer = engine.beginTimer(
         400, DJCi500.rx3BlinkSoundColorFx);
 
-    DJCi500.rx3SidePanelConnection = engine.makeConnection(
-        "[RX3SidePanel]", "current", DJCi500.rx3SidePanelChanged);
-    DJCi500.rx3SidePanelConnection.trigger();
-    engine.setValue("[RX3SidePanel]", "status", 1);
     DJCi500.rx3SetPadMode(DJCi500.deckA, 1);
     DJCi500.rx3SetPadMode(DJCi500.deckB, 1);
     // PortMidi is still opening during the first synchronous LED messages.
@@ -2151,9 +2142,6 @@ DJCi500.shutdown = function() {
     }
     if (DJCi500.rx3SoundColorFxTimer) {
         engine.stopTimer(DJCi500.rx3SoundColorFxTimer);
-    }
-    if (DJCi500.rx3SidePanelConnection) {
-        DJCi500.rx3SidePanelConnection.disconnect();
     }
     midi.sendShortMsg(0x90, 0x05, 0x00); // Turn browser led off
     DJCi500.rx3SoundColorFxSelected = 0;

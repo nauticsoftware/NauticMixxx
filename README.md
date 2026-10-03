@@ -1,4 +1,4 @@
-# NauticMixxx 1.3.0
+# NauticMixxx 1.3.1
 
 ![NauticMixxx](branding/NauticMixxx.png)
 ![NauticMixxx2](branding/NauticMixxx2.png)
@@ -14,15 +14,16 @@ Version 1.3 detects authorized Rekordbox USB drives at startup and when connecte
 - Scalable PERFORMANCE, BROWSE and STATUS views with stacked waveforms, beatgrid, overviews and eight Hot Cues per deck.
 - Rekordbox USB browsing and loading in the native NauticMixxx app. Its local music-folder browser and scanner are disabled.
 - Hercules DJControl Inpulse 500 mapping with RX3-style browser and loop controls.
+- Optional DDJ-FLX4 mapping with RX3 browser controls. Its bindings passed software validation; physical hardware validation is pending. See the [DDJ-FLX4 guide](docs/DDJ-FLX4-EN.md).
 - Optional DDJ-FLX6 **browser-only** preset for VIEW, SOURCE, BROWSE, BACK and LOAD 1/2. It does not replace a full controller mapping; see the [DDJ-FLX6 guide](docs/DDJ-FLX6-EN.md).
 - Four Sound Color FX, NauticMixxx branding, reproducible patches, tests and release checksums.
 
 ## Download and install
 
-Download NauticMixxx 1.3.0 from the [public release](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.3.0):
+Download NauticMixxx 1.3.1 from the [public release](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.3.1):
 
-- [macOS Apple Silicon DMG](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.3.0/NauticMixxx-1.3.0-macOS-arm64.dmg)
-- [Windows x64 installer](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.3.0/NauticMixxx-1.3.0-Windows-x64-Setup.exe)
+- [macOS Apple Silicon DMG](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.3.1/NauticMixxx-1.3.1-macOS-arm64.dmg)
+- [Windows x64 installer](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.3.1/NauticMixxx-1.3.1-Windows-x64-Setup.exe)
 
 The Windows installer includes the native NauticMixxx program, RX3 skin, controller mappings and effects. The app and profile are separate from official Mixxx. Uninstall from Windows Settings; personal settings remain in `%LOCALAPPDATA%\NauticMixxx`.
 

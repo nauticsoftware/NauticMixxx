@@ -58,6 +58,8 @@ PUBLIC_SCRIPT_PATHS = [
     "scripts/test-rx3-transport-controls.js",
     "scripts/test-rx3-usb-only.py",
     "scripts/test-flx6-browser.js",
+    "scripts/test-flx4-browser.js",
+    "scripts/test-flx4-preset.py",
     "scripts/validate-release.sh",
     "scripts/rekordbox-calibration.py",
     "scripts/requirements-calibration.txt",
@@ -167,6 +169,7 @@ def prepare_app(source_app: Path, target_app: Path) -> None:
     copy_tree(ROOT / "skins/XDJ_RX3_Mixxx", resources / "skins/XDJ_RX3_Mixxx")
     copy_tree(ROOT / "controllers/Hercules_DJControl_Inpulse_500_RX3", resources / "controllers")
     copy_tree(ROOT / "controllers/Pioneer_DDJ_FLX6_RX3", resources / "controllers")
+    copy_tree(ROOT / "controllers/Pioneer_DDJ_FLX4_RX3", resources / "controllers")
     copy_tree(ROOT / "effects/chains", resources / "effects/chains")
     profiles = resources / "profiles"
     profiles.mkdir(parents=True, exist_ok=True)
@@ -359,11 +362,15 @@ def create_sbom(path: Path) -> None:
 
 
 def main() -> None:
+    global SOURCE_ROOT
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app", type=Path)
+    parser.add_argument("--source-root", type=Path, help="validated patched Mixxx source tree")
     parser.add_argument("--windows-skin", type=Path, help="validated Windows skin ZIP to include")
     parser.add_argument("--output", type=Path, default=ROOT / "build" / "release-candidate" / VERSION)
     args = parser.parse_args()
+    if args.source_root:
+        SOURCE_ROOT = args.source_root.resolve()
     app = args.app.resolve() if args.app else (DEFAULT_APP if DEFAULT_APP.exists() else FALLBACK_APP)
     windows_skin = args.windows_skin.resolve() if args.windows_skin else None
     output = args.output.resolve()
@@ -400,6 +407,7 @@ def main() -> None:
         shutil.copy2(ROOT / "docs/INSTALLATION.md", bundle_root / "LEEME.md")
         shutil.copy2(ROOT / "docs/INSTALLATION-EN.md", bundle_root / "README.md")
         shutil.copy2(ROOT / "docs/DDJ-FLX6-EN.md", bundle_root / "DDJ-FLX6-EN.md")
+        shutil.copy2(ROOT / "docs/DDJ-FLX4-EN.md", bundle_root / "DDJ-FLX4-EN.md")
         shutil.copy2(ROOT / "LICENSE.md", bundle_root)
         shutil.copy2(ROOT / "THIRD_PARTY_NOTICES.md", bundle_root)
         mac_archive = output / f"{PRODUCT}-{VERSION}-macOS-arm64.zip"
@@ -431,9 +439,9 @@ def main() -> None:
             "windows-x64": "skin-only-installer" if windows_skin else "not-built",
         },
         "tests": {
-            "nativePassed": 60,
+            "nativePassed": 59,
             "nativeFailed": 0,
-            "optionalExternalFixturesSkipped": 5,
+            "optionalExternalFixturesSkipped": 6,
             "controllerSuitesPassed": 5,
             "usbOnlyContractPassed": True,
             "windowsTargetMachineVerified": False,

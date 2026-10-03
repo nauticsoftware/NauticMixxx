@@ -27,6 +27,8 @@ PUBLIC_INPUTS = [
     ROOT / "patches",
     ROOT / "skins/XDJ_RX3_Mixxx",
     ROOT / "controllers/Hercules_DJControl_Inpulse_500_RX3",
+    ROOT / "controllers/Pioneer_DDJ_FLX4_RX3",
+    ROOT / "controllers/Pioneer_DDJ_FLX6_RX3",
     ROOT / "effects",
     ROOT / "branding/iCon-macOS-Dark-1024x1024@1x.png",
     ROOT / "packaging/macos",

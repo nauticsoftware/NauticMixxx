@@ -1,3 +1,9 @@
+# NauticMixxx 1.3.1 — 2026-10-02
+
+This update fixes a startup error that could disable the **Hercules DJControl Inpulse 500** mapping. The side-panel state is now read when its button is pressed, after the skin is available. The fix was checked with a connected Inpulse 500 on macOS.
+
+It also includes the community-contributed **DDJ-FLX4** mapping with RX3 browser controls. Its bindings passed automated tests; physical FLX4 testing is still pending. Updated native packages are provided for macOS Apple Silicon and Windows x64.
+
 # NauticMixxx 1.3.0 — 2026-10-01
 
 ## Rekordbox USB browsing on macOS Apple Silicon and Windows x64
