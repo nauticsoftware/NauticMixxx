@@ -41,7 +41,7 @@ for model, source, controller_id, bindings in module["MODELS"]:
     scripts = [f.get("filename") for f in generated.findall("./controller/scriptfiles/file")]
     assert scripts.count("Nautic-RX3-Browser.js") == 1, model
     assert all((output / script).is_file() or
-               (module["ROOT"] / "res/controllers" / script).is_file()
+               (module["NAUTIC"] / "controllers/Hercules_DJControl_Inpulse_500_RX3" / script).is_file()
                for script in scripts), model
     for action, status, midino in bindings:
         control = after[status, midino]

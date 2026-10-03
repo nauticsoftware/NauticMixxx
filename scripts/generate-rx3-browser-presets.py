@@ -8,8 +8,8 @@ from pathlib import Path
 import xml.etree.ElementTree as ET
 
 
-ROOT = Path(__file__).resolve().parents[2]
-NAUTIC = ROOT / "nautic"
+NAUTIC = Path(__file__).resolve().parents[1]
+ROOT = NAUTIC.parent
 VENDOR = NAUTIC / "vendor/controller-mappings"
 OUTPUT = NAUTIC / "controllers/Pioneer_Roland_RX3"
 
@@ -46,11 +46,11 @@ def sx3_source() -> ET.Element:
 
 
 MODELS = (
-    ("DDJ-400", ROOT / "res/controllers/Pioneer-DDJ-400.midi.xml", None,
+    ("DDJ-400", VENDOR / "Pioneer-DDJ-400.midi.xml", None,
      (("turn", 0xB6, 0x40), ("enter", 0x96, 0x41),
       ("back", 0x96, 0x42), ("source", 0x96, 0x68),
       ("view", 0x96, 0x7A))),
-    ("DDJ-SX", ROOT / "res/controllers/Pioneer DDJ-SX.midi.xml", None,
+    ("DDJ-SX", VENDOR / "Pioneer DDJ-SX.midi.xml", None,
      (("turn", 0xB6, 0x40), ("enter", 0x96, 0x41),
       ("back", 0x96, 0x65), ("source", 0x96, 0x68),
       ("view", 0x96, 0x66))),
@@ -66,7 +66,7 @@ MODELS = (
      (("turn", 0xB6, 0x40), ("enter", 0x96, 0x41),
       ("back", 0x96, 0x42), ("source", 0x96, 0x58),
       ("view", 0x96, 0x59))),
-    ("DJ-505", ROOT / "res/controllers/Roland_DJ-505.midi.xml", None,
+    ("DJ-505", VENDOR / "Roland_DJ-505.midi.xml", None,
      (("turn", 0xBF, 0x00), ("turn", 0xBF, 0x01),
       ("enter", 0x9F, 0x06), ("back", 0x9F, 0x07),
       ("source", 0x9F, 0x12), ("view", 0x9F, 0x1B))),
