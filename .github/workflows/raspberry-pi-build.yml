@@ -1,0 +1,66 @@
+name: NauticMixxx Debian ARM64
+
+on:
+  workflow_dispatch:
+    inputs:
+      keep_artifacts:
+        description: Keep Debian 12 ARM64 test package for 1 day (uses storage quota)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nauticmixxx-debian-arm64-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-24.04-arm
+    container: debian:bookworm-slim
+    timeout-minutes: 180
+    env:
+      RX3_BUILD_ROOT: ${{ github.workspace }}/build/test-candidate/linux-debian12-aarch64
+      RX3_BUILD_JOBS: '4'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install free Debian 12 ARM64 dependencies
+        run: |
+          ./scripts/install-linux-build-deps.sh
+          apt-get install -y --no-install-recommends nodejs xvfb xauth mesa-utils desktop-file-utils libgl1-mesa-dri libglx-mesa0
+      - name: Audit and test profile
+        run: |
+          python3 scripts/release-audit.py
+          python3 scripts/test-linux-package.py
+          python3 scripts/test-pioneer-roland-presets.py
+          node scripts/test-pioneer-roland-browser.js
+          node scripts/test-rx3-jog-bend.js
+          node scripts/test-rx3-browser-exit.js
+      - name: Compile native ARM64 program and run RX3 tests
+        run: ./scripts/build-mixxx-rx3-linux.sh
+      - name: Validate package and virtual desktop startup
+        run: |
+          python3 scripts/test-linux-package.py --stage "$RX3_BUILD_ROOT/stage"
+          xvfb-run -a python3 scripts/smoke-linux-gui.py "$RX3_BUILD_ROOT/stage" "$RX3_BUILD_ROOT"
+      - name: Package Debian 12 ARM64 test candidate
+        if: inputs.keep_artifacts
+        run: |
+          version=$(cat VERSION)
+          tar -czf "$RX3_BUILD_ROOT/NauticMixxx-$version-Debian-12-aarch64.tar.gz" -C "$RX3_BUILD_ROOT" stage
+          cd "$RX3_BUILD_ROOT"
+          sha256sum NauticMixxx-*.tar.gz > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        if: always() && inputs.keep_artifacts
+        with:
+          name: nauticmixxx-debian-12-aarch64-${{ github.run_id }}
+          path: |
+            ${{ env.RX3_BUILD_ROOT }}/NauticMixxx-*.tar.gz
+            ${{ env.RX3_BUILD_ROOT }}/SHA256SUMS.txt
+            ${{ env.RX3_BUILD_ROOT }}/rx3-tests.xml
+            ${{ env.RX3_BUILD_ROOT }}/stage/rx3-build.json
+            ${{ env.RX3_BUILD_ROOT }}/gui-smoke.log
+          if-no-files-found: warn
+          retention-days: 1
+          compression-level: 0

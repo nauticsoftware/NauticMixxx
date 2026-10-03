@@ -24,3 +24,7 @@ $elevation apt-get install -y --no-install-recommends \
   libvorbis-dev libwavpack-dev libx11-dev lv2-dev portaudio19-dev protobuf-compiler \
   qt6-base-dev qt6-base-private-dev qt6-declarative-dev qt6-qpa-plugins \
   qt6-shadertools-dev qt6-tools-dev-tools qtkeychain-qt6-dev "$jack"
+# Newer Debian releases split Qt's SVG image-format plugin into this package.
+if apt-cache show qt6-svg-plugins >/dev/null 2>&1; then
+  $elevation apt-get install -y --no-install-recommends qt6-svg-plugins
+fi

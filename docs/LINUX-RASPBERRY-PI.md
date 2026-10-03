@@ -26,6 +26,7 @@ Without the user's original build log, the cause of their failure is unknown.
 | --- | --- |
 | Ubuntu 24.04 x86_64 | Native build and test workflow provided; see linked Actions results |
 | Ubuntu 24.04 ARM64 | Native build and test workflow provided; not Pi hardware |
+| Debian 12 ARM64 | Separate native Bookworm container workflow; closer to Raspberry Pi OS Bookworm's userland, not Pi hardware |
 | Raspberry Pi OS 64-bit desktop, Debian 12 Bookworm / 13 Trixie | Native build recipe; physical Pi testing pending |
 | 32-bit Raspberry Pi OS (`armv7l`/`armhf`) | Not supported by this initial recipe |
 | Headless / Raspberry Pi OS Lite | Needs a graphical desktop and working OpenGL; not the initial target |
@@ -37,6 +38,10 @@ are outside this recipe. Do not replace your OS just to diagnose an error; first
 collect the information listed below.
 
 ### Build on your own Linux computer or Pi
+
+Use the current `main` checkout. The original v1.5.0 macOS/Windows release source
+archives and tag predate this Linux recipe and do not contain these scripts.
+If Git is not installed, install it first with `sudo apt-get install git`.
 
 ```sh
 git clone https://github.com/nauticsoftware/NauticMixxx.git
@@ -124,6 +129,14 @@ Private forks have different GitHub billing limits; this remote build plan
 assumes a public repository.
 
 Results: [Linux workflow runs](https://github.com/nauticsoftware/NauticMixxx/actions/workflows/linux-native.yml).
+
+For Raspberry Pi OS **Bookworm**, the separate **NauticMixxx Debian ARM64**
+[workflow](../.github/workflows/raspberry-pi-build.yml) builds natively in a Debian
+12 ARM64 container on the same free standard ARM runner. This avoids building
+against Ubuntu's newer userland. It is a more appropriate starting point for
+Bookworm, but the package still needs a real Pi test with its installed libraries,
+GPU and audio device. It is not a Raspberry Pi disk image and is not certified
+for Trixie. The same no-artifact default and optional one-day retention apply.
 
 ## First hardware test on Pi 4
 
