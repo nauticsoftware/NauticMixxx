@@ -11,8 +11,15 @@
   and dependencies. Browser adapter tests cover native and stock Mixxx.
 - MIDI button names checked against official DDJ-400, WeGO3, SX2/SX3 lists
   and Roland DJ-505 documentation. SX3 remains experimental.
-- Fresh native macOS and Windows compilation is in progress. Results from
-  older binaries are not evidence for the v1.5 native changes.
+- Fresh macOS ARM64 build: 63 native tests passed, nine optional external
+  fixtures skipped, zero failures. App startup and menus verified in English.
+- macOS bundle icon matches the canonical NauticMixxx icon byte-for-byte;
+  Finder preview shows the project icon. Strict signature verification passes.
+- Windows x64: all 17 patches built; 93 native tests passed, four optional
+  fixtures skipped, zero failures. The real EXE installed and uninstalled
+  successfully, preserved the user profile and included the new controller
+  presets and `Locale en_US`.
+  [Public build evidence](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37148615639).
 - Physical Pioneer/Roland navigation and Inpulse-to-XDJ/CDJ equivalence have
   not been measured.
 

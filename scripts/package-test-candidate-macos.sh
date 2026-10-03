@@ -57,6 +57,8 @@ codesign --verify --deep --strict "$app"
 cp "$project/docs/DDJ-FLX4-EN.md" "$candidate/DDJ-FLX4-EN.md"
 cp "$project/docs/CONTROLLERS-RX3-1.5.md" "$candidate/CONTROLLERS-RX3-1.5.md"
 cp "$project/docs/JOG-CALIBRATION-1.5.md" "$candidate/JOG-CALIBRATION-1.5.md"
+cp "$project/docs/CONTROLLERS-RX3-1.5-EN.md" "$candidate/CONTROLLERS-RX3-1.5-EN.md"
+cp "$project/docs/JOG-CALIBRATION-1.5-EN.md" "$candidate/JOG-CALIBRATION-1.5-EN.md"
 app_name="NauticMixxx-$candidate_name-test.app"
 mv "$app" "$candidate/$app_name"
 
