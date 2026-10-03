@@ -1,0 +1,1000 @@
+diff --git a/src/coreservices.cpp b/src/coreservices.cpp
+index 983f427..2957571 100644
+--- a/src/coreservices.cpp
++++ b/src/coreservices.cpp
+@@ -2,6 +2,7 @@
+ 
+ #include <QApplication>
+ #include <QFileDialog>
++#include <QFile>
+ #include <QProcess>
+ #include <QProcessEnvironment>
+ #include <QStandardPaths>
+@@ -416,7 +417,15 @@ void CoreServices::initializeSettings() {
+     // Solution: Start Mixxx with default settings, migrate the preferences, and then restart
+     // immediately.
+     if (!m_cmdlineArgs.getSettingsPathSet()) {
+-        CmdlineArgs::Instance().setSettingsPath(Sandbox::migrateOldSettings());
++        if (QFile::exists(QCoreApplication::applicationDirPath() +
++                    QStringLiteral("/../Resources/nautic-test-profile/mixxx.cfg"))) {
++            // Test bundle IDs have their own container. Do not route a direct
++            // Finder launch through the installed app's legacy migration path.
++            CmdlineArgs::Instance().setSettingsPath(
++                    QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + "/");
++        } else {
++            CmdlineArgs::Instance().setSettingsPath(Sandbox::migrateOldSettings());
++        }
+     }
+ #endif
+     QString settingsPath = m_cmdlineArgs.getSettingsPath();
+diff --git a/src/library/rekordbox/rekordboxtrackadapter.cpp b/src/library/rekordbox/rekordboxtrackadapter.cpp
+index 759de9d..8621100 100644
+--- a/src/library/rekordbox/rekordboxtrackadapter.cpp
++++ b/src/library/rekordbox/rekordboxtrackadapter.cpp
+@@ -1,10 +1,14 @@
+ #include "library/rekordbox/rekordboxtrackadapter.h"
+ 
+ #include <QFileInfo>
++#include <QFile>
++#include <QtEndian>
++#include <algorithm>
+ #include <QVector>
+ #include <utility>
+ 
+ #include "library/rekordbox/rekordboxruntimecatalog.h"
++#include "library/rekordbox/rekordboxdecodertiming.h"
+ #include "library/rekordbox/rekordboxsessionstate.h"
+ #include "library/rekordbox/rekordboxwaveformimporter.h"
+ #include "track/beats.h"
+@@ -12,13 +16,16 @@
+ #include "track/cueinfoimporter.h"
+ #include "track/sourcebinding.h"
+ #include "track/track.h"
++#include "sources/soundsource.h"
++#ifdef __COREAUDIO__
++#include "sources/soundsourcecoreaudio.h"
++#endif
+ 
+ namespace mixxx::rekordbox {
+ namespace {
+ 
+-// Rekordbox timestamps are already positions relative to the audio payload.
+-// Conversion is intentionally deferred until the decoder reports the actual
+-// sample rate. Beat phase/tempo remain authoritative in RuntimeTrack.
++// Preserve source timestamps in RuntimeTrack; transform them only after the
++// opened decoder establishes the PCM timeline and native sample rate.
+ class RekordboxBeatsImporter final : public mixxx::BeatsImporter {
+   public:
+     explicit RekordboxBeatsImporter(QList<RuntimeBeat> beats)
+@@ -31,6 +38,10 @@ class RekordboxBeatsImporter final : public mixxx::BeatsImporter {
+         return m_beats.size() < 2;
+     }
+ 
++    void setSourceTimingOffsetMillis(double offset) override {
++        m_offsetMillis = offset;
++    }
++
+     mixxx::BeatsPointer importBeatsAndApplyTimingOffset(
+             const QString&,
+             const QString&,
+@@ -48,7 +59,7 @@ class RekordboxBeatsImporter final : public mixxx::BeatsImporter {
+         positions.reserve(m_beats.size());
+         for (const auto& beat : std::as_const(m_beats)) {
+             const auto position = mixxx::audio::FramePos(
+-                    signalInfo.millis2frames(beat.timeMs))
++                    signalInfo.millis2frames(beat.timeMs + m_offsetMillis))
+                                           .toNearestFrameBoundary();
+             if (!positions.isEmpty() && position <= positions.constLast()) {
+                 m_beats.clear();
+@@ -65,10 +76,121 @@ class RekordboxBeatsImporter final : public mixxx::BeatsImporter {
+ 
+   private:
+     QList<RuntimeBeat> m_beats;
++    double m_offsetMillis{0};
++};
++
++class RekordboxCueInfoImporter final : public mixxx::CueInfoImporter {
++  public:
++    using CueInfoImporter::CueInfoImporter;
++    void setSourceTimingOffsetMillis(double offset) override {
++        m_offsetMillis = offset;
++    }
++    double guessTimingOffsetMillis(const QString&, const QString&,
++            const mixxx::audio::SignalInfo&) const override {
++        return m_offsetMillis;
++    }
++    QList<mixxx::CueInfo> importCueInfosAndApplyTimingOffset(
++            const QString& path, const QString& type,
++            const mixxx::audio::SignalInfo& signal) override {
++        auto cues = CueInfoImporter::importCueInfosAndApplyTimingOffset(path, type, signal);
++        for (auto& cue : cues) {
++            if (cue.getStartPositionMillis() && *cue.getStartPositionMillis() < 0) {
++                cue.setStartPositionMillis(0);
++            }
++            if (cue.getEndPositionMillis() && *cue.getEndPositionMillis() < 0) {
++                cue.setEndPositionMillis(0);
++            }
++        }
++        cues.erase(std::remove_if(cues.begin(), cues.end(), [](const auto& cue) {
++            return cue.getType() == mixxx::CueType::Loop &&
++                    cue.getStartPositionMillis() && cue.getEndPositionMillis() &&
++                    *cue.getEndPositionMillis() <= *cue.getStartPositionMillis();
++        }), cues.end());
++        return cues;
++    }
++  private:
++    double m_offsetMillis{0};
+ };
+ 
+ } // namespace
+ 
++std::optional<Mp3TimingInfo> readMp3TimingInfo(const QString& path) {
++    QFile file(path);
++    if (!file.open(QIODevice::ReadOnly)) return std::nullopt;
++    const auto id3 = file.read(10);
++    qint64 offset = 0;
++    if (id3.size() == 10 && id3.startsWith("ID3")) {
++        if (quint8(id3[3]) < 2 || quint8(id3[3]) > 4) return std::nullopt;
++        for (int i = 6; i < 10; ++i) {
++            if (quint8(id3[i]) & 0x80) return std::nullopt;
++            offset = (offset << 7) | quint8(id3[i]);
++        }
++        offset += 10;
++        if (quint8(id3[3]) == 4 && (quint8(id3[5]) & 0x10)) offset += 10;
++    }
++    if (offset >= file.size() || !file.seek(offset)) return std::nullopt;
++    // Bounded inspection of the first MPEG frame, not a whole-track scan.
++    const auto bytes = file.read(4096);
++    for (int pos = 0; pos + 4 <= bytes.size(); ++pos) {
++        const auto header = qFromBigEndian<quint32>(bytes.constData() + pos);
++        // MPEG-1 Layer III only. Other versions remain unmodified until
++        // their decoder coordinate convention has been measured.
++        if ((header & 0xfffe0000u) != 0xfffa0000u) continue;
++        const int rateIndex = (header >> 10) & 3;
++        const int bitrateIndex = (header >> 12) & 15;
++        if (rateIndex == 3 || bitrateIndex == 0 || bitrateIndex == 15) continue;
++        constexpr int rates[]{44100, 48000, 32000};
++        constexpr int bitrates[]{0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320};
++        const int rate = rates[rateIndex];
++        const int frameSize = 144000 * bitrates[bitrateIndex] / rate + ((header >> 9) & 1);
++        if (pos + frameSize + 4 > bytes.size()) return std::nullopt;
++        const auto next = qFromBigEndian<quint32>(bytes.constData() + pos + frameSize);
++        if ((next & 0xfffe0c00u) != (header & 0xfffe0c00u)) continue;
++        const int sideInfo = ((header >> 6) & 3) == 3 ? 17 : 32;
++        int at = pos + 4 + sideInfo;
++        if (at + 8 > pos + frameSize) return std::nullopt;
++        const auto tag = bytes.mid(at, 4);
++        if (tag != "Xing" && tag != "Info") return std::nullopt;
++        const auto flags = qFromBigEndian<quint32>(bytes.constData() + at + 4);
++        if (!(flags & 1) || (flags & ~15u)) return std::nullopt;
++        at += 8;
++        const auto frames = qFromBigEndian<quint32>(bytes.constData() + at);
++        for (const auto field : {std::pair{1u, 4}, {2u, 4}, {4u, 100}, {8u, 4}}) {
++            if (flags & field.first) at += field.second;
++        }
++        if (at + 36 > pos + frameSize) return std::nullopt;
++        const auto encoder = bytes.mid(at, 4);
++        if (encoder != "LAME" && encoder != "Lavc" && encoder != "Lavf") return std::nullopt;
++        const int delay = (quint8(bytes[at + 21]) << 4) | (quint8(bytes[at + 22]) >> 4);
++        const int padding = ((quint8(bytes[at + 22]) & 15) << 8) | quint8(bytes[at + 23]);
++        const qint64 totalFrames = qint64(frames) * 1152;
++        if (delay == 0 || padding < 529 || totalFrames <= delay + padding) return std::nullopt;
++        // The LAME-compatible delay excludes the decoder's 528+1 samples.
++        // This is a frame count, not a fixed millisecond correction.
++        return Mp3TimingInfo{rate, delay + 529, totalFrames - delay - padding};
++    }
++    return std::nullopt;
++}
++
++double decoderTimingOffsetMillis(const mixxx::SoundSource& source) {
++    if (source.getType() != "mp3") return 0;
++#ifdef __COREAUDIO__
++    if (dynamic_cast<const mixxx::SoundSourceCoreAudio*>(&source)) {
++        const auto timing = readMp3TimingInfo(source.getUrl().toLocalFile());
++        // CoreAudio may behave differently for untagged/foreign encoders.
++        // Only correct when its reported length confirms gapless trimming.
++        if (timing && source.getSignalInfo().getSampleRate().value() == timing->sampleRate &&
++                source.frameIndexRange().start() == 0 &&
++                source.frameLength() == timing->audibleFrames) {
++            return -1000.0 * timing->leadInFrames / timing->sampleRate;
++        }
++    }
++#endif
++    // libMAD retains the lead-in. Unknown providers must not inherit a
++    // platform-based correction from a decoder that was not actually opened.
++    return 0;
++}
++
+ TrackPointer RekordboxTrackAdapter::createTemporaryTrack(
+         const RuntimeTrack& runtimeTrack,
+         const std::shared_ptr<const SessionState>& sessionState,
+@@ -173,7 +295,7 @@ TrackPointer RekordboxTrackAdapter::createTemporaryTrack(
+     }
+     if (!cueInfos.isEmpty()) {
+         track->importCueInfos(
+-                std::make_unique<mixxx::CueInfoImporter>(std::move(cueInfos)));
++                std::make_unique<RekordboxCueInfoImporter>(std::move(cueInfos)));
+     }
+     if (!waveforms.isEmpty()) {
+         track->tryImportWaveforms(
+diff --git a/src/library/rekordbox/rekordboxwaveformimporter.cpp b/src/library/rekordbox/rekordboxwaveformimporter.cpp
+index c070a7f..27ce1c7 100644
+--- a/src/library/rekordbox/rekordboxwaveformimporter.cpp
++++ b/src/library/rekordbox/rekordboxwaveformimporter.cpp
+@@ -89,13 +89,13 @@ QVector<RuntimeWaveformColumn> decodeColumns(const LoadedRuntimeWaveform& source
+     return result;
+ }
+ 
+-WaveformPointer createWaveform(const QVector<RuntimeWaveformColumn>& source,
++WaveformPointer createWaveform(const WaveformSeries& source,
+         const mixxx::audio::StreamInfo& streamInfo,
+         int desiredVisualSampleRate,
+         int maxVisualSamples) {
+     const auto sampleRate = streamInfo.getSignalInfo().getSampleRate();
+     const double durationSeconds = streamInfo.getDuration().toDoubleSeconds();
+-    if (source.empty() || !sampleRate.isValid() || durationSeconds <= 0 ||
++    if (source.columns.empty() || !sampleRate.isValid() || durationSeconds <= 0 ||
+             desiredVisualSampleRate <= 0 ||
+             durationSeconds * sampleRate.value() >=
+                     static_cast<double>(std::numeric_limits<SINT>::max())) {
+@@ -114,16 +114,9 @@ WaveformPointer createWaveform(const QVector<RuntimeWaveformColumn>& source,
+     }
+     auto* output = waveform->data();
+     for (int frame = 0; frame < outputFrames; ++frame) {
+-        RuntimeWaveformColumn column;
+-        const int begin = static_cast<int>(qint64(frame) * source.size() / outputFrames);
+-        const int end = std::min(int(source.size()), std::max(begin + 1,
+-                static_cast<int>((qint64(frame) + 1) * source.size() / outputFrames)));
+-        for (int i = begin; i < end; ++i) {
+-            column.low = std::max(column.low, source[i].low);
+-            column.mid = std::max(column.mid, source[i].mid);
+-            column.high = std::max(column.high, source[i].high);
+-            column.all = std::max(column.all, source[i].all);
+-        }
++        const auto column = peakColumn(source,
++                (double(frame) * durationSeconds / outputFrames - source.originSeconds) * source.columnsPerSecond,
++                (double(frame + 1) * durationSeconds / outputFrames - source.originSeconds) * source.columnsPerSecond);
+         for (int channel = 0; channel < mixxx::kAnalysisChannels; ++channel) {
+             auto& destination = output[frame * mixxx::kAnalysisChannels + channel];
+             destination.filtered.low = column.low;
+@@ -224,6 +217,9 @@ mixxx::ImportedWaveforms RekordboxWaveformImporter::importWaveforms(
+     auto native = std::make_shared<WaveformSet>();
+     native->durationSeconds = streamInfo.getDuration().toDoubleSeconds();
+     if (native->durationSeconds <= 0) return {};
++    // Detail tags carry a fixed 150-column/s clock. Use that clock for the
++    // source duration instead of squeezing encoder padding into decoded PCM.
++    double sourceDuration = native->durationSeconds - m_offsetSeconds;
+     for (const auto& source : sources) {
+         const auto tag = source.descriptor.sectionTag;
+         const bool detail = tag == "PWV3" || tag == "PWV5" || tag == "PWV7";
+@@ -233,8 +229,18 @@ mixxx::ImportedWaveforms RekordboxWaveformImporter::importWaveforms(
+         if (!series.columns.isEmpty()) continue;
+         series.columns = decodeColumns(source);
+         series.tag = tag;
++        series.originSeconds = m_offsetSeconds;
+         series.columnsPerSecond = detail ? 150.0 :
+-                series.columns.size() / native->durationSeconds;
++                series.columns.size() / sourceDuration;
++    }
++    for (const auto& series : native->detail) {
++        if (!series.columns.isEmpty()) {
++            sourceDuration = series.columns.size() / series.columnsPerSecond;
++            break;
++        }
++    }
++    for (auto& series : native->overview) {
++        series.columnsPerSecond = series.columns.size() / sourceDuration;
+     }
+     const WaveformSeries* primary = nullptr;
+     for (int mode = 2; mode >= 0; --mode) {
+@@ -252,8 +258,8 @@ mixxx::ImportedWaveforms RekordboxWaveformImporter::importWaveforms(
+         }
+     }
+     if (!primary) return {};
+-    auto waveform = createWaveform(primary->columns, streamInfo, 150, -1);
+-    auto summary = createWaveform(primary->columns, streamInfo, 150, 2 * 1920);
++    auto waveform = createWaveform(*primary, streamInfo, 150, -1);
++    auto summary = createWaveform(*primary, streamInfo, 150, 2 * 1920);
+     for (auto target : {waveform, summary}) {
+         if (target) {
+             target->rekordbox = native;
+diff --git a/src/library/rekordbox/rekordboxwaveformimporter.h b/src/library/rekordbox/rekordboxwaveformimporter.h
+index a9013d5..8c74a18 100644
+--- a/src/library/rekordbox/rekordboxwaveformimporter.h
++++ b/src/library/rekordbox/rekordboxwaveformimporter.h
+@@ -41,11 +41,15 @@ class RekordboxWaveformImporter final : public mixxx::WaveformImporter {
+     explicit RekordboxWaveformImporter(QList<LoadedRuntimeWaveform> sources);
+ 
+     bool isEmpty() const override;
++    void setSourceTimingOffsetMillis(double offset) override {
++        m_offsetSeconds = offset / 1000.0;
++    }
+     mixxx::ImportedWaveforms importWaveforms(
+             const mixxx::audio::StreamInfo& streamInfo) override;
+ 
+   private:
+     QList<LoadedRuntimeWaveform> m_sources;
++    double m_offsetSeconds{0};
+ };
+ 
+ } // namespace mixxx::rekordbox
+diff --git a/src/preferences/settingsmanager.cpp b/src/preferences/settingsmanager.cpp
+index 62525f9..cfee02f 100644
+--- a/src/preferences/settingsmanager.cpp
++++ b/src/preferences/settingsmanager.cpp
+@@ -1,6 +1,11 @@
+ #include "preferences/settingsmanager.h"
+ 
++#include <QCoreApplication>
+ #include <QDir>
++#include <QDirIterator>
++#include <QFile>
++#include <QFileInfo>
++#include <QSaveFile>
+ 
+ #include "control/control.h"
+ #include "preferences/upgrade.h"
+@@ -8,6 +13,62 @@
+ #include "waveform/widgets/waveformwidgettype.h"
+ 
+ namespace {
++#ifdef Q_OS_MACOS
++// Test bundles carry an explicit portable seed and have a separate bundle ID.
++// Copy inside this app's own sandbox, without asking Terminal to access another
++// app's data. An existing test profile always wins over the bundled template.
++void seedBundledTestProfile(const QString& settingsPath) {
++    const QDir source(QCoreApplication::applicationDirPath() +
++            QStringLiteral("/../Resources/nautic-test-profile"));
++    const QDir target(settingsPath);
++    if (!QFile::exists(source.filePath("mixxx.cfg")) ||
++            QFile::exists(target.filePath("mixxx.cfg"))) return;
++    const auto copySeedFile = [](const QString& from, const QString& to) {
++        QFile input(from);
++        QSaveFile output(to);
++        if (!input.open(QIODevice::ReadOnly) || !output.open(QIODevice::WriteOnly)) {
++            return false;
++        }
++        // Qt's APFS clonefile copy can wait on a macOS privacy check before
++        // there is a window to present it. Read our bundled bytes explicitly.
++        while (!input.atEnd()) {
++            const auto block = input.read(64 * 1024);
++            if (input.error() != QFileDevice::NoError ||
++                    output.write(block) != block.size()) return false;
++        }
++        return output.commit();
++    };
++    QDirIterator files(source.path(), QDir::Files | QDir::NoSymLinks,
++            QDirIterator::Subdirectories);
++    while (files.hasNext()) {
++        const auto file = files.next();
++        const auto relative = source.relativeFilePath(file);
++        if (relative == "mixxx.cfg") continue;
++        const auto destination = target.filePath(relative);
++        if (!QDir().mkpath(QFileInfo(destination).absolutePath()) ||
++                (!QFile::exists(destination) && !copySeedFile(file, destination))) {
++            qFatal("Cannot initialize NauticMixxx test profile");
++        }
++    }
++    // Resolve portable mapping paths inside this app's sandbox and commit the
++    // config last so an interrupted first run can retry the seed.
++    QFile templateConfig(source.filePath("mixxx.cfg"));
++    if (!templateConfig.open(QIODevice::ReadOnly)) {
++        qFatal("Cannot read NauticMixxx test configuration");
++    }
++    auto contents = templateConfig.readAll();
++    if (templateConfig.error() != QFileDevice::NoError) {
++        qFatal("Cannot read NauticMixxx test configuration");
++    }
++    contents.replace("@NAUTIC_TEST_PROFILE@", target.absolutePath().toUtf8());
++    QSaveFile config(target.filePath("mixxx.cfg"));
++    if (!config.open(QIODevice::WriteOnly) ||
++            config.write(contents) != contents.size() || !config.commit()) {
++        qFatal("Cannot initialize NauticMixxx test configuration");
++    }
++}
++#endif
++
+ // NauticMixxx 1.2 runs from Rekordbox USB exports. Apply the fixed operating
+ // policy at every start, including when an older Mixxx profile is upgraded.
+ void applyNauticUsbPolicy(const UserSettingsPointer& settings) {
+@@ -71,6 +132,9 @@ SettingsManager::SettingsManager(const QString& settingsPath)
+     if (!QDir(settingsPath).exists()) {
+         QDir().mkpath(settingsPath);
+     }
++#ifdef Q_OS_MACOS
++    seedBundledTestProfile(settingsPath);
++#endif
+ 
+     // Check to see if this is the first time this version of Mixxx is run
+     // after an upgrade and make any needed changes.
+diff --git a/src/sources/soundsourceproxy.cpp b/src/sources/soundsourceproxy.cpp
+index 27262e4..f1750df 100644
+--- a/src/sources/soundsourceproxy.cpp
++++ b/src/sources/soundsourceproxy.cpp
+@@ -6,6 +6,7 @@
+ #include <QStandardPaths>
+ 
+ #include "library/rekordbox/rekordboxdevice.h"
++#include "library/rekordbox/rekordboxdecodertiming.h"
+ #include "sources/audiosourcetrackproxy.h"
+ 
+ #ifdef __MAD__
+@@ -950,7 +951,11 @@ mixxx::AudioSourcePointer SoundSourceProxy::openAudioSource(
+         return nullptr;
+     }
+     // Overwrite metadata with actual audio properties
++    const double importedSourceTimingOffsetMillis =
++            m_pTrack->getSourceBinding().sourceType() == mixxx::SourceType::RekordboxUsb
++            ? mixxx::rekordbox::decoderTimingOffsetMillis(*m_pSoundSource)
++            : 0.0;
+     m_pTrack->updateStreamInfoFromSource(
+-            m_pSoundSource->getStreamInfo());
++            m_pSoundSource->getStreamInfo(), importedSourceTimingOffsetMillis);
+     return mixxx::AudioSourceTrackProxy::create(m_pTrack, m_pSoundSource);
+ }
+diff --git a/src/test/rekordboxusbsession_test.cpp b/src/test/rekordboxusbsession_test.cpp
+index ba77c68..c797352 100644
+--- a/src/test/rekordboxusbsession_test.cpp
++++ b/src/test/rekordboxusbsession_test.cpp
+@@ -9,12 +9,16 @@
+ #include <QDirIterator>
+ #include <QFile>
+ #include <QFileInfo>
++#include <QJsonArray>
++#include <QJsonDocument>
++#include <QJsonObject>
+ #include <QSet>
+ #include <QSqlQuery>
+ #include <QTemporaryDir>
+ #include <QtEndian>
+ 
+ #include "library/rekordbox/rekordboxdatabase.h"
++#include "library/rekordbox/rekordboxdecodertiming.h"
+ #include "library/rekordbox/rekordboxanlzreader.h"
+ #include "library/rekordbox/rekordboxruntimetrackmodel.h"
+ #include "library/rekordbox/rekordboxusbsession.h"
+@@ -24,6 +28,7 @@
+ #include "test/mixxxtest.h"
+ #include "test/soundsourceproviderregistration.h"
+ #include "track/track.h"
++#include "util/samplebuffer.h"
+ 
+ namespace {
+ using namespace mixxx::rekordbox;
+@@ -795,8 +800,186 @@ TEST(RekordboxUsbSessionTest, OptionalRealBrowserWaveformDecodesReadOnly) {
+     RecordProperty("browser_columns", columns.size());
+ }
+ 
++TEST(RekordboxDecoderTimingTest, ReadsFrameCountsAndRejectsUntrustedTags) {
++    QTemporaryDir files;
++    // A synthetic two-frame header tests parsing, never audio compatibility.
++    QByteArray bytes(834, '\0');
++    putAnlz32(&bytes, 0, 0xfffb9000u); // 128kbps MPEG-1 stereo 44.1kHz
++    putAnlz32(&bytes, 417, 0xfffb9000u);
++    bytes.replace(36, 4, "Info");
++    putAnlz32(&bytes, 40, 1);
++    putAnlz32(&bytes, 44, 100);
++    bytes.replace(48, 9, "LAME3.100");
++    const auto setDelay = [&](int delay, int padding) {
++        const quint32 packed = (delay << 12) | padding;
++        bytes[69] = static_cast<char>(packed >> 16);
++        bytes[70] = static_cast<char>(packed >> 8);
++        bytes[71] = static_cast<char>(packed);
++    };
++    const auto path = files.filePath("header.mp3");
++    setDelay(576, 1404);
++    ASSERT_TRUE(write(path, bytes));
++    auto parsed = readMp3TimingInfo(path);
++    ASSERT_TRUE(parsed);
++    EXPECT_EQ(parsed->sampleRate, 44100);
++    EXPECT_EQ(parsed->leadInFrames, 1105);
++    EXPECT_EQ(parsed->audibleFrames, 115200 - 576 - 1404);
++    setDelay(123, 1000);
++    ASSERT_TRUE(write(path, bytes));
++    parsed = readMp3TimingInfo(path);
++    ASSERT_TRUE(parsed);
++    EXPECT_EQ(parsed->leadInFrames, 652); // not a hard-coded 1105
++    bytes.replace(48, 4, "Fake");
++    ASSERT_TRUE(write(path, bytes));
++    EXPECT_FALSE(readMp3TimingInfo(path));
++    bytes.replace(48, 4, "LAME");
++    setDelay(576, 1); // invalid decoder tail compensation
++    ASSERT_TRUE(write(path, bytes));
++    EXPECT_FALSE(readMp3TimingInfo(path));
++    ASSERT_TRUE(write(path, bytes.left(60)));
++    EXPECT_FALSE(readMp3TimingInfo(path));
++    ASSERT_TRUE(write(path, QByteArray::fromHex("494433040000ffffffff")));
++    EXPECT_FALSE(readMp3TimingInfo(path));
++}
++
+ class RekordboxUsbSessionAudioTest : public LibraryTest {};
+ 
++TEST_F(RekordboxUsbSessionAudioTest, OptionalMetronomeDecoderTiming) {
++    const auto root = QString::fromLocal8Bit(qgetenv("MIXXX_REKORDBOX_METRONOME_USB"));
++    const auto truthRoot = QString::fromLocal8Bit(qgetenv("MIXXX_REKORDBOX_METRONOME_TRUTH"));
++    if (root.isEmpty() || truthRoot.isEmpty()) {
++        GTEST_SKIP() << "External METRONOME export and original reference JSON required";
++    }
++    RekordboxUsbSession session(root);
++    ASSERT_TRUE(session.load()) << session.error().toStdString();
++    QJsonArray report;
++    int files = 0;
++    for (const auto& runtime : session.catalog()->tracks()) {
++        if (!QFileInfo(runtime.resolvedAudioPath).fileName().startsWith("grid_test_128bpm_")) {
++            continue;
++        }
++        ++files;
++        const auto name = QFileInfo(runtime.resolvedAudioPath).completeBaseName();
++        QFile truthFile(QDir(truthRoot).filePath(name + ".json"));
++        ASSERT_TRUE(truthFile.open(QIODevice::ReadOnly));
++        const auto truth = QJsonDocument::fromJson(truthFile.readAll()).object();
++        const auto truthBeats = truth["beats"].toArray();
++        ASSERT_EQ(truthBeats.size(), 64);
++        const auto providers = SoundSourceProxy::allProviderRegistrationsForUrl(
++                QUrl::fromLocalFile(runtime.resolvedAudioPath));
++        ASSERT_FALSE(providers.isEmpty());
++        int opened = 0;
++        for (const auto& registration : providers) {
++            QString error;
++            auto projected = session.createTemporaryTrack(runtime.rekordboxId, &error);
++            ASSERT_TRUE(projected) << error.toStdString();
++            SoundSourceProxy proxy(projected, registration.getProvider());
++            auto audio = proxy.openAudioSource();
++            if (!audio) {
++                report.append(QJsonObject{{"file", QFileInfo(runtime.resolvedAudioPath).fileName()},
++                        {"provider", registration.getProvider()->getDisplayName()},
++                        {"state", "decoder could not open fixture"}});
++                continue;
++            }
++            ++opened;
++            const auto sr = audio->getSignalInfo().getSampleRate().value();
++            ASSERT_EQ(static_cast<double>(sr), truth["sample_rate"].toDouble());
++            const auto channels = audio->getSignalInfo().getChannelCount().value();
++            const SINT start = static_cast<SINT>(sr * 0.95);
++            const SINT count = static_cast<SINT>(sr * 0.1);
++            mixxx::SampleBuffer samples(count * channels);
++            const auto read = audio->readSampleFrames(mixxx::WritableSampleFrames(
++                    mixxx::IndexRange::forward(start, count),
++                    mixxx::SampleBuffer::WritableSlice(samples)));
++            ASSERT_EQ(read.frameLength(), count);
++            SINT peak = 0;
++            for (SINT i = 1; i < count; ++i) {
++                if (std::abs(read.readableData()[i * channels]) >
++                        std::abs(read.readableData()[peak * channels])) {
++                    peak = i;
++                }
++            }
++            const auto beats = projected->getBeats();
++            ASSERT_TRUE(beats);
++            const auto grid = beats->findClosestBeat(mixxx::audio::FramePos(sr));
++            const double decodedLeadIn = start + peak - sr;
++            // Rekordbox exports integer ms and this 44.1k WAV's grid is
++            // already early in the source. Never repair it by moving WAVs.
++            double maxGridErrorMs = 0;
++            double maxPeakErrorFrames = 0;
++            for (const auto& reference : truthBeats) {
++                const SINT frame = static_cast<SINT>(reference.toObject()["sample"].toDouble());
++                const auto beat = beats->findClosestBeat(mixxx::audio::FramePos(frame));
++                maxGridErrorMs = std::max(maxGridErrorMs,
++                        std::abs(beat.value() - frame - decodedLeadIn) * 1000.0 / sr);
++                const SINT first = frame - count / 2;
++                const auto window = audio->readSampleFrames(mixxx::WritableSampleFrames(
++                        mixxx::IndexRange::forward(first, count),
++                        mixxx::SampleBuffer::WritableSlice(samples)));
++                ASSERT_EQ(window.frameLength(), count);
++                SINT peakIndex = 0;
++                for (SINT i = 1; i < count; ++i) {
++                    if (std::abs(window.readableData()[i * channels]) >
++                            std::abs(window.readableData()[peakIndex * channels])) peakIndex = i;
++                }
++                maxPeakErrorFrames = std::max(maxPeakErrorFrames,
++                        std::abs(double(first + peakIndex - frame) - decodedLeadIn));
++            }
++            if (QFileInfo(runtime.resolvedAudioPath).suffix() == "mp3") {
++                EXPECT_LT(maxGridErrorMs, 0.7);
++                EXPECT_NEAR(projected->getMainCuePosition().value(), start + peak, sr * 0.0001);
++                EXPECT_LE(maxPeakErrorFrames, 2);
++                if (proxy.getProvider()->getDisplayName().startsWith("Apple CoreAudio")) {
++                    EXPECT_LE(std::abs(decodedLeadIn), 2);
++                }
++            } else
++            {
++                EXPECT_LT(maxGridErrorMs, 1.6);
++                EXPECT_EQ(projected->getMainCuePosition().value(), sr);
++                EXPECT_EQ(maxPeakErrorFrames, 0);
++            }
++            // Repeated random seeks to the projected cue must return the same
++            // PCM. This detects seek/prefetch errors separately from latency.
++            const SINT cueFrame = static_cast<SINT>(std::llround(projected->getMainCuePosition().value()));
++            std::vector<CSAMPLE> cuePcm;
++            for (int repeat = 0; repeat < 8; ++repeat) {
++                const auto cueRead = audio->readSampleFrames(mixxx::WritableSampleFrames(
++                        mixxx::IndexRange::forward(cueFrame, count),
++                        mixxx::SampleBuffer::WritableSlice(samples)));
++                ASSERT_EQ(cueRead.frameLength(), count);
++                if (repeat == 0) {
++                    cuePcm.assign(cueRead.readableData(), cueRead.readableData() + count * channels);
++                } else {
++                    for (SINT i = 0; i < count * channels; ++i) {
++                        ASSERT_NEAR(cueRead.readableData()[i], cuePcm[i], 0.00001) << "repeat=" << repeat;
++                    }
++                }
++            }
++            QJsonObject item{{"file", QFileInfo(runtime.resolvedAudioPath).fileName()},
++                    {"provider", proxy.getProvider()->getDisplayName()},
++                    {"sample_rate", static_cast<double>(sr)},
++                    {"decoded_frames", static_cast<double>(audio->frameLength())},
++                    {"kick_frame", static_cast<double>(start + peak)},
++                    {"grid_frame", grid.value()},
++                    {"cue_frame", projected->getMainCuePosition().value()},
++                    {"decoded_lead_in_frames", decodedLeadIn},
++                    {"max_grid_error_ms_64_beats", maxGridErrorMs},
++                    {"max_peak_error_frames_64_beats", maxPeakErrorFrames},
++                    {"cue_seek_repetitions", 8}};
++            qInfo().noquote() << QJsonDocument(item).toJson(QJsonDocument::Compact);
++            report.append(item);
++        }
++        EXPECT_GT(opened, 0);
++    }
++    EXPECT_EQ(files, 4);
++    const auto reportPath = QString::fromLocal8Bit(qgetenv("MIXXX_REKORDBOX_TIMING_REPORT"));
++    if (!reportPath.isEmpty()) {
++        QFile output(reportPath);
++        ASSERT_TRUE(output.open(QIODevice::WriteOnly));
++        output.write(QJsonDocument(report).toJson());
++    }
++}
++
+ TEST_F(RekordboxUsbSessionAudioTest,
+         OptionalRealPqtzProjectionWaitsForDecoderSampleRate) {
+     const auto root = QString::fromLocal8Bit(qgetenv("MIXXX_REKORDBOX_REAL_FIXTURE"));
+@@ -839,8 +1022,10 @@ TEST_F(RekordboxUsbSessionAudioTest,
+     EXPECT_FALSE(projected->getWaveform());
+     EXPECT_DOUBLE_EQ(projected->getBpm(), mixxx::Bpm::kValueUndefined);
+ 
+-    auto audioSource = SoundSourceProxy(projected).openAudioSource();
++    SoundSourceProxy proxy(projected);
++    auto audioSource = proxy.openAudioSource();
+     ASSERT_TRUE(audioSource);
++    const double removedFrames = proxy.getProvider()->getDisplayName().startsWith("Apple CoreAudio") ? 1105 : 0;
+     audioSource->close();
+     EXPECT_EQ(projected->getBeatsImportStatus(), Track::ImportStatus::Complete);
+     EXPECT_EQ(projected->getWaveformImportStatus(), Track::ImportStatus::Complete);
+@@ -855,11 +1040,11 @@ TEST_F(RekordboxUsbSessionAudioTest,
+     ASSERT_TRUE(sampleRate.isValid());
+     auto it = beats->cfirstmarker();
+     const auto expectedFirst = std::round(
+-            parsed.beats.first().timeMs * sampleRate.value() / 1000.0);
++            parsed.beats.first().timeMs * sampleRate.value() / 1000.0 - removedFrames);
+     EXPECT_DOUBLE_EQ((*it).value(), expectedFirst);
+     ++it;
+     const auto expectedSecond = std::round(
+-            parsed.beats[1].timeMs * sampleRate.value() / 1000.0);
++            parsed.beats[1].timeMs * sampleRate.value() / 1000.0 - removedFrames);
+     EXPECT_DOUBLE_EQ((*it).value(), expectedSecond);
+     const auto projectedGridBpm =
+             beats->getBpmAroundPosition(*beats->cfirstmarker(), 1).value();
+@@ -894,7 +1079,8 @@ TEST_F(RekordboxUsbSessionAudioTest,
+     ASSERT_TRUE(projected) << error.toStdString();
+     EXPECT_FALSE(projected->getUsePolicy().canPersist());
+     EXPECT_EQ(projected->getCueImportStatus(), Track::ImportStatus::Pending);
+-    auto audioSource = SoundSourceProxy(projected).openAudioSource();
++    SoundSourceProxy proxy(projected);
++    auto audioSource = proxy.openAudioSource();
+     ASSERT_TRUE(audioSource);
+     audioSource->close();
+     EXPECT_EQ(projected->getCueImportStatus(), Track::ImportStatus::Complete);
+@@ -923,18 +1109,21 @@ TEST_F(RekordboxUsbSessionAudioTest,
+     ASSERT_TRUE(memoryLoop);
+     const auto sampleRate = projected->getSampleRate();
+     ASSERT_TRUE(sampleRate.isValid());
+-    EXPECT_DOUBLE_EQ(hotCue->getPosition().value(),
+-            1250.0 * sampleRate.value() / 1000.0);
++    // This existing LAME fixture contains 576 encoder + 529 decoder frames.
++    // CoreAudio removes them; untrimmed decoders retain them in PCM.
++    const double removedFrames = proxy.getProvider()->getDisplayName().startsWith("Apple CoreAudio") ? 1105 : 0;
++    EXPECT_NEAR(hotCue->getPosition().value(),
++            1250.0 * sampleRate.value() / 1000.0 - removedFrames, 0.000001);
+     EXPECT_EQ(hotCue->getLabel(), QStringLiteral("Intro"));
+     EXPECT_EQ(hotCue->getColor(), mixxx::RgbColor(0x123456));
+-    EXPECT_DOUBLE_EQ(hotLoop->getPosition().value(),
+-            2000.0 * sampleRate.value() / 1000.0);
+-    EXPECT_DOUBLE_EQ(hotLoop->getEndPosition().value(),
+-            4000.0 * sampleRate.value() / 1000.0);
+-    EXPECT_DOUBLE_EQ(mainCue->getPosition().value(),
+-            750.0 * sampleRate.value() / 1000.0);
+-    EXPECT_DOUBLE_EQ(memoryLoop->getEndPosition().value(),
+-            7000.0 * sampleRate.value() / 1000.0);
++    EXPECT_NEAR(hotLoop->getPosition().value(),
++            2000.0 * sampleRate.value() / 1000.0 - removedFrames, 0.000001);
++    EXPECT_NEAR(hotLoop->getEndPosition().value(),
++            4000.0 * sampleRate.value() / 1000.0 - removedFrames, 0.000001);
++    EXPECT_NEAR(mainCue->getPosition().value(),
++            750.0 * sampleRate.value() / 1000.0 - removedFrames, 0.000001);
++    EXPECT_NEAR(memoryLoop->getEndPosition().value(),
++            7000.0 * sampleRate.value() / 1000.0 - removedFrames, 0.000001);
+ 
+     // Even after cues make the temporary Track dirty, the capability guard is
+     // authoritative and prevents TrackDAO/CueDAO persistence.
+@@ -946,6 +1135,44 @@ TEST_F(RekordboxUsbSessionAudioTest,
+     EXPECT_EQ(query.value(0).toInt(), 0);
+ }
+ 
++TEST_F(RekordboxUsbSessionAudioTest, DecoderTrimmingKeepsStartCuePlayable) {
++    QTemporaryDir volume;
++    const auto owner = QStringLiteral("/Contents/test.mp3");
++    ASSERT_TRUE(write(pdb(volume), database(rows())));
++    QByteArray bytes(28, '\0');
++    bytes.replace(0, 4, "PMAI");
++    putAnlz32(&bytes, 4, 28);
++    bytes += anlzPpth(owner);
++    bytes += anlzCueList(true, 1, {anlzPcp2(1, 1, 0, 0xffffffffu, {}, 0),
++            anlzPcp2(2, 2, 0, 1000, {}, 0)});
++    bytes += anlzCueList(true, 0, {anlzPcp2(0, 1, 0, 0xffffffffu, {}, 0),
++            anlzPcp2(0, 2, 0, 10, {}, 0)});
++    putAnlz32(&bytes, 8, bytes.size());
++    ASSERT_TRUE(write(volume.filePath("PIONEER/USBANLZ/test.DAT"), bytes));
++    ASSERT_TRUE(QDir().mkpath(volume.filePath("Contents")));
++    ASSERT_TRUE(QFile::copy(getTestDir().filePath("id3-test-data/artist.mp3"),
++            volume.filePath("Contents/test.mp3")));
++    RekordboxUsbSession session(volume.path());
++    ASSERT_TRUE(session.load());
++    QString error;
++    const auto projected = session.createTemporaryTrack(1, &error);
++    ASSERT_TRUE(projected) << error.toStdString();
++    SoundSourceProxy proxy(projected);
++    auto audio = proxy.openAudioSource();
++    ASSERT_TRUE(audio);
++    EXPECT_EQ(projected->getMainCuePosition().value(), 0);
++    const bool trimmed = proxy.getProvider()->getDisplayName().startsWith("Apple CoreAudio");
++    const auto cues = projected->getCuePoints();
++    EXPECT_EQ(cues.size(), trimmed ? 3 : 4);
++    for (const auto& cue : cues) {
++        EXPECT_GE(cue->getPosition().value(), 0);
++        if (cue->getType() == mixxx::CueType::Loop) {
++            EXPECT_GT(cue->getEndPosition(), cue->getPosition());
++        }
++    }
++    EXPECT_EQ(session.catalog()->findTrack(1)->cues.size(), 4);
++}
++
+ TEST_F(RekordboxUsbSessionAudioTest,
+         OptionalRealUsbCueReachesTemporaryTrack) {
+     const auto root = QString::fromLocal8Bit(
+@@ -982,8 +1209,13 @@ TEST_F(RekordboxUsbSessionAudioTest,
+     const auto projected = session.createTemporaryTrack(
+             selected->rekordboxId, &error);
+     ASSERT_TRUE(projected) << error.toStdString();
+-    auto audioSource = SoundSourceProxy(projected).openAudioSource();
++    SoundSourceProxy proxy(projected);
++    auto audioSource = proxy.openAudioSource();
+     ASSERT_TRUE(audioSource);
++    const auto timing = readMp3TimingInfo(projected->getLocation());
++    const double removedFrames = timing &&
++            proxy.getProvider()->getDisplayName().startsWith("Apple CoreAudio") &&
++            audioSource->frameLength() == timing->audibleFrames ? timing->leadInFrames : 0;
+     audioSource->close();
+     ASSERT_EQ(projected->getCueImportStatus(), Track::ImportStatus::Complete);
+     ASSERT_EQ(projected->getWaveformImportStatus(), Track::ImportStatus::Complete);
+@@ -1002,7 +1234,7 @@ TEST_F(RekordboxUsbSessionAudioTest,
+     const auto sampleRate = projected->getSampleRate();
+     ASSERT_TRUE(sampleRate.isValid());
+     EXPECT_DOUBLE_EQ((*projectedHot)->getPosition().value(),
+-            *runtimeHot->startMs * sampleRate.value() / 1000.0);
++            std::max(0.0, *runtimeHot->startMs * sampleRate.value() / 1000.0 - removedFrames));
+     EXPECT_EQ((*projectedHot)->getLabel(), runtimeHot->label);
+     if (runtimeHot->color) {
+         EXPECT_EQ((*projectedHot)->getColor(), *runtimeHot->color);
+diff --git a/src/test/rekordboxwaveformimporter_test.cpp b/src/test/rekordboxwaveformimporter_test.cpp
+index cbbbf18..7436b6d 100644
+--- a/src/test/rekordboxwaveformimporter_test.cpp
++++ b/src/test/rekordboxwaveformimporter_test.cpp
+@@ -17,6 +17,7 @@
+ #include "library/rekordbox/rekordboxanlzreader.h"
+ 
+ #include "audio/signalinfo.h"
++#include "analyzer/constants.h"
+ #include "audio/streaminfo.h"
+ #include "util/duration.h"
+ #include "waveform/beatgridmarkers.h"
+@@ -76,6 +77,32 @@ TEST(RekordboxWaveformImporterTest, DecodesThreeBandDetailForBothMixxxChannels)
+     EXPECT_EQ(imported.waveform->getVersion(), QStringLiteral("Rekordbox-ANLZ-PWV7"));
+ }
+ 
++TEST(RekordboxWaveformImporterTest, DecoderTimingShiftsWithoutStretchingDetailClock) {
++    QByteArray detail(153 * 3, '\0');
++    detail[30 * 3] = static_cast<char>(255); // source peak at 200ms
++    RekordboxWaveformImporter importer(QList<LoadedRuntimeWaveform>{
++            {descriptor("PWV7", RuntimeWaveformQuality::Detailed, 3, 153), detail},
++            {descriptor("PWV6", RuntimeWaveformQuality::Preview, 3, 1200), QByteArray(3600, '\0')}});
++    importer.setSourceTimingOffsetMillis(-20);
++    const auto imported = importer.importWaveforms(streamInfo(1));
++    ASSERT_TRUE(imported.waveform);
++    ASSERT_TRUE(imported.waveform->rekordbox);
++    const auto& native = *imported.waveform->rekordbox;
++    const auto& series = native.detail[2];
++    EXPECT_EQ(series.columnsPerSecond, 150);
++    EXPECT_DOUBLE_EQ(series.originSeconds, -0.020);
++    EXPECT_DOUBLE_EQ(native.overview[2].columnsPerSecond, 1200 / 1.02);
++    EXPECT_EQ(peakColumn(series, (0.18 - series.originSeconds) * 150,
++                    (0.185 - series.originSeconds) * 150).low, 255);
++    const int frames = imported.waveform->getDataSize() / mixxx::kAnalysisChannels;
++    int maximum = 0;
++    for (int i = 1; i < frames; ++i) {
++        if (imported.waveform->getLow(i * mixxx::kAnalysisChannels) >
++                imported.waveform->getLow(maximum * mixxx::kAnalysisChannels)) maximum = i;
++    }
++    EXPECT_NEAR(double(maximum) / frames, 0.18, 1.0 / frames);
++}
++
+ TEST(RekordboxWaveformImporterTest, DecodesVerifiedPackedColorDetailLayout) {
+     RekordboxWaveformImporter importer({descriptor("PWV5",
+                                                 RuntimeWaveformQuality::Detailed,
+diff --git a/src/track/beatsimporter.h b/src/track/beatsimporter.h
+index 3c677d2..575abf2 100644
+--- a/src/track/beatsimporter.h
++++ b/src/track/beatsimporter.h
+@@ -17,6 +17,9 @@ class BeatsImporter {
+ 
+     virtual bool isEmpty() const = 0;
+ 
++    virtual void setSourceTimingOffsetMillis(double) {
++    }
++
+     /// Determines the timing offset and returns a Beats object.
+     virtual BeatsPointer importBeatsAndApplyTimingOffset(
+             const QString& filePath,
+diff --git a/src/track/cueinfoimporter.h b/src/track/cueinfoimporter.h
+index bcf45d3..9579e5f 100644
+--- a/src/track/cueinfoimporter.h
++++ b/src/track/cueinfoimporter.h
+@@ -14,6 +14,9 @@ class CueInfoImporter {
+     explicit CueInfoImporter(QList<CueInfo> cueInfos);
+     virtual ~CueInfoImporter() = default;
+ 
++    virtual void setSourceTimingOffsetMillis(double) {
++    }
++
+     /// Returns true if the importer has any cue(s) of the given cueType.
+     virtual bool hasCueOfType(CueType cueType) const;
+ 
+@@ -28,7 +31,7 @@ class CueInfoImporter {
+     int size() const;
+     bool isEmpty() const;
+ 
+-    QList<CueInfo> importCueInfosAndApplyTimingOffset(
++    virtual QList<CueInfo> importCueInfosAndApplyTimingOffset(
+             const QString& filePath,
+             const QString& fileType,
+             const audio::SignalInfo& signalInfo);
+diff --git a/src/track/track.cpp b/src/track/track.cpp
+index 765748b..3bcac81 100644
+--- a/src/track/track.cpp
++++ b/src/track/track.cpp
+@@ -1934,8 +1934,20 @@ void Track::setAudioProperties(
+ }
+ 
+ void Track::updateStreamInfoFromSource(
+-        mixxx::audio::StreamInfo&& streamInfo) {
++        mixxx::audio::StreamInfo&& streamInfo,
++        double importedSourceTimingOffsetMillis) {
+     auto locked = lockMutex(&m_qMutex);
++    // Publish one decoder coordinate transform to all pending source metadata
++    // before any importer is consumed. Other importers keep their own policy.
++    if (m_pBeatsImporterPending) {
++        m_pBeatsImporterPending->setSourceTimingOffsetMillis(importedSourceTimingOffsetMillis);
++    }
++    if (m_pCueInfoImporterPending) {
++        m_pCueInfoImporterPending->setSourceTimingOffsetMillis(importedSourceTimingOffsetMillis);
++    }
++    if (m_pWaveformImporterPending) {
++        m_pWaveformImporterPending->setSourceTimingOffsetMillis(importedSourceTimingOffsetMillis);
++    }
+     bool updated = m_record.updateStreamInfoFromSource(streamInfo);
+ 
+     const bool importBeats = m_pBeatsImporterPending && !m_pBeatsImporterPending->isEmpty();
+diff --git a/src/track/track.h b/src/track/track.h
+index 83b031e..39bb934 100644
+--- a/src/track/track.h
++++ b/src/track/track.h
+@@ -588,7 +588,8 @@ class Track : public QObject {
+         return m_record.hasStreamInfoFromSource();
+     }
+     void updateStreamInfoFromSource(
+-            mixxx::audio::StreamInfo&& streamInfo);
++            mixxx::audio::StreamInfo&& streamInfo,
++            double importedSourceTimingOffsetMillis = 0.0);
+ 
+     // Mutex protecting access to object
+     mutable QT_RECURSIVE_MUTEX m_qMutex;
+diff --git a/src/track/waveformimporter.h b/src/track/waveformimporter.h
+index 789a436..528f5f8 100644
+--- a/src/track/waveformimporter.h
++++ b/src/track/waveformimporter.h
+@@ -20,6 +20,9 @@ class WaveformImporter {
+     virtual ~WaveformImporter() = default;
+ 
+     virtual bool isEmpty() const = 0;
++
++    virtual void setSourceTimingOffsetMillis(double) {
++    }
+     virtual ImportedWaveforms importWaveforms(
+             const audio::StreamInfo& streamInfo) = 0;
+ };
+diff --git a/src/waveform/rekordboxwaveform.h b/src/waveform/rekordboxwaveform.h
+index 9fe4ea3..526ea07 100644
+--- a/src/waveform/rekordboxwaveform.h
++++ b/src/waveform/rekordboxwaveform.h
+@@ -22,6 +22,7 @@ struct WaveformSeries {
+     QVector<WaveformColumn> columns;
+     double columnsPerSecond{150.0};
+     QByteArray tag;
++    double originSeconds{0.0};
+ };
+ // Signed extrema of decoded PCM; separate from the immutable Pioneer channels.
+ // 1500 bins/s bounds memory while preserving phase at the measured 112 px/s.
+@@ -91,10 +92,12 @@ void renderSignedColumns(const WaveformSeries& series, const SignedWaveform& aud
+             hi=std::max(hi,audio.columns[i].maximum);
+         }
+         if (lo>hi) continue;
+-        const auto c=peakColumn(series,t*series.columnsPerSecond,(t+step)*series.columnsPerSecond,true);
++        const auto c=peakColumn(series,(t-series.originSeconds)*series.columnsPerSecond,
++                (t+step-series.originSeconds)*series.columnsPerSecond,true);
+         float gain=1.f;
+         if (eqBands && !eqBands->columns.isEmpty()) {
+-            const auto b=peakColumn(*eqBands,t*eqBands->columnsPerSecond,(t+step)*eqBands->columnsPerSecond);
++            const auto b=peakColumn(*eqBands,(t-eqBands->originSeconds)*eqBands->columnsPerSecond,
++                    (t+step-eqBands->originSeconds)*eqBands->columnsPerSecond);
+             const float total=float(b.low)*b.low+float(b.mid)*b.mid+float(b.high)*b.high;
+             if (total>0) gain=std::sqrt((b.low*b.low*gains[0]*gains[0]+b.mid*b.mid*gains[1]*gains[1]+b.high*b.high*gains[2]*gains[2])/total);
+         }
+@@ -166,7 +169,7 @@ void renderColumns(const WaveformSeries& series, WaveformMode mode,
+         bool overview, const std::array<float, 3>& gains, Rectangle rectangle,
+         const WaveformSeries* eqBands = nullptr) {
+     if (series.columns.isEmpty() || width <= 0 || height <= 0) return;
+-    const double first = firstSecond * series.columnsPerSecond;
++    const double first = (firstSecond - series.originSeconds) * series.columnsPerSecond;
+     const double increment = (lastSecond-firstSecond)*series.columnsPerSecond/width;
+     const float half = overview ? height : height/2.f;
+     float overviewPeak = 1;
+@@ -220,8 +223,8 @@ void renderColumns(const WaveformSeries& series, WaveformMode mode,
+             const QColor base=overview ? QColor(14,85,135) : QColor(80,59,255);
+             float eqGain = 1.f;
+             if (eqBands && !eqBands->columns.isEmpty()) {
+-                const double begin = (firstSecond + x*(lastSecond-firstSecond)/width) * eqBands->columnsPerSecond;
+-                const double end = (firstSecond + (x+1)*(lastSecond-firstSecond)/width) * eqBands->columnsPerSecond;
++                const double begin = (firstSecond + x*(lastSecond-firstSecond)/width - eqBands->originSeconds) * eqBands->columnsPerSecond;
++                const double end = (firstSecond + (x+1)*(lastSecond-firstSecond)/width - eqBands->originSeconds) * eqBands->columnsPerSecond;
+                 const auto band = peakColumn(*eqBands, begin, end);
+                 const float total = float(band.low)*band.low + float(band.mid)*band.mid + float(band.high)*band.high;
+                 if (total > 0) eqGain = std::sqrt((band.low*band.low*gains[0]*gains[0] +
+diff --git a/src/library/rekordbox/rekordboxdecodertiming.h b/src/library/rekordbox/rekordboxdecodertiming.h
+new file mode 100644
+--- /dev/null
++++ b/src/library/rekordbox/rekordboxdecodertiming.h
+@@ -0,0 +1,25 @@
++#pragma once
++
++#include <QString>
++#include <optional>
++
++namespace mixxx {
++class SoundSource;
++namespace rekordbox {
++
++// Frame counts belong to the encoded file's native sample rate, never the
++// sound card's rate. Only validated Xing/Info + LAME-compatible tags qualify.
++struct Mp3TimingInfo {
++    int sampleRate;
++    int leadInFrames;
++    qint64 audibleFrames;
++};
++
++std::optional<Mp3TimingInfo> readMp3TimingInfo(const QString& path);
++
++// Translate Rekordbox's untrimmed MP3 coordinates to the opened decoder's
++// timeline. Unknown/untrimmed decoders and untagged files return zero.
++double decoderTimingOffsetMillis(const SoundSource& source);
++
++} // namespace rekordbox
++} // namespace mixxx

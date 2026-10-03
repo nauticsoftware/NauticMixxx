@@ -2,6 +2,12 @@ name: NauticMixxx Windows x64
 
 on:
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Upload installer to an existing release (main only)
+        type: boolean
+        default: false
+        required: true
 
 permissions:
   contents: write
@@ -12,7 +18,7 @@ concurrency:
 
 jobs:
   build:
-    if: github.repository == 'nauticsoftware/NauticMixxx' && github.ref == 'refs/heads/main'
+    if: github.repository == 'nauticsoftware/NauticMixxx' && (github.ref == 'refs/heads/main' || !inputs.publish_release)
     runs-on: windows-2022
     timeout-minutes: 180
     steps:
@@ -77,7 +83,22 @@ jobs:
           if ($uninstall.ExitCode -ne 0) { throw "Silent uninstall failed: $($uninstall.ExitCode)" }
           if (Test-Path $installedExe) { throw 'Uninstall left executable behind' }
           if (-not (Test-Path (Join-Path $profile 'mixxx.cfg'))) { throw 'Uninstall removed user profile' }
+      - name: Collect build evidence
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force build/ci-results | Out-Null
+          Copy-Item C:/rx3-build/stage/rx3-tests.xml build/ci-results/
+          Copy-Item C:/rx3-build/stage/rx3-build.json build/ci-results/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nauticmixxx-windows-${{ github.run_id }}
+          path: |
+            build/*-Windows-x64-Setup.exe
+            build/ci-results/*
+          if-no-files-found: error
+          compression-level: 0
       - name: Publish the single Windows installer to the public release
+        if: inputs.publish_release && github.ref == 'refs/heads/main'
         shell: powershell
         env:
           GH_TOKEN: ${{ github.token }}

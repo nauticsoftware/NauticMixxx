@@ -1,10 +1,27 @@
+# Historial de cambios
+
+## 1.4.0 — 2026-10-03
+
+- Corrige la diferencia entre los tiempos de MP3 exportados por Rekordbox y
+  el audio que CoreAudio entrega sin delay del encoder. La compensación depende
+  del archivo y del decodificador abierto; se aplica a grid, cues y loops.
+- Las waveforms ANLZ conservan su reloj de 150 columnas/s y comparten el origen
+  temporal del audio, sin estirar el padding sobre la duración decodificada.
+- Mantiene los tiempos del export y los WAV intactos; los cues anteriores al
+  inicio decodificado se limitan a cero y los loops sin audio se descartan
+  únicamente de la proyección temporal.
+- Validación con la playlist METRONOME, WAV/MP3 a 44,1 y 48 kHz, 64 beats y
+  ocho seeks repetidos al CUE. Detalles en docs/BEATGRID-TIMING-1.4.md.
+- Las candidatas macOS de test arrancan con un perfil propio desde Finder o
+  el lanzador, con mapeos resueltos dentro de su sandbox.
+- Centra el logo inicial en el ancho completo de la ventana, compensando
+  el espacio del panel BEAT FX también al escalar la skin.
+
 ## 1.3.1 — 2026-10-02
 
 - Corrige el fallo al iniciar el mapeo Hercules DJControl Inpulse 500 cuando el control de la página lateral aún no existe. El botón consulta el estado actual al pulsarlo.
 - Incluye el mapeo DDJ-FLX4 con navegación RX3 aportado por la comunidad y validado por pruebas automáticas; pendiente de prueba física.
 - Actualiza los paquetes nativos macOS y Windows, preservando el icono propio de NauticMixxx.
-
-# Historial de cambios
 
 ## 1.3.0 — 2026-10-01
 

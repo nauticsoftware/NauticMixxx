@@ -1,3 +1,33 @@
+# NauticMixxx 1.4.0 — 2026-10-03
+
+- Corrige en macOS la diferencia entre tiempos Rekordbox y MP3 decodificados
+  sin delay por CoreAudio. Grid, cues, hot cues, loops y waveforms comparten
+  la coordenada del PCM abierto. La compensación se confirma por archivo y
+  decodificador, no por una constante fija.
+- En METRONOME, los desfases de unos 25/23 ms se redujeron a menos de 0,6 ms
+  de error máximo grid/kick sobre 64 beats a 44,1 y 48 kHz. Ocho seeks al CUE
+  devolvieron PCM estable. Los WAV conservan los tiempos originales del export.
+- ANLZ conserva su reloj de 150 columnas/s y no estira el padding sobre la
+  duración audible. El pendrive permanece en sólo lectura.
+- Centra el logo inicial en el ancho completo de la ventana; comprobado en
+  tamaño normal y ampliado.
+- Conserva el hotfix Inpulse 500 y el mapping DDJ-FLX4 de v1.3.1.
+- Entrega aplicaciones nativas macOS Apple Silicon y Windows x64, icono propio,
+  fuentes correspondientes y checksums. Los resultados de CI de Windows se
+  registran en TEST_REPORT.md al terminar la compilación.
+
+La medición MP3 corresponde a CoreAudio en macOS. PQTZ guarda milisegundos
+enteros y el WAV de 44,1 kHz ya exporta su primer beat a 999 ms; no se modifica
+ese dato. La comparación audible de CUE, la latencia física y las pruebas con
+hardware Windows siguen pendientes. FFmpeg 6 no pudo abrir los dos MP3 del
+set; esa ruta no cuenta como validación.
+
+macOS usa firma ad hoc sin notarización; el instalador Windows no está firmado.
+Al actualizar, el paquete público macOS conserva la ubicación habitual del
+perfil. Véase [el informe de timing](docs/BEATGRID-TIMING-1.4.md).
+
+---
+
 # NauticMixxx 1.3.1 — 2026-10-02
 
 Esta revisión corrige un error que podía desactivar el mapeo **Hercules DJControl Inpulse 500** al iniciar. El control de la página lateral se consulta cuando se pulsa el botón, una vez disponible la interfaz. La corrección se probó con un Inpulse 500 conectado en macOS.

@@ -44,6 +44,8 @@ PUBLIC_SCRIPT_PATHS = [
     "scripts/build-app-icon-windows.py",
     "scripts/build-mixxx-rx3-macos.sh",
     "scripts/package-macos-dmg.sh",
+    "scripts/package-test-candidate-macos.sh",
+    "scripts/test-metronome-timing.py",
     "scripts/build-mixxx-rx3-windows.ps1",
     "scripts/configure-nauticmixxx-profile.py",
     "scripts/package-release.py",
@@ -113,14 +115,16 @@ def add_tree(tar: tarfile.TarFile, source: Path, arcname: str) -> None:
 
 
 def validate_inputs(app: Path) -> None:
+    if (app / "Contents/Resources/nautic-test-profile").exists():
+        raise ValueError("Use a clean installed build, not an isolated test bundle, for a public release")
     skin_version = ET.parse(ROOT / "skins/XDJ_RX3_Mixxx/skin.xml").findtext(
         "manifest/version"
     )
     if skin_version != VERSION:
         raise ValueError(f"La skin declara {skin_version}; se esperaba {VERSION}")
     patches = sorted((ROOT / "patches").glob("00[0-9][0-9]-*.patch"))
-    if len(patches) != 14:
-        raise ValueError("La release requiere exactamente los catorce parches 0001–0014")
+    if len(patches) != 15:
+        raise ValueError("La release requiere exactamente los quince parches 0001–0015")
     if not (SOURCE_ROOT / "src/widget/rx3displaystate.h").is_file():
         raise ValueError("Faltan los fuentes correspondientes parcheados de Mixxx")
     if not app.is_dir() or not (app / "Contents/Info.plist").is_file():
@@ -278,6 +282,7 @@ def create_github_source_zip(output: Path) -> None:
         "EMPEZAR-COMPILACION.txt",
         "LICENSE.md",
         "branding/NauticMixxx.png",
+        "branding/NauticMixxx2.png",
         "README.md",
         "RELEASE_NOTES.md",
         "RELEASE_NOTES_EN.md",
@@ -362,19 +367,26 @@ def create_sbom(path: Path) -> None:
 
 
 def main() -> None:
-    global SOURCE_ROOT
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app", type=Path)
-    parser.add_argument("--source-root", type=Path, help="validated patched Mixxx source tree")
+    parser.add_argument("--native-test-report", type=Path, help="successful native GoogleTest XML for the packaged binary")
     parser.add_argument("--windows-skin", type=Path, help="validated Windows skin ZIP to include")
     parser.add_argument("--output", type=Path, default=ROOT / "build" / "release-candidate" / VERSION)
     args = parser.parse_args()
-    if args.source_root:
-        SOURCE_ROOT = args.source_root.resolve()
     app = args.app.resolve() if args.app else (DEFAULT_APP if DEFAULT_APP.exists() else FALLBACK_APP)
     windows_skin = args.windows_skin.resolve() if args.windows_skin else None
     output = args.output.resolve()
     validate_inputs(app)
+    native_results = {"nativePassed": None, "nativeFailed": None,
+                      "optionalExternalFixturesSkipped": None}
+    if args.native_test_report:
+        tests = ET.parse(args.native_test_report).getroot().findall(".//testcase")
+        failed = sum(t.find("failure") is not None or t.find("error") is not None for t in tests)
+        skipped = sum(t.find("skipped") is not None or t.get("status") == "notrun" for t in tests)
+        if not tests or failed:
+            raise ValueError("Native test report is empty or contains failures")
+        native_results = {"nativePassed": len(tests) - failed - skipped,
+                          "nativeFailed": failed, "optionalExternalFixturesSkipped": skipped}
     if windows_skin:
         expected_name = f"{PRODUCT}-{VERSION}-Windows-x64-Skin.zip"
         if windows_skin.name != expected_name or not windows_skin.is_file():
@@ -439,11 +451,9 @@ def main() -> None:
             "windows-x64": "skin-only-installer" if windows_skin else "not-built",
         },
         "tests": {
-            "nativePassed": 59,
-            "nativeFailed": 0,
-            "optionalExternalFixturesSkipped": 6,
-            "controllerSuitesPassed": 5,
-            "usbOnlyContractPassed": True,
+            **native_results,
+            "controllerSuitesPassed": None,
+            "usbOnlyContractPassed": None,
             "windowsTargetMachineVerified": False,
         },
         "artifacts": [{"name": path.name, "bytes": path.stat().st_size, "sha256": sha256(path)} for path in artifacts],

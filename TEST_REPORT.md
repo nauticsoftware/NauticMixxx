@@ -1,5 +1,26 @@
 # Informe de validación — NauticMixxx
 
+## v1.4.0 — timing de Rekordbox y logo
+
+- Compilación nativa macOS ARM64 con los quince parches. El binario coincide
+  con la candidata r4 verificada por UUID.
+- METRONOME: los 64 kicks de ambos WAV coinciden con el JSON a cero muestras.
+  Los cuatro audios y sus PDB/ANLZ reales se probaron desde una copia exacta
+  del export; se conservaron SHA-256 en el diagnóstico local.
+- CoreAudio: error máximo MP3 grid/kick de 0,590 ms a 44,1 kHz y 0,542 ms a
+  48 kHz. Se comprobaron 64 beats y ocho seeks por archivo. WAV 48 kHz:
+  0,500 ms; WAV 44,1 kHz: 1,497 ms, conservando su primer beat exportado a
+  999 ms y CUE a 1000 ms. Datos en docs/BEATGRID-TIMING-1.4.md.
+- Suite de timing: 16 aprobadas, tres fixtures opcionales omitidos. La puerta
+  RX3 + timing: 31 aprobadas y las mismas tres omitidas, sin fallos.
+- Logo inicial centrado en ventanas de 1280 y 2560 píxeles de ancho.
+  Icono canónico verificado en el bundle y Finder; firma estricta correcta.
+- El candidato de publicación se genera desde una instalación limpia de CMake,
+  sin plantilla ni perfil de test. La validación final y Windows se registran
+  al completar las respectivas puertas de publicación.
+- Los MP3 se midieron con CoreAudio. FFmpeg 6 no abrió estos MP3. No se midió
+  salida física de CUE ni latencia; no hay comparación física de Windows.
+
 ## v1.3.1 — mapeos de controladores
 
 - En macOS, el Inpulse 500 conectado inició con el mapeo RX3 activo y sin la excepción `trigger` del arranque. La prueba utilizó un perfil aislado.

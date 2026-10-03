@@ -1,5 +1,14 @@
 # NauticMixxx native patches
 
+## 0015 — Timing del decodificador Rekordbox para v1.4
+
+Aplica después de 0014. Proyecta grid, cues, loops y waveforms sobre la
+coordenada del PCM abierto. Compensa el inicio de MP3 únicamente cuando
+CoreAudio y el tag Info/Xing confirman trimming. Conserva los WAV y el
+export original. Incluye pruebas METRONOME y arranque aislado para bundles
+macOS de test con plantilla interna. Evidencia y límites en
+[BEATGRID-TIMING-1.4.md](../docs/BEATGRID-TIMING-1.4.md).
+
 ## 0014 — Categorías exportadas y lista RX3 expandida para v1.3
 
 Aplica después de 0013. Lee las categorías visibles y su orden de las tablas
@@ -70,7 +79,7 @@ Requirements: Xcode command-line tools, CMake, Ninja, Python 3, Git, curl and un
 sh scripts/build-mixxx-rx3-macos.sh
 ```
 
-The script downloads official Mixxx 2.5.6 source and the official 2.5 ARM64 dependency environment, verifies both SHA-256 digests, applies all ten patches, builds the app and runs the RX3 tests. It writes a signed bundle to `tmp/mixxx-native-rebuild/stage/NauticMixxx.app`; it does not install or modify controller settings. Use `RX3_BUILD_ROOT` to choose another build/cache directory and `RX3_BUILD_JOBS` to adjust parallelism. Allow roughly 8 GB of free disk space.
+The script downloads official Mixxx 2.5.6 source and the official 2.5 ARM64 dependency environment, verifies both SHA-256 digests, applies all fifteen patches, builds the app and runs the RX3 tests. It writes a signed bundle to `tmp/mixxx-native-rebuild/stage/NauticMixxx.app`; it does not install or modify controller settings. Use `RX3_BUILD_ROOT` to choose another build/cache directory and `RX3_BUILD_JOBS` to adjust parallelism. Allow roughly 8 GB of free disk space.
 
 ## Patch 0009: public product identity
 

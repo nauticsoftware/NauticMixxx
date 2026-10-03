@@ -1,3 +1,50 @@
+# NauticMixxx 1.4.0 — 2026-10-03
+
+## Rekordbox MP3 timing on macOS
+
+- Fixes the coordinate mismatch between exported Rekordbox timestamps and
+  MP3 audio trimmed by CoreAudio. Beatgrids, CUEs, Hot Cues, loops and ANLZ
+  waveforms now use the same decoded audio timeline.
+- Reads the tagged encoder delay and applies compensation only when the
+  opened CoreAudio decoder confirms the expected sample rate and audible
+  length. Untagged or unconfirmed files and other decoders remain unchanged.
+- On the supplied METRONOME export, the approximately 25 ms / 23 ms MP3
+  offsets fell to a maximum grid-to-kick error below 0.6 ms across 64 beats
+  at both 44.1 and 48 kHz. Eight repeated CUE-position seeks returned stable
+  PCM. WAV timestamps remain exactly as exported.
+- Preserves the 150-column/s ANLZ detail clock without stretching encoder
+  padding across the waveform. Original USB audio and analysis files are
+  never rewritten.
+
+## Interface and controller updates
+
+- Centres the startup NauticMixxx logo across the full window, including
+  the BEAT FX panel width. Checked at normal and enlarged window sizes.
+- Retains the Inpulse 500 startup fix and the community DDJ-FLX4 RX3 browser
+  mapping introduced in 1.3.1.
+- Development test bundles use isolated profiles. The public macOS release
+  keeps the existing profile location for updates.
+
+## Packages and validation
+
+Native packages are provided for macOS Apple Silicon and Windows x64,
+with the NauticMixxx icon, source archives and SHA-256 checksums. Native
+Windows build and installer results are recorded in TEST_REPORT.md after CI.
+
+The timing measurements above are for macOS CoreAudio, not a Windows MP3
+measurement. PQTZ has integer-millisecond precision; the supplied 44.1 kHz
+WAV already exports its first kick beat at 999 ms while its CUE is 1000 ms.
+The app preserves that source data. Physical CUE output, output-device
+latency and Windows hardware comparison with Rekordbox were not measured.
+The bundled FFmpeg 6 provider could not open the two supplied MP3 fixtures;
+the successful MP3 timing checks used CoreAudio.
+
+The macOS app is ad hoc signed and not notarized. The Windows installer is
+unsigned. See the installation guides for first-launch instructions and
+[the timing report](docs/BEATGRID-TIMING-1.4.md) for scope and measurements.
+
+---
+
 # NauticMixxx 1.3.1 — 2026-10-02
 
 This update fixes a startup error that could disable the **Hercules DJControl Inpulse 500** mapping. The side-panel state is now read when its button is pressed, after the skin is available. The fix was checked with a connected Inpulse 500 on macOS.

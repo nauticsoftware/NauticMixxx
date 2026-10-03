@@ -1624,13 +1624,17 @@ WLabel {
    matching the XDJ-RX3's Rekordbox background logo behavior.      */
 #NauticBgLogoContainer {
   background: transparent;
+  /* Waveforms excludes the 184px FX panel plus the 8px performance gap.
+     Inset the logo layout by that width on the left to centre the mark
+     on the full performance canvas. Reference scaling also scales this. */
+  padding-left: 192px;
+  qproperty-layoutAlignment: 'AlignCenter';
 }
 
 #NauticBgLogo {
   border-image: url(skin:/images/NauticMixxx.png) 0 0 0 0 stretch stretch;
   background: transparent;
   border: none;
-  qproperty-layoutAlignment: 'AlignCenter';
   min-width: 420px;
   max-width: 420px;
   min-height: 140px;
