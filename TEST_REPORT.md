@@ -15,9 +15,16 @@
   RX3 + timing: 31 aprobadas y las mismas tres omitidas, sin fallos.
 - Logo inicial centrado en ventanas de 1280 y 2560 píxeles de ancho.
   Icono canónico verificado en el bundle y Finder; firma estricta correcta.
-- El candidato de publicación se genera desde una instalación limpia de CMake,
-  sin plantilla ni perfil de test. La validación final y Windows se registran
-  al completar las respectivas puertas de publicación.
+- Publicación macOS: instalación limpia de CMake, sin plantilla ni perfil de
+  test; 63 pruebas nativas aprobadas, nueve fixtures externos opcionales
+  omitidos, cero fallos. Seis suites JavaScript de controladores, contrato USB,
+  XML y preset FLX4 aprobados. DMG con integridad y firma estricta verificadas.
+- Windows x64: los quince parches compilaron en `windows-2022`; 93 pruebas
+  nativas aprobadas, cuatro fixtures externos opcionales omitidos, cero fallos.
+  Instalación y desinstalación del EXE real correctas, conservando el perfil.
+  Las siete imágenes del icono del instalador y de la app coinciden exactamente
+  con el ICO generado desde el PNG canónico.
+  [Ejecución pública](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37140784715).
 - Los MP3 se midieron con CoreAudio. FFmpeg 6 no abrió estos MP3. No se midió
   salida física de CUE ni latencia; no hay comparación física de Windows.
 

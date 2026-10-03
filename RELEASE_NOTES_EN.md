@@ -28,8 +28,10 @@
 ## Packages and validation
 
 Native packages are provided for macOS Apple Silicon and Windows x64,
-with the NauticMixxx icon, source archives and SHA-256 checksums. Native
-Windows build and installer results are recorded in TEST_REPORT.md after CI.
+with the NauticMixxx icon, source archives and SHA-256 checksums.
+Windows validation passed 93 native tests and actual EXE installation and
+uninstallation; four optional external fixtures were skipped. Results are
+recorded in TEST_REPORT.md.
 
 The timing measurements above are for macOS CoreAudio, not a Windows MP3
 measurement. PQTZ has integer-millisecond precision; the supplied 44.1 kHz

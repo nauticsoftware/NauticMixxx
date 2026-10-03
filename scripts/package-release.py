@@ -254,6 +254,8 @@ def create_source_archive(output: Path) -> None:
         add_tree(archive, ROOT / "docs", f"{prefix}/docs")
         for script in PUBLIC_SCRIPT_PATHS:
             add_tree(archive, ROOT / script, f"{prefix}/{script}")
+        for name in ["NauticMixxx.png", "NauticMixxx2.png"]:
+            add_tree(archive, ROOT / "branding" / name, f"{prefix}/branding/{name}")
         add_tree(archive, ROOT / "branding/iCon.icon", f"{prefix}/branding/iCon.icon")
         add_tree(archive, ROOT / ".github", f"{prefix}/.github")
         add_tree(archive, ROOT / ".gitattributes", f"{prefix}/.gitattributes")

@@ -12,9 +12,12 @@ Desde `dev/nautic/`:
 ```bash
 ./scripts/validate-release.sh
 ./scripts/build-mixxx-rx3-macos.sh
+python3 scripts/package-release.py \
+  --app tmp/mixxx-native-rebuild/stage/NauticMixxx.app \
+  --native-test-report tmp/mixxx-native-rebuild/build/rx3-tests.xml
 ```
 
-El segundo comando genera `build/release-candidate/<versión>/`. Si se necesita
+El tercer comando genera `build/release-candidate/<versión>/`. Si se necesita
 el DMG y está disponible `create-dmg`:
 
 ```bash

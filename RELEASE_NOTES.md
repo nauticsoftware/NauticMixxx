@@ -13,8 +13,9 @@
   tamaño normal y ampliado.
 - Conserva el hotfix Inpulse 500 y el mapping DDJ-FLX4 de v1.3.1.
 - Entrega aplicaciones nativas macOS Apple Silicon y Windows x64, icono propio,
-  fuentes correspondientes y checksums. Los resultados de CI de Windows se
-  registran en TEST_REPORT.md al terminar la compilación.
+  fuentes correspondientes y checksums. Windows pasó 93 pruebas nativas
+  y la instalación/desinstalación del EXE; cuatro fixtures opcionales omitidos.
+  Resultados y límites en TEST_REPORT.md.
 
 La medición MP3 corresponde a CoreAudio en macOS. PQTZ guarda milisegundos
 enteros y el WAV de 44,1 kHz ya exporta su primer beat a 999 ms; no se modifica
