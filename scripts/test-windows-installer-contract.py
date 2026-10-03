@@ -16,6 +16,8 @@ for required in ('Name "NauticMixxx"', 'RequestExecutionLevel user',
                  'File /r "${PAYLOAD}\\runtime\\*"'):
     assert required in script, required
 assert r'${PAYLOAD}\controllers\Pioneer_DDJ_FLX4_RX3\*' in script
+assert r'${PAYLOAD}\controllers\Pioneer_Roland_RX3\*' in script
+assert 'Locale en_US' in (ROOT / 'profile/XDJ_RX3_Mixxx.profile.cfg').read_text()
 assert '.bat' not in script.lower()
 build = (ROOT / 'scripts/build-mixxx-rx3-windows.ps1').read_text()
 assert 'NauticMixxx.exe' in build and 'NauticMixxx.ico' in build
