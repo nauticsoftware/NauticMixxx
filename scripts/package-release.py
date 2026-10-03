@@ -356,7 +356,7 @@ def create_sbom(path: Path) -> None:
         "SPDXID": "SPDXRef-DOCUMENT",
         "name": f"{PRODUCT}-{VERSION}",
         "documentNamespace": f"https://nauticmixxx.invalid/spdx/{VERSION}/{int(time.time())}",
-        "creationInfo": {"created": "2026-09-22T00:00:00Z", "creators": ["Tool: package-release.py"]},
+        "creationInfo": {"created": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "creators": ["Tool: package-release.py"]},
         "packages": [
             {"name": PRODUCT, "SPDXID": "SPDXRef-NauticMixxx", "versionInfo": VERSION, "downloadLocation": "NOASSERTION", "licenseConcluded": "GPL-3.0-only", "licenseDeclared": "GPL-3.0-only", "filesAnalyzed": False},
             {"name": "Mixxx", "SPDXID": "SPDXRef-Mixxx", "versionInfo": "2.5.6", "downloadLocation": "https://github.com/mixxxdj/mixxx/releases/tag/2.5.6", "licenseConcluded": "GPL-2.0-or-later", "licenseDeclared": "GPL-2.0-or-later", "filesAnalyzed": False},

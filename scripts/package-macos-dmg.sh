@@ -37,8 +37,15 @@ if [ -e "$output" ]; then
   mv "$output" "$temp/previous.dmg"
 fi
 
-# The project icon is generated from branding/ and the DMG needs no project folder.
+# Use the saved Finder layout to build without automating Finder.
+layout="$project/packaging/macos/dmg-layout.dsstore"
+[ -f "$layout" ] || {
+  printf "Missing DMG layout template: %s\n" "$layout" >&2
+  exit 1
+}
 create-dmg \
+  --skip-jenkins \
+  --add-file ".DS_Store" "$layout" 0 0 \
   --volname "NauticMixxx $version" \
   --volicon "$icon" \
   --window-pos 200 120 \

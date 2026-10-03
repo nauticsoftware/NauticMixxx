@@ -87,8 +87,10 @@ jobs:
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force build/ci-results | Out-Null
-          Copy-Item C:/rx3-build/stage/rx3-tests.xml build/ci-results/
-          Copy-Item C:/rx3-build/stage/rx3-build.json build/ci-results/
+          $stage = (Get-ChildItem C:/rx3-build -Directory -Filter "stage-*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
+          if (-not $stage) { throw "Native staging directory was not generated" }
+          Copy-Item (Join-Path $stage "rx3-tests.xml") build/ci-results/
+          Copy-Item (Join-Path $stage "rx3-build.json") build/ci-results/
       - uses: actions/upload-artifact@v4
         with:
           name: nauticmixxx-windows-${{ github.run_id }}
