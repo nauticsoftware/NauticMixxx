@@ -2,7 +2,7 @@
 	<manifest>
 		<title>NauticMixxx</title>
 		<author>Sven Boekelder, Bence Juhasz, ntamas94; RX3 adaptation by NauticBoy</author>
-		<version>1.7.0</version>
+		<version>1.8.0</version>
 		<description>NauticMixxx two-deck performance interface for Mixxx</description>
 		<language>*</language>
 		<license>GPL</license>

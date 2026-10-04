@@ -1,0 +1,191 @@
+diff --git a/src/skin/legacy/legacyskinparser.cpp b/src/skin/legacy/legacyskinparser.cpp
+--- a/src/skin/legacy/legacyskinparser.cpp
++++ b/src/skin/legacy/legacyskinparser.cpp
+@@ -53,6 +53,7 @@
+ #include "widget/wknob.h"
+ #include "widget/wknobcomposed.h"
+ #include "widget/wlabel.h"
++#include "widget/wrx3deckbadge.h"
+ #include "widget/wlibrary.h"
+ #include "widget/wlibrarysidebar.h"
+ #include "widget/wnumber.h"
+@@ -599,7 +600,9 @@
+     } else if (nodeName == "NumberDb") {
+         result = wrapWidget(parseLabelWidget<WNumberDb>(node));
+     } else if (nodeName == "Label") {
+-        result = wrapWidget(parseLabelWidget<WLabel>(node));
++        result = wrapWidget(m_pContext->selectBool(node, "Rx3DeckBadge", false)
++                        ? parseLabelWidget<WRx3DeckBadge>(node)
++                        : parseLabelWidget<WLabel>(node));
+     } else if (nodeName == "Knob") {
+         result = wrapWidget(parseStandardWidget<WKnob>(node));
+     } else if (nodeName == "KnobComposed") {
+diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
+--- a/src/test/rx3display_test.cpp
++++ b/src/test/rx3display_test.cpp
+@@ -722,3 +722,64 @@
+         ASSERT_TRUE(box.grab().save(output+(browser?"/bpm-browser.png":"/bpm-performance.png")));
+     }
+ }
++
++#include "widget/wrx3deckbadge.h"
++TEST(Rx3DeckBadge, WavesGrowThenBlinkOffOnAnExplicitEightHundredMillisecondCycle) {
++    EXPECT_EQ(1,rx3::deckWaveStage(true,0));
++    EXPECT_EQ(1,rx3::deckWaveStage(true,199));
++    EXPECT_EQ(2,rx3::deckWaveStage(true,200));
++    EXPECT_EQ(3,rx3::deckWaveStage(true,400));
++    EXPECT_EQ(0,rx3::deckWaveStage(true,600));
++    EXPECT_EQ(1,rx3::deckWaveStage(true,800));
++    EXPECT_EQ(0,rx3::deckWaveStage(false,400));
++}
++namespace {
++int deckWavePixels(const QImage& image) {
++    int result=0;
++    for(int y=0;y<image.height();++y) for(int x=0;x<image.width();++x) {
++        const auto color=image.pixelColor(x,y);
++        if(color.red()>100 && color.green()<100 && color.blue()<70) ++result;
++    }
++    return result;
++}
++}
++TEST(Rx3DeckBadge, VectorWavesAndCompactLabelSpacingAtBothPixelDensities) {
++    const auto output=qEnvironmentVariable("NAUTIC_BROWSER_ARTIFACT_DIR");
++    for (int dpr : {1,2}) for (int deck : {1,2}) {
++        int previous=0;
++        for (int stage=0;stage<=3;++stage) {
++            QImage image(92*dpr,52*dpr,QImage::Format_ARGB32_Premultiplied);
++            image.setDevicePixelRatio(dpr);image.fill(QColor("#181818"));
++            QPainter painter(&image);rx3::drawDeckBadge(&painter,QRectF(0,0,92,52),deck,stage);painter.end();
++            const int pixels=deckWavePixels(image);
++            if(stage==0) EXPECT_EQ(0,pixels);
++            else EXPECT_GT(pixels,previous);
++            previous=pixels;
++            int wordBottom=-1,numberTop=52*dpr;
++            for(int y=0;y<52*dpr;++y) for(int x=36*dpr;x<56*dpr;++x) {
++                const auto c=image.pixelColor(x,y);
++                if(c.red()>200 && c.green()>200 && c.blue()>200) {
++                    if(y<15*dpr) wordBottom=qMax(wordBottom,y);
++                    else numberTop=qMin(numberTop,y);
++                }
++            }
++            ASSERT_GE(wordBottom,0);
++            EXPECT_GE(numberTop-wordBottom,1);
++            EXPECT_LE(numberTop-wordBottom,8*dpr);
++            if(!output.isEmpty()) ASSERT_TRUE(image.save(output+QString("/deck-%1-stage-%2-%3x.png").arg(deck).arg(stage).arg(dpr)));
++        }
++    }
++}
++TEST_F(Rx3HotcueTest, DeckWavesStopImmediatelyOnPauseAndUnloadAndRestartOnPlay) {
++    ControlObject play(ConfigKey("[Channel1]","play"));
++    ControlObject loaded(ConfigKey("[Channel1]","track_loaded"));
++    SkinContext context(config(),QString());
++    QDomDocument doc;ASSERT_TRUE(doc.setContent(QStringLiteral("<Label><Channel>1</Channel></Label>")));
++    WRx3DeckBadge badge;badge.setup(doc.documentElement(),context);badge.resize(92,52);badge.show();
++    const auto waveCount=[&] {QCoreApplication::processEvents();return deckWavePixels(badge.grab().toImage());};
++    EXPECT_EQ(0,waveCount());
++    loaded.set(1);play.set(1);EXPECT_GT(waveCount(),0);
++    play.set(0);EXPECT_EQ(0,waveCount());
++    play.set(1);EXPECT_GT(waveCount(),0);
++    loaded.set(0);EXPECT_EQ(0,waveCount());
++}
+diff --git a/src/widget/wrx3deckbadge.h b/src/widget/wrx3deckbadge.h
+new file mode 100644
+--- /dev/null
++++ b/src/widget/wrx3deckbadge.h
+@@ -0,0 +1,96 @@
++#pragma once
++
++#include <QElapsedTimer>
++#include <QPainter>
++#include <QPainterPath>
++#include <QTimer>
++#include <memory>
++
++#include "control/controlproxy.h"
++#include "skin/legacy/skincontext.h"
++#include "widget/wlabel.h"
++
++namespace rx3 {
++// Pioneer documents the waves, but not their cadence. Keep the approximation
++// explicit and independent of BPM: three growing stages and one blank stage.
++inline constexpr int kDeckWaveStageMs = 200;
++inline int deckWaveStage(bool playing, qint64 elapsedMs) {
++    return playing ? (qMax(qint64(0), elapsedMs) / kDeckWaveStageMs + 1) % 4 : 0;
++}
++inline void drawDeckBadge(QPainter* painter, const QRectF& rect, int deck, int stage) {
++    painter->save();
++    const qreal scale = qMin(rect.width() / 92, rect.height() / 52);
++    painter->translate(rect.center().x() - 46 * scale,
++            rect.center().y() - 26 * scale);
++    painter->scale(scale, scale);
++    painter->setRenderHint(QPainter::Antialiasing);
++    QFont font("Arial");
++    font.setPixelSize(12);
++    painter->setFont(font);
++    painter->setPen(Qt::white);
++    painter->drawText(QRectF(0, 1, 92, 14), Qt::AlignCenter, QStringLiteral("DECK"));
++    font.setPixelSize(26);
++    painter->setFont(font);
++    painter->drawText(QRectF(0, 13, 92, 31), Qt::AlignCenter, QString::number(deck));
++    painter->setPen(QPen(QColor("#F84418"), 1.4, Qt::SolidLine, Qt::RoundCap));
++    painter->setBrush(Qt::NoBrush);
++    for (int wave = 0; wave < qBound(0, stage, 3); ++wave) {
++        for (int side : {-1, 1}) {
++            const qreal x = 46 + side * (12 + wave * 4);
++            const qreal bulge = x + side * 4;
++            const qreal halfHeight = 6 + wave * 3;
++            QPainterPath path;
++            path.moveTo(x, 29 - halfHeight);
++            path.cubicTo(bulge, 29 - halfHeight * 0.4,
++                    bulge, 29 + halfHeight * 0.4, x, 29 + halfHeight);
++            painter->drawPath(path);
++        }
++    }
++    painter->restore();
++}
++} // namespace rx3
++
++class WRx3DeckBadge : public WLabel {
++  public:
++    explicit WRx3DeckBadge(QWidget* parent = nullptr) : WLabel(parent) {
++        m_timer.setInterval(40);
++        connect(&m_timer, &QTimer::timeout, this, [this] { update(); });
++    }
++    void setup(const QDomNode& node, const SkinContext& context) override {
++        WLabel::setup(node, context);
++        m_deck = context.selectString(node, "Channel").toInt();
++        const QString group = QStringLiteral("[Channel%1]").arg(m_deck);
++        m_play = std::make_unique<ControlProxy>(group, "play", this, ControlFlag::NoAssertIfMissing);
++        m_loaded = std::make_unique<ControlProxy>(group, "track_loaded", this, ControlFlag::NoAssertIfMissing);
++        m_play->connectValueChanged(this, [this](double) { refreshPlayback(); });
++        m_loaded->connectValueChanged(this, [this](double) { refreshPlayback(); });
++        refreshPlayback();
++    }
++  protected:
++    void paintEvent(QPaintEvent* event) override {
++        WLabel::paintEvent(event);
++        QPainter painter(this);
++        rx3::drawDeckBadge(&painter, rect(), m_deck,
++                rx3::deckWaveStage(m_playing, m_elapsed.isValid() ? m_elapsed.elapsed() : 0));
++    }
++  private:
++    void refreshPlayback() {
++        const bool playing = m_play && m_loaded && m_play->get() > 0 && m_loaded->get() > 0;
++        if (playing == m_playing) return;
++        m_playing = playing;
++        if (playing) {
++            m_elapsed.start();
++            m_timer.start();
++        } else {
++            m_timer.stop();
++            m_elapsed.invalidate();
++        }
++        update();
++    }
++    QTimer m_timer;
++    QElapsedTimer m_elapsed;
++    std::unique_ptr<ControlProxy> m_play;
++    std::unique_ptr<ControlProxy> m_loaded;
++    int m_deck = 1;
++    bool m_playing = false;
++};

@@ -1,0 +1,635 @@
+diff --git a/src/library/library.cpp b/src/library/library.cpp
+--- a/src/library/library.cpp
++++ b/src/library/library.cpp
+@@ -40,6 +40,7 @@
+ #include "widget/wlibrarysidebar.h"
+ #include "widget/wsearchlineedit.h"
+ #include "widget/wtracktableview.h"
++#include "widget/rx3browserplayback.h"
+ 
+ namespace {
+ 
+@@ -259,6 +260,13 @@
+ 
+ Library::~Library() = default;
+ 
++rx3::BrowserPlaybackState* Library::browserPlaybackState() {
++    if (!m_browserPlaybackState) {
++        m_browserPlaybackState = new rx3::BrowserPlaybackState(this);
++    }
++    return m_browserPlaybackState;
++}
++
+ TrackCollectionManager* Library::trackCollectionManager() const {
+     // Cannot be implemented inline due to forward declarations
+     return m_pTrackCollectionManager;
+diff --git a/src/library/library.h b/src/library/library.h
+--- a/src/library/library.h
++++ b/src/library/library.h
+@@ -34,6 +34,7 @@
+ class WLibrarySidebar;
+ class WLibrary;
+ class QAbstractItemModel;
++namespace rx3 { class BrowserPlaybackState; }
+ 
+ #ifdef __ENGINEPRIME__
+ namespace mixxx {
+@@ -74,6 +75,7 @@
+ 
+     void addFeature(LibraryFeature* feature);
+     RekordboxFeature* rekordboxFeature() const;
++    rx3::BrowserPlaybackState* browserPlaybackState();
+ 
+     /// Needed for exposing models to QML
+     LibraryTableModel* trackTableModel() const;
+@@ -157,6 +159,7 @@
+       void onPlayerManagerTrackAnalyzerIdle();
+ 
+   private:
++    rx3::BrowserPlaybackState* m_browserPlaybackState{nullptr};
+     const UserSettingsPointer m_pConfig;
+ 
+     // The Mixxx database connection pool
+diff --git a/src/library/rekordbox/rekordboxruntimetrackmodel.cpp b/src/library/rekordbox/rekordboxruntimetrackmodel.cpp
+--- a/src/library/rekordbox/rekordboxruntimetrackmodel.cpp
++++ b/src/library/rekordbox/rekordboxruntimetrackmodel.cpp
+@@ -132,6 +132,10 @@
+ 
+ void RekordboxRuntimeTrackModel::clearSession() {
+     setRows({}, {}, QStringLiteral("empty"));
++}
++
++std::shared_ptr<const SessionState> RekordboxRuntimeTrackModel::sessionState() const {
++    return m_session ? m_session->sessionState() : nullptr;
+ }
+ 
+ void RekordboxRuntimeTrackModel::setRows(
+diff --git a/src/library/rekordbox/rekordboxruntimetrackmodel.h b/src/library/rekordbox/rekordboxruntimetrackmodel.h
+--- a/src/library/rekordbox/rekordboxruntimetrackmodel.h
++++ b/src/library/rekordbox/rekordboxruntimetrackmodel.h
+@@ -14,6 +14,7 @@
+ namespace mixxx::rekordbox {
+ 
+ class RekordboxUsbSession;
++class SessionState;
+ 
+ // Read-only, non-SQL rows for one live Rekordbox USB session. Rekordbox IDs
+ // remain provider identities and are never exposed as Mixxx TrackIds.
+@@ -64,6 +65,7 @@
+     const WaveformSeries* waveformPreview(
+             const QModelIndex& index, WaveformMode mode) const;
+     void requestWaveformPreview(const QModelIndex& index, WaveformMode mode);
++    std::shared_ptr<const SessionState> sessionState() const;
+ 
+   protected:
+     QVariant rawValue(const QModelIndex& index) const override;
+diff --git a/src/widget/wtracktableview.cpp b/src/widget/wtracktableview.cpp
+--- a/src/widget/wtracktableview.cpp
++++ b/src/widget/wtracktableview.cpp
+@@ -1,11 +1,16 @@
+ #include "widget/rx3waveform.h"
+ #include "waveform/waveformwidgetfactory.h"
+ #include "widget/wtracktableview.h"
++#include "widget/rx3browsericons.h"
++#include "widget/rx3browserplayback.h"
+ 
+ #include <QDrag>
+ #include <QPainter>
+ #include <QStyledItemDelegate>
+ #include <QTimer>
++#include <QFutureWatcher>
++#include <QtConcurrentRun>
++#include "widget/rx3browseraudio.h"
+ #include "waveform/waveformfactory.h"
+ #include <QModelIndex>
+ #include <QScrollBar>
+@@ -83,13 +88,18 @@
+ 
+ class Rx3TrackDelegate : public QStyledItemDelegate {
+   public:
+-    Rx3TrackDelegate(WTrackTableView* view, AnalysisDao* dao)
+-            : QStyledItemDelegate(view), m_view(view), m_dao(dao), m_cache(256) {}
++    Rx3TrackDelegate(WTrackTableView* view, AnalysisDao* dao, rx3::BrowserPlaybackState* playback)
++            : QStyledItemDelegate(view), m_view(view), m_dao(dao), m_playback(playback), m_cache(256) {}
+     void paint(QPainter* p, const QStyleOptionViewItem& option, const QModelIndex& index) const override {
+         p->save();
+         const bool selected = option.state & QStyle::State_Selected;
+         p->fillRect(option.rect, selected ? QColor("#008bea") : QColor(index.row() % 2 ? "#262626" : "#000000"));
+         const QString field = m_view->columnNameOfIndex(index);
++        const auto* trackModel = dynamic_cast<TrackModel*>(m_view->model());
++        const QUrl identity = trackModel ? trackModel->getTrackUrl(index) : QUrl();
++        const bool playing = m_playback && m_playback->isPlaying(identity);
++        const QColor textColor = rx3::browserTrackColor(playing,
++                m_playback && m_playback->wasPlayed(identity));
+         if (field == "preview") {
+             auto sourceIndex = index;
+             auto* sourceModel = m_view->model();
+@@ -173,18 +183,29 @@
+                 const double value = index.data(Qt::EditRole).toDouble(&ok);
+                 label = ok && value > 0 ? QString::number(value, 'f', 1) : QStringLiteral("—");
+             }
+-            if (field == "title") label.prepend(QString::fromUtf8("♪  "));
+-
+             const bool compact = field == "bpm" || field == "genre";
+             const QFont font = rx3RowFont(option.rect.height(), compact);
+             p->setFont(font);
+-            p->setPen(Qt::white);
++            p->setPen(textColor);
+             QRect r = option.rect.adjusted(7, 0, -6, 0);
++            if (field == "title") {
++                const qreal unit = option.rect.height()/48.0;
++                const int typeColumn = trackModel ? trackModel->fieldIndex(LIBRARYTABLE_FILETYPE) : -1;
++                const QString type = typeColumn >= 0
++                        ? index.sibling(index.row(), typeColumn).data().toString() : QString();
++                const bool lossless = rx3::isLosslessFileType(type) ||
++                        (type.compare(QStringLiteral("m4a"), Qt::CaseInsensitive) == 0 &&
++                                isAlac(index, identity));
++                rx3::drawBrowserTrackIcon(p,
++                        QRectF(r.x(), r.center().y()-16*unit, 32*unit, 32*unit),
++                        textColor, playing, lossless);
++                r.adjust(qRound(38*unit),0,0,0);
++            }
+             if (field == "artist") {
+                 const qreal unit = option.rect.height()/48.0;
+                 const QPointF c(r.x()+9*unit, r.center().y()-5*unit);
+                 p->setRenderHint(QPainter::Antialiasing);
+-                p->setPen(QPen(Qt::white,unit)); p->setBrush(Qt::NoBrush);
++                p->setPen(QPen(textColor,unit)); p->setBrush(Qt::NoBrush);
+                 p->drawEllipse(c,4*unit,4*unit);
+                 p->drawArc(QRectF(c.x()-9*unit,c.y()+6*unit,18*unit,12*unit),0,180*16);
+                 r.adjust(qRound(26*unit),0,0,0);
+@@ -195,10 +216,48 @@
+     }
+     QWidget* createEditor(QWidget*, const QStyleOptionViewItem&, const QModelIndex&) const override { return nullptr; }
+   private:
++    bool isAlac(const QModelIndex& index, const QUrl& identity) const {
++        const QString key = identity.toString();
++        if (m_alac.contains(key)) return m_alac.value(key);
++        if (m_pendingAlac.contains(key)) return false;
++        auto sourceIndex = index;
++        auto* sourceModel = m_view->model();
++        while (auto* proxy = qobject_cast<QAbstractProxyModel*>(sourceModel)) {
++            sourceIndex = proxy->mapToSource(sourceIndex);
++            sourceModel = proxy->sourceModel();
++        }
++        const auto* trackModel = dynamic_cast<TrackModel*>(sourceModel);
++        if (!trackModel) return false;
++        const auto* usb = qobject_cast<mixxx::rekordbox::RekordboxRuntimeTrackModel*>(sourceModel);
++        const auto session = usb ? usb->sessionState() : nullptr;
++        if (usb && (!session || !session->isActive())) return false;
++        const QString path = trackModel->getTrackLocation(sourceIndex);
++        m_pendingAlac.insert(key);
++        auto* self = const_cast<Rx3TrackDelegate*>(this);
++        auto* watcher = new QFutureWatcher<bool>(self);
++        connect(watcher, &QFutureWatcher<bool>::finished, self, [this, watcher, key, session] {
++            const bool alac = watcher->result();
++            watcher->deleteLater();
++            m_pendingAlac.remove(key);
++            // Revoked USB identities never acquire a result from stale work.
++            if (session && !session->isActive()) return;
++            m_alac.insert(key, alac);
++            m_view->viewport()->update();
++        });
++        watcher->setFuture(QtConcurrent::run([path, session] {
++            if (session && !session->isActive()) return false;
++            const bool alac = rx3::isAlacAudioFile(path);
++            return alac && (!session || session->isActive());
++        }));
++        return false;
++    }
+     WTrackTableView* m_view;
+     AnalysisDao* m_dao;
++    rx3::BrowserPlaybackState* m_playback;
+     mutable QCache<TrackId, ConstWaveformPointer> m_cache;
+     mutable QSet<TrackId> m_pending;
++    mutable QHash<QString, bool> m_alac;
++    mutable QSet<QString> m_pendingAlac;
+ };
+ 
+ } // anonymous namespace
+@@ -311,6 +370,7 @@
+         // Don't proceed if this isn't visible.
+         return;
+     }
++    if (m_rx3Browser) viewport()->update();
+ 
+     // if the user is stopped in the same row for more than 0.1 s,
+     // we load un-cached cover arts as well.
+@@ -1417,7 +1477,9 @@
+         if (column < 0) continue;
+         if (!dynamic_cast<Rx3TrackDelegate*>(itemDelegateForColumn(column))) {
+             auto* old = itemDelegateForColumn(column);
+-            setItemDelegateForColumn(column, new Rx3TrackDelegate(this, &m_pLibrary->trackCollectionManager()->internalCollection()->getAnalysisDAO()));
++            setItemDelegateForColumn(column, new Rx3TrackDelegate(this,
++                    &m_pLibrary->trackCollectionManager()->internalCollection()->getAnalysisDAO(),
++                    m_pLibrary->browserPlaybackState()));
+             if (old && old != itemDelegate()) old->deleteLater();
+         }
+     }
+diff --git a/src/widget/wrx3browser.h b/src/widget/wrx3browser.h
+--- a/src/widget/wrx3browser.h
++++ b/src/widget/wrx3browser.h
+@@ -30,6 +30,7 @@
+ #include "widget/wlibrary.h"
+ #include "widget/wlibrarysidebar.h"
+ #include "widget/wtracktableview.h"
++#include "widget/rx3browsericons.h"
+ 
+ class Rx3CategoryDelegate : public QStyledItemDelegate {
+   public:
+@@ -42,19 +43,8 @@
+         const QString label=index.data().toString().section('\n',1);
+         const qreal scale=option.rect.height()/65.0;
+         const qreal cx=option.rect.center().x(), cy=option.rect.y()+22*scale;
+-        p->setRenderHint(QPainter::Antialiasing);
+-        p->setPen(QPen(Qt::white,1.5*scale));p->setBrush(Qt::NoBrush);
+-        if(label=="ARTIST") {
+-            p->drawEllipse(QPointF(cx,cy-6*scale),5*scale,5*scale);
+-            p->drawArc(QRectF(cx-11*scale,cy+2*scale,22*scale,15*scale),0,180*16);
+-        } else if(label=="ALBUM" || label=="ALBUMS") {
+-            p->drawRect(QRectF(cx-11*scale,cy-11*scale,22*scale,22*scale));
+-            p->drawEllipse(QPointF(cx,cy),7*scale,7*scale);
+-            p->drawEllipse(QPointF(cx,cy),1*scale,1*scale);
+-        } else {
+-            QFont icon("Arial");icon.setPixelSize(qRound(28*scale));p->setFont(icon);
+-            p->drawText(QRectF(option.rect.x(),option.rect.y()+2*scale,option.rect.width(),36*scale),Qt::AlignCenter,index.data().toString().section('\n',0,0));
+-        }
++        rx3::drawBrowserCategoryIcon(p,
++                QRectF(cx-16*scale,cy-16*scale,32*scale,32*scale),label,QColor("#bcbcbc"));
+         QFont font("Arial");font.setPixelSize(qMax(9,qRound(11*scale)));p->setFont(font);
+         p->drawText(option.rect.adjusted(4,qRound(37*scale),-4,-4),Qt::AlignHCenter|Qt::AlignTop,label);
+         p->restore();
+@@ -267,9 +257,7 @@
+         int selected = 0;
+         for(const auto& category : menu.categories) {
+             const auto label = category.label.toUpper();
+-            const QString icon = label == "PLAYLIST" ? QStringLiteral("♫")
+-                    : label == "TRACK" ? QStringLiteral("♪") : QStringLiteral("▣");
+-            auto* item=new QListWidgetItem(icon + "\n" + label,m_categories);
++            auto* item=new QListWidgetItem("\n" + label,m_categories);
+             item->setTextAlignment(Qt::AlignCenter);item->setSizeHint(QSize(94,65));
+             if(category.id == previous) selected=m_categoryIds.size();
+             m_categoryIds.append(category.id);
+diff --git a/src/widget/rx3browsericons.h b/src/widget/rx3browsericons.h
+new file mode 100644
+--- /dev/null
++++ b/src/widget/rx3browsericons.h
+@@ -0,0 +1,106 @@
++#pragma once
++
++#include <QPainter>
++#include <QPainterPath>
++#include <QStringList>
++
++namespace rx3 {
++inline QColor browserTrackColor(bool playing, bool played) {
++    return QColor(playing ? "#01FF02" : played ? "#008A01" : "#FFFFFF");
++}
++inline bool isLosslessFileType(const QString& type) {
++    // M4A may contain AAC or ALAC: never infer losslessness from that container.
++    return QStringList{QStringLiteral("wav"), QStringLiteral("wave"),
++            QStringLiteral("aif"), QStringLiteral("aiff"), QStringLiteral("flac"),
++            QStringLiteral("alac")}.contains(type.trimmed().toLower());
++}
++
++// All icons use one 32x32 vector canvas, independent of installed symbol fonts.
++inline void drawBrowserTrackIcon(QPainter* p, const QRectF& rect,
++        const QColor& color, bool playing, bool lossless) {
++    p->save();
++    p->setRenderHint(QPainter::Antialiasing);
++    p->translate(rect.topLeft());
++    p->scale(rect.width()/32, rect.height()/32);
++    p->setPen(Qt::NoPen); p->setBrush(color);
++    if (playing) {
++        p->drawPolygon(QPolygonF{QPointF(10,7), QPointF(25,16), QPointF(10,25)});
++    } else {
++        p->drawEllipse(QRectF(10,22,9,6));
++        p->fillRect(QRectF(17,5,2.2,20), color);
++        QPainterPath flag;
++        flag.moveTo(19,5); flag.cubicTo(20,10,29,10,26,17);
++        flag.cubicTo(25,20,22,20,22,20);
++        flag.cubicTo(27,13,18,13,18,9); flag.closeSubpath();
++        p->drawPath(flag);
++        if (lossless) {
++            // The H sits above-left of the note, never as part of the title.
++            QFont font(QStringLiteral("Arial")); font.setPixelSize(10);
++            p->setFont(font); p->setPen(color);
++            p->drawText(QRectF(2,4,9,12), Qt::AlignCenter, QStringLiteral("H"));
++        }
++    }
++    p->restore();
++}
++
++inline void drawBrowserCategoryIcon(QPainter* p, const QRectF& rect,
++        const QString& label, const QColor& color) {
++    p->save(); p->setRenderHint(QPainter::Antialiasing);
++    p->translate(rect.topLeft()); p->scale(rect.width()/32, rect.height()/32);
++    p->setPen(QPen(color,1.4)); p->setBrush(Qt::NoBrush);
++    const auto list = [&] {
++        p->drawRect(QRectF(4,3,24,26));
++        for (int y : {9,16,23}) {
++            p->drawPoint(QPointF(8,y)); p->drawLine(QPointF(12,y),QPointF(24,y));
++        }
++    };
++    if (label == "ARTIST" || label == "REMIXER") {
++        p->drawEllipse(QPointF(16,9),6,6);
++        p->drawArc(QRectF(4,19,24,16),0,180*16);
++    } else if (label == "ALBUM" || label == "ALBUMS") {
++        p->drawRect(QRectF(4,4,24,24));
++        p->drawEllipse(QPointF(16,16),9,9); p->drawEllipse(QPointF(16,16),2,2);
++    } else if (label == "TRACK" || label == "TRACKS") {
++        drawBrowserTrackIcon(p,QRectF(0,0,32,32),color,false,false);
++    } else if (label == "KEY") {
++        p->drawRect(QRectF(3,3,26,26));
++        QFont font(QStringLiteral("Arial")); font.setPixelSize(19); p->setFont(font);
++        p->drawText(QRectF(3,3,26,26),Qt::AlignCenter,QStringLiteral("b#"));
++    } else if (label == "PLAYLIST" || label == "HISTORY") {
++        list();
++        if (label == "HISTORY") {
++            p->setBrush(QColor("#202020")); p->drawEllipse(QPointF(24,24),7,7);
++            p->setBrush(Qt::NoBrush);
++            p->drawLine(QPointF(24,20),QPointF(24,24)); p->drawLine(QPointF(24,24),QPointF(28,26));
++        }
++    } else if (label == "MATCHING" || label == "RELATED TRACKS") {
++        p->drawEllipse(QRectF(3,12,18,18)); p->drawEllipse(QRectF(12,3,18,18));
++    } else if (label == "FOLDER") {
++        p->drawPolygon(QPolygonF{QPointF(3,7),QPointF(13,7),QPointF(17,11),
++                QPointF(29,11),QPointF(29,28),QPointF(3,28)});
++    } else if (label == "REC" || label == "RECORDING") {
++        p->drawEllipse(QPointF(16,16),12,12); p->drawEllipse(QPointF(16,16),8,8);
++    } else if (label == "SEARCH") {
++        p->drawEllipse(QPointF(13,13),9,9); p->drawLine(QPointF(20,20),QPointF(29,29));
++    } else if (label == "RATING") {
++        p->drawPolygon(QPolygonF{QPointF(16,2),QPointF(20,12),QPointF(31,12),
++                QPointF(22,19),QPointF(25,30),QPointF(16,23),QPointF(7,30),
++                QPointF(10,19),QPointF(1,12),QPointF(12,12)});
++    } else if (label == "COLOR") {
++        p->drawEllipse(QPointF(16,16),12,12);
++        p->drawLine(QPointF(4,16),QPointF(28,16)); p->drawLine(QPointF(16,4),QPointF(16,28));
++    } else if (label == "YEAR" || label == "DATE ADDED") {
++        p->drawRect(QRectF(4,6,24,23)); p->drawLine(QPointF(4,13),QPointF(28,13));
++        p->drawLine(QPointF(10,2),QPointF(10,10)); p->drawLine(QPointF(22,2),QPointF(22,10));
++    } else if (label == "LABEL" || label == "GENRE") {
++        p->drawPolygon(QPolygonF{QPointF(3,4),QPointF(17,4),QPointF(30,17),QPointF(17,30),QPointF(3,16)});
++        p->drawEllipse(QPointF(9,10),2,2);
++    } else if (label == "BPM") {
++        QPainterPath pulse; pulse.moveTo(2,17); pulse.lineTo(9,17); pulse.lineTo(13,5);
++        pulse.lineTo(18,27); pulse.lineTo(23,17); pulse.lineTo(30,17); p->drawPath(pulse);
++    } else {
++        list();
++    }
++    p->restore();
++}
++} // namespace rx3
+diff --git a/src/widget/rx3browserplayback.h b/src/widget/rx3browserplayback.h
+new file mode 100644
+--- /dev/null
++++ b/src/widget/rx3browserplayback.h
+@@ -0,0 +1,105 @@
++#pragma once
++
++#include <QElapsedTimer>
++#include <QHash>
++#include <QSet>
++#include <QTimer>
++#include <QUrl>
++#include <cmath>
++
++#include "control/controlobject.h"
++#include "mixer/playerinfo.h"
++#include "track/track.h"
++
++namespace rx3 {
++
++// Session-only browser state. It deliberately ignores Mixxx's dominant-deck
++// play counter, which marks a track immediately, and never writes to the USB.
++class BrowserPlaybackLedger {
++  public:
++    struct Sample {
++        QString group;
++        QString identity;
++        bool playing;
++    };
++    static constexpr double kPlayedSeconds = 60.0;
++
++    void advance(const QList<Sample>& samples, double elapsedSeconds) {
++        m_playing.clear();
++        QSet<QString> present;
++        for (const auto& sample : samples) {
++            present.insert(sample.group);
++            auto& deck = m_decks[sample.group];
++            if (deck.identity != sample.identity) {
++                deck = {sample.identity, 0, false};
++            }
++            // Use elapsed listening time, never the seek position or duration.
++            // Both ends of an interval must be playing the same loaded track.
++            if (sample.playing && deck.playing && std::isfinite(elapsedSeconds) &&
++                    elapsedSeconds > 0 && elapsedSeconds <= 1) {
++                deck.seconds += elapsedSeconds;
++            }
++            deck.playing = sample.playing;
++            if (sample.identity.isEmpty()) continue;
++            if (sample.playing) m_playing.insert(sample.identity);
++            if (deck.seconds >= kPlayedSeconds) m_played.insert(sample.identity);
++        }
++        for (auto it = m_decks.begin(); it != m_decks.end();) {
++            if (!present.contains(it.key())) it = m_decks.erase(it);
++            else ++it;
++        }
++    }
++    bool isPlaying(const QString& identity) const { return m_playing.contains(identity); }
++    bool wasPlayed(const QString& identity) const { return m_played.contains(identity); }
++
++  private:
++    struct Deck { QString identity; double seconds; bool playing; };
++    QHash<QString, Deck> m_decks;
++    QSet<QString> m_playing;
++    QSet<QString> m_played;
++};
++
++class BrowserPlaybackState : public QObject {
++  public:
++    explicit BrowserPlaybackState(QObject* parent) : QObject(parent) {
++        m_elapsed.start();
++        connect(&m_timer, &QTimer::timeout, this, [this] { refresh(); });
++        connect(&PlayerInfo::instance(), &PlayerInfo::trackChanged,
++                this, [this] { refresh(); });
++        m_timer.start(100);
++    }
++    static QString identity(const TrackPointer& track) {
++        if (!track) return {};
++        const auto& binding = track->getSourceBinding();
++        if (binding.sourceType() == mixxx::SourceType::RekordboxUsb) {
++            QUrl url;
++            url.setScheme(QStringLiteral("rekordbox-usb"));
++            url.setHost(binding.sessionIdentifier().uuid().toString(QUuid::WithoutBraces));
++            url.setPath(QStringLiteral("/track/%1").arg(binding.rekordboxId()));
++            return url.toString();
++        }
++        return QUrl::fromLocalFile(track->getLocation()).toString();
++    }
++    bool isPlaying(const QUrl& url) const { return m_ledger.isPlaying(url.toString()); }
++    bool wasPlayed(const QUrl& url) const { return m_ledger.wasPlayed(url.toString()); }
++
++  private:
++    void refresh() {
++        QList<BrowserPlaybackLedger::Sample> samples;
++        const auto loaded = PlayerInfo::instance().getLoadedTracks();
++        for (auto it = loaded.cbegin(); it != loaded.cend(); ++it) {
++            // Preview players and samplers never mark browser tracks as played.
++            if (!it.key().startsWith(QStringLiteral("[Channel"))) continue;
++            const bool available = it.value() && it.value()->isSourceAvailableForPlayback();
++            samples.append({it.key(), identity(it.value()), available &&
++                    ControlObject::get(ConfigKey(it.key(), QStringLiteral("play"))) > 0 &&
++                    ControlObject::get(ConfigKey(it.key(), QStringLiteral("cue_preview"))) == 0});
++        }
++        m_ledger.advance(samples, m_elapsed.restart() / 1000.0);
++    }
++    QTimer m_timer;
++    QElapsedTimer m_elapsed;
++    BrowserPlaybackLedger m_ledger;
++};
++
++} // namespace rx3
+diff --git a/src/widget/rx3browseraudio.h b/src/widget/rx3browseraudio.h
+new file mode 100644
+--- /dev/null
++++ b/src/widget/rx3browseraudio.h
+@@ -0,0 +1,13 @@
++#pragma once
++#include "track/taglib/trackmetadata_file.h"
++
++namespace rx3 {
++// AAC and ALAC share the M4A extension. Inspect the MP4 audio properties
++// on a worker thread instead of putting an H on every M4A browser row.
++inline bool isAlacAudioFile(const QString& path) {
++    TagLib::MP4::File file(TAGLIB_FILENAME_FROM_QSTRING(path));
++    const auto* properties = file.audioProperties();
++    return file.isValid() && properties &&
++            properties->codec() == TagLib::MP4::Properties::ALAC;
++}
++} // namespace rx3
+diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
+--- a/src/test/rx3display_test.cpp
++++ b/src/test/rx3display_test.cpp
+@@ -528,3 +528,120 @@
+         }
+     }
+ }
++
++#include "widget/rx3browserplayback.h"
++#include "widget/rx3browsericons.h"
++
++TEST(Rx3BrowserPlayback, AuditionAndSeekingDoNotMarkTrackImmediately) {
++    rx3::BrowserPlaybackLedger ledger;
++    const QList<rx3::BrowserPlaybackLedger::Sample> playing{{"deck1", "track-a", true}};
++    ledger.advance(playing, 0);
++    EXPECT_TRUE(ledger.isPlaying("track-a"));
++    for (int seconds=0; seconds<59; ++seconds) ledger.advance(playing, 1);
++    EXPECT_FALSE(ledger.wasPlayed("track-a"));
++    // A stalled UI/sleep interval must not be counted as listening time.
++    ledger.advance(playing, 180);
++    EXPECT_FALSE(ledger.wasPlayed("track-a"));
++    ledger.advance(playing, 0.999);
++    EXPECT_FALSE(ledger.wasPlayed("track-a"));
++    ledger.advance(playing, 0.001);
++    EXPECT_TRUE(ledger.wasPlayed("track-a"));
++    ledger.advance({{"deck1", "track-a", false}}, 1);
++    EXPECT_FALSE(ledger.isPlaying("track-a"));
++    EXPECT_TRUE(ledger.wasPlayed("track-a"));
++}
++TEST(Rx3BrowserPlayback, PauseDoesNotCountAndReplacementStartsFromZero) {
++    rx3::BrowserPlaybackLedger ledger;
++    ledger.advance({{"deck1", "track-a", true}}, 0);
++    for (int i=0;i<30;++i) ledger.advance({{"deck1", "track-a", true}}, 1);
++    for (int i=0;i<90;++i) ledger.advance({{"deck1", "track-a", false}}, 1);
++    EXPECT_FALSE(ledger.wasPlayed("track-a"));
++    ledger.advance({{"deck1", "track-b", true}}, 1);
++    for (int i=0;i<59;++i) ledger.advance({{"deck1", "track-b", true}}, 1);
++    EXPECT_FALSE(ledger.wasPlayed("track-b"));
++    ledger.advance({{"deck1", "track-b", true}}, 1);
++    EXPECT_TRUE(ledger.wasPlayed("track-b"));
++    ledger.advance({{"deck1", "track-a", true}}, 1);
++    EXPECT_FALSE(ledger.wasPlayed("track-a"));
++}
++TEST(Rx3BrowserPlayback, BothDecksAreTrackedAndSameTrackIsNotCountedTwice) {
++    rx3::BrowserPlaybackLedger ledger;
++    QList<rx3::BrowserPlaybackLedger::Sample> decks{{"deck1", "usb-one/track-1", true},
++            {"deck2", "usb-one/track-1", true}};
++    ledger.advance(decks, 0);
++    for(int i=0;i<30;++i) ledger.advance(decks, 1);
++    EXPECT_FALSE(ledger.wasPlayed("usb-one/track-1"));
++    EXPECT_FALSE(ledger.wasPlayed("usb-two/track-1"));
++    decks[0].playing=false;
++    ledger.advance(decks, 1);
++    EXPECT_TRUE(ledger.isPlaying("usb-one/track-1"));
++    for(int i=0;i<29;++i) ledger.advance(decks, 1);
++    EXPECT_TRUE(ledger.wasPlayed("usb-one/track-1"));
++    ledger.advance({}, 1);
++    EXPECT_FALSE(ledger.isPlaying("usb-one/track-1"));
++    EXPECT_TRUE(ledger.wasPlayed("usb-one/track-1"));
++}
++TEST(Rx3BrowserPlayback, ColorsAndLosslessMarkerFollowPlaybackState) {
++    EXPECT_EQ(QColor("#01FF02"), rx3::browserTrackColor(true,false));
++    EXPECT_EQ(QColor("#01FF02"), rx3::browserTrackColor(true,true));
++    EXPECT_EQ(QColor("#008A01"), rx3::browserTrackColor(false,true));
++    EXPECT_EQ(QColor("#FFFFFF"), rx3::browserTrackColor(false,false));
++    for (const auto& type : {"WAV", "aiff", "aif", "FLAC", "alac"})
++        EXPECT_TRUE(rx3::isLosslessFileType(type));
++    for (const auto& type : {"mp3", "aac", "m4a", "ogg", ""})
++        EXPECT_FALSE(rx3::isLosslessFileType(type));
++}
++
++#include "widget/rx3browseraudio.h"
++TEST_F(Rx3HotcueTest, LosslessMarkerDistinguishesAlacFromAacInTheSameContainer) {
++    const auto root = getTestDir().filePath("id3-test-data/");
++    ASSERT_TRUE(QFile::exists(root+"cover-test-itunes-12.7.0-alac.m4a"));
++    EXPECT_TRUE(rx3::isAlacAudioFile(root+"cover-test-itunes-12.7.0-alac.m4a"));
++    EXPECT_FALSE(rx3::isAlacAudioFile(root+"cover-test-itunes-12.7.0-aac.m4a"));
++    EXPECT_FALSE(rx3::isAlacAudioFile(root+"cover-test-ffmpeg-aac.m4a"));
++    EXPECT_FALSE(rx3::isAlacAudioFile(root+"missing.m4a"));
++}
++TEST(Rx3BrowserPlayback, PlayReplacesBothNoteAndHAtReferenceAndRetinaSizes) {
++    for (int dpr : {1,2}) {
++        QImage note(32*dpr,32*dpr,QImage::Format_ARGB32_Premultiplied);
++        note.setDevicePixelRatio(dpr); note.fill(Qt::black);
++        QImage lossless=note, play=note, losslessPlay=note;
++        const auto paint = [&](QImage* image, bool playing, bool h) {
++            QPainter painter(image);
++            rx3::drawBrowserTrackIcon(&painter,QRectF(0,0,32,32),QColor("#01FF02"),playing,h);
++        };
++        paint(&note,false,false); paint(&lossless,false,true);
++        paint(&play,true,false); paint(&losslessPlay,true,true);
++        EXPECT_EQ(play,losslessPlay);
++        EXPECT_NE(note,lossless);
++        EXPECT_NE(note,play);
++        EXPECT_EQ(QColor("#01FF02"),play.pixelColor(14*dpr,16*dpr));
++    }
++}
++TEST(Rx3BrowserPlayback, RenderBrowserIconReview) {
++    const auto output=qEnvironmentVariable("NAUTIC_BROWSER_ARTIFACT_DIR");
++    if (output.isEmpty()) return;
++    QImage image(980,640,QImage::Format_ARGB32_Premultiplied); image.fill(Qt::black);
++    QPainter p(&image);
++    const QStringList labels{"ARTIST","ALBUM","TRACK","KEY","PLAYLIST","HISTORY","MATCHING","FOLDER","REC"};
++    QFont labelFont("Arial"); labelFont.setPixelSize(11);
++    for(int row=0;row<labels.size();++row) {
++        const QRect rect(0,row*65,96,65);
++        p.fillRect(rect,QColor(row==2 ? "#006f88" : "#202020"));
++        rx3::drawBrowserCategoryIcon(&p,QRectF(32,row*65+6,32,32),labels[row],QColor("#bcbcbc"));
++        p.setFont(labelFont); p.setPen(QColor("#bcbcbc"));
++        p.drawText(rect.adjusted(0,39,0,0),Qt::AlignHCenter|Qt::AlignTop,labels[row]);
++    }
++    const QStringList titles{"Lossless track — WAV", "Compressed track — MP3", "Playing track — FLAC",
++            "Played track — ALAC", "Short audition stopped", "Playing on the other deck"};
++    QFont rowFont("Arial"); rowFont.setPixelSize(24);
++    for(int row=0;row<titles.size();++row) {
++        const int y=65+row*58;
++        p.fillRect(QRect(98,y,882,58),QColor(row==5?"#008bea":row%2?"#000000":"#262626"));
++        const QColor color=rx3::browserTrackColor(row==2 || row==5,row==3);
++        rx3::drawBrowserTrackIcon(&p,QRectF(109,y+10,38,38),color,row==2 || row==5,row==0 || row==3);
++        p.setFont(rowFont); p.setPen(color); p.drawText(QRect(156,y,700,58),Qt::AlignVCenter,titles[row]);
++    }
++    p.end();
++    ASSERT_TRUE(image.save(output+"/browser-icons.png"));
++}

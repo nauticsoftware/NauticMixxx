@@ -1,3 +1,13 @@
+# NauticMixxx 1.8.0 — reproducción del navegador y display de decks
+
+- BROWSER: verde brillante durante PLAY y más oscuro tras 60 segundos de reproducción real en la sesión; los saltos no suman tiempo.
+- PLAY reemplaza la nota; H solo para lossless, incluyendo detección de ALAC en M4A. Iconos vectoriales de categorías.
+- DECK/número más próximos y ondas de menor a mayor con parpadeo solo durante PLAY; ciclo aproximado de 800 ms, no medido en hardware Pioneer.
+- OVERVIEW blanco hasta el PLAYHEAD y gris por delante. MASTER hasta el borde interior derecho, texto centrado y BPM más a la izquierda en ambas vistas.
+- Márgenes uniformes en STATUS y corrección del acceso a controladores destruidos al cerrar preferencias.
+- Inglés predeterminado e icono NauticMixxx. macOS con firma ad hoc, sin notarización.
+- Quedan pendientes la reproducción física del cierre al conceder micrófono y la comparación de cadencia en Pioneer.
+
 # NauticMixxx 1.7.0 — waveforms y divisiones del overview
 
 La elección BLUE, RGB o 3Band se aplica a toda la interfaz: waveforms

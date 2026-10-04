@@ -224,3 +224,39 @@ opt-in with NAUTIC_AUDIO_HARDWARE_TEST=1 and requires real M2/Inpulse 500 device
 Run it with an external process timeout. It alternates booth 1–2 off/on while
 headphones 3–4 and M2 main remain configured, using all three synchronization
 modes at 44.1 and 48 kHz.
+
+## 0021 — Browser playback state and vector icons
+
+Apply after 0001–0020. Tracks on either main deck are bright green (#01FF02)
+with a vector PLAY indicator while playing, then dark green (#008A01) after
+60 seconds of elapsed playback in one load, retained for the application session.
+Pauses, replacement, preview decks and seek distance do not count. Tracking
+continues when the browser is hidden and identities include the USB session.
+The state is presentation-only and never mutates USB history or SQL play counts.
+
+The note/H marker and sidebar categories use font-independent vector icons.
+ALAC/AAC in M4A is distinguished asynchronously with TagLib audio properties.
+The skin uses matching 2 px STATUS tab padding on all sides.
+
+## 0022 — Controller preference teardown after device deletion
+
+Apply after 0001–0021. Retains the actual openChanged connection handles and
+disconnects them without dereferencing a fresh device list during teardown.
+ControllerManager clears its device list before deleting enumerators, which
+own those devices. This addresses the reported macOS 1.7.0 stack in
+QObject::disconnect / DlgPrefControllers::destroyControllerWidgets.
+
+## 0023 — Overview position progress
+
+Apply after 0001–0022. The RX3 overview axis is gray ahead of the current
+playhead and white behind it, including after a seek back. The rendering
+helper is shared by PERFORMANCE and BROWSER. Tests cover start, end, seek,
+invalid positions and both standard and Retina pixel ratios.
+
+## 0024 — Animated deck playback badge
+
+Apply after 0001–0023. Opt-in RX3 deck labels paint DECK and the numeral in a
+compact fixed layout. Red/orange waves grow through three vector stages and
+then disappear. Animation runs only with a loaded playing track and resets on
+pause/unload. The approximate cadence is 200 ms per stage (800 ms per cycle),
+independent of BPM; Pioneer does not document the exact animation period.

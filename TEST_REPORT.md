@@ -1,5 +1,24 @@
 # Informe de validación — NauticMixxx
 
+## v1.8.0 — browser playback and deck display
+
+- macOS ARM64 Release: 103 native tests passed, 0 failed, 10 optional external
+  fixture tests skipped. Public input audit, Windows installer contracts,
+  USB-only policy, XML and controller suites passed.
+- Badge tests cover three growing vector stages, the blank stage, PLAY restart,
+  immediate pause/unload hiding, compact text spacing and DPR 1 / 2.
+- Overview progress covers start, end, seeks backward, out-of-range positions
+  and NaN. Qt renders verify MASTER reaches the last inner header pixel, centered
+  text and left BPM captions.
+- Browser playback tests cover the 60-second threshold, pause, replacement,
+  duplicate loads, USB session identity and ALAC/AAC distinction.
+- 24 patches reproduce the engine changes from Mixxx 2.5.6.
+- The badge cadence is approximate (200 ms per stage / 800 ms per cycle); no
+  physical Pioneer cadence calibration is claimed. The first-install microphone
+  permission crash sequence has not been reproduced after the lifetime fix.
+- Windows native CI and public bundle validation are being prepared for this release.
+
+
 ## v1.7.0 — waveforms and overview divisions
 
 - macOS arm64: 99 native tests passed, 0 failed, 9 optional external fixtures

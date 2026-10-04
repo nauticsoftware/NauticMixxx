@@ -1,5 +1,19 @@
 # Historial de cambios
 
+## 1.8.0 — 2026-10-04
+
+- DECK: texto y número compactos, ondas vectoriales animadas solo durante PLAY;
+  tres tamaños y un intervalo apagado, ciclo aproximado de 800 ms.
+
+- OVERVIEW: eje gris por delante del PLAYHEAD y blanco hasta su posición actual.
+- BPM: MASTER llega al borde derecho con texto centrado; la etiqueta BPM se
+  acerca al borde izquierdo en PERFORMANCE y BROWSER.
+- BROWSER: texto #01FF02 y triángulo PLAY durante la reproducción en cualquier deck.
+- Verde #008A01 después de 60 segundos de reproducción real en la sesión; pausa y saltos no suman el tiempo saltado. Las escuchas breves vuelven a blanco.
+- Nota musical vectorial con H solo para lossless, incluyendo distinción ALAC/AAC dentro de M4A.
+- Iconos vectoriales de categorías y margen uniforme de 2 px en STATUS / BEAT FX.
+- Corrige la desconexión de controladores ya destruidos durante la eliminación diferida de preferencias; vacía la lista de dispositivos antes de eliminarlos.
+
 ## 1.7.0 — 2026-10-04
 
 - BLUE, RGB y 3Band se aplican a waveforms principales, overviews de ambos

@@ -1,6 +1,6 @@
-# NauticMixxx 1.7.0
+# NauticMixxx 1.8.0
 
-Version 1.7.0 unifies waveform colors throughout Performance and Browser, refines
+Version 1.8.0 unifies waveform colors throughout Performance and Browser, refines
 CUE/loop/HOT CUE markers and adds TIME SCALE / PHRASE overview divisions.
 Playheads are 2 pixels wide, red stopped and white playing. See the
 [waveform divisions guide](docs/WAVEFORM-DIVISIONS-1.7.md).
@@ -22,6 +22,8 @@ Version 1.5.1 fixes the audio preferences freeze when adding Hercules booth outp
 
 Version 1.5 adds mouse-free navigation presets for seven Pioneer/Roland models, a gentler Inpulse 500 jog rim curve, and a 600 ms ASSISTANT hold to leave BROWSE without loading. New app configurations default to English. Physical controller validation is still pending; read the [controller behavior guide](docs/CONTROLLERS-RX3-1.5-EN.md) and [jog calibration guide](docs/JOG-CALIBRATION-1.5-EN.md).
 
+Version 1.8 adds playing/played browser colors, PLAY and lossless note markers, vector sidebar icons, an animated deck badge and overview progress. It also fixes the reported controller preference teardown crash. See the [v1.8 behavior notes](docs/BROWSER-PLAYBACK-1.8.md).
+
 ## Features
 
 - Scalable PERFORMANCE, BROWSE and STATUS views with stacked waveforms, beatgrid, overviews and eight Hot Cues per deck.
@@ -34,10 +36,10 @@ Version 1.5 adds mouse-free navigation presets for seven Pioneer/Roland models, 
 
 ## Download and install
 
-Download NauticMixxx 1.7.0 from the [release page](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.7.0):
+Download NauticMixxx 1.8.0 from the [release page](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.8.0):
 
-- [macOS Apple Silicon DMG](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.7.0/NauticMixxx-1.7.0-macOS-arm64.dmg)
-- [Windows x64 installer](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.7.0/NauticMixxx-1.7.0-Windows-x64-Setup.exe)
+- [macOS Apple Silicon DMG](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.8.0/NauticMixxx-1.8.0-macOS-arm64.dmg)
+- [Windows x64 installer](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.8.0/NauticMixxx-1.8.0-Windows-x64-Setup.exe)
 
 The Windows installer includes the native NauticMixxx program, RX3 skin, controller mappings and effects. The app and profile are separate from official Mixxx. Uninstall from Windows Settings; personal settings remain in `%LOCALAPPDATA%\NauticMixxx`.
 

@@ -1,3 +1,13 @@
+# NauticMixxx 1.8.0 — browser playback and deck display
+
+- Browser rows use bright green while playing and darker green after 60 seconds of actual playback in the session. Seek distance does not count.
+- PLAY replaces the note during playback; H marks lossless files, including ALAC detection in M4A. Sidebar category icons are drawn as vectors.
+- Compact DECK/number spacing and growing, blinking vector waves only during PLAY. The 800 ms cycle is approximate; no exact Pioneer cadence is claimed.
+- Overview progress is white behind the PLAYHEAD and gray ahead. MASTER reaches the right inner edge with centered text; BPM labels move left in both views.
+- Matching STATUS padding and a fix for the reported controller preference lifetime crash.
+- New profiles default to English. Packages use the NauticMixxx icon. macOS builds are ad-hoc signed, not notarized.
+- First-install microphone permission crash reproduction and physical Pioneer timing comparison remain pending.
+
 # NauticMixxx 1.7.0 — waveforms and overview divisions
 
 BLUE, RGB and 3Band now apply throughout Performance, Browser, overviews and

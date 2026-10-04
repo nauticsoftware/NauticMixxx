@@ -1,0 +1,137 @@
+diff --git a/src/widget/rx3waveform.h b/src/widget/rx3waveform.h
+--- a/src/widget/rx3waveform.h
++++ b/src/widget/rx3waveform.h
+@@ -76,11 +76,18 @@
+ }
+ inline void drawOverviewDivisions(QPainter* painter, qreal width, qreal height,
+         qreal scale, double duration, int mode,
+-        const QVector<mixxx::rekordbox::Phrase>& phrases = {}) {
++        const QVector<mixxx::rekordbox::Phrase>& phrases = {},
++        double playPosition = 0) {
+     const auto g = overviewGeometry(height,scale);
+     painter->save();
+     painter->setRenderHint(QPainter::Antialiasing,false);
+-    painter->fillRect(QRectF(0,g.axisTop,width,g.axisThickness),Qt::white);
++    painter->fillRect(QRectF(0,g.axisTop,width,g.axisThickness),QColor("#808080"));
++    // Position, rather than playback history: seeking back restores the gray tail.
++    const qreal playedWidth = std::isfinite(playPosition) ?
++            width * std::clamp(playPosition,0.0,1.0) : 0;
++    if (playedWidth > 0) {
++        painter->fillRect(QRectF(0,g.axisTop,playedWidth,g.axisThickness),Qt::white);
++    }
+     if (duration > 0 && std::isfinite(duration)) {
+         if (mode == 1) {
+             for (const auto& phrase : phrases) {
+diff --git a/src/widget/woverview.cpp b/src/widget/woverview.cpp
+--- a/src/widget/woverview.cpp
++++ b/src/widget/woverview.cpp
+@@ -870,7 +870,8 @@
+     const QVector<mixxx::rekordbox::Phrase> empty;
+     const auto& phrases=m_pWaveform && m_pWaveform->rekordbox ? m_pWaveform->rekordbox->phrases : empty;
+     rx3::drawOverviewDivisions(pPainter,width(),height(),m_scaleFactor,duration,
+-            WaveformWidgetFactory::instance()->getOverviewDivisions(),phrases);
++            WaveformWidgetFactory::instance()->getOverviewDivisions(),phrases,
++            m_playpositionControl.get());
+ }
+ 
+ void WOverview::drawPlayedOverlay(QPainter* pPainter) {
+diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
+--- a/src/test/rx3display_test.cpp
++++ b/src/test/rx3display_test.cpp
+@@ -411,7 +411,7 @@
+         QImage image(302*dpr,80*dpr,QImage::Format_ARGB32_Premultiplied);
+         image.setDevicePixelRatio(dpr); image.fill(Qt::black);
+         QPainter painter(&image);
+-        rx3::drawOverviewDivisions(&painter,302,80,1,150,0);
++        rx3::drawOverviewDivisions(&painter,302,80,1,150,0,{},0.5);
+         painter.end();
+         for (int y : {64,65,66}) EXPECT_EQ(QColor(Qt::white),image.pixelColor(25*dpr,y*dpr));
+         EXPECT_EQ(QColor(Qt::black),image.pixelColor(25*dpr,61*dpr));
+@@ -419,6 +419,26 @@
+         EXPECT_EQ(QColor(Qt::black),image.pixelColor(91*dpr,73*dpr));
+         EXPECT_EQ(QColor(Qt::white),image.pixelColor(121*dpr,77*dpr));
+         EXPECT_EQ(QColor(Qt::black),image.pixelColor(61*dpr,77*dpr));
++    }
++}
++
++TEST(Rx3Overview, AxisFollowsPlayheadIncludingSeekBackAndTrackEnds) {
++    for (int dpr : {1,2}) {
++        // Sequential positions also cover seeking back after reaching the end.
++        for (double position : {0.0,0.25,0.5,1.0,0.25,-0.1,1.1,util_double_nan()}) {
++            QImage image(300*dpr,80*dpr,QImage::Format_ARGB32_Premultiplied);
++            image.setDevicePixelRatio(dpr); image.fill(Qt::black);
++            QPainter painter(&image);
++            rx3::drawOverviewDivisions(&painter,300,80,1,150,0,{},position);
++            painter.end();
++            const double progress=std::isfinite(position)?std::clamp(position,0.0,1.0):0;
++            for (int x : {0,74,75,149,150,299}) {
++                for (int y : {64,65,66}) {
++                    EXPECT_EQ(x < 300*progress ? QColor(Qt::white) : QColor("#808080"),
++                            image.pixelColor(x*dpr,y*dpr)) << position << " x=" << x;
++                }
++            }
++        }
+     }
+ }
+ 
+@@ -645,3 +665,60 @@
+     p.end();
+     ASSERT_TRUE(image.save(output+"/browser-icons.png"));
+ }
++
++#include "widget/wwidgetgroup.h"
++#include "widget/wlabel.h"
++TEST_F(Rx3HotcueTest, RenderBpmGeometryReview) {
++    const auto skin=qEnvironmentVariable("NAUTIC_SKIN_DIR");
++    const auto output=qEnvironmentVariable("NAUTIC_BROWSER_ARTIFACT_DIR");
++    if (skin.isEmpty() || output.isEmpty()) return;
++    QFile css(skin+"/style.qss"); ASSERT_TRUE(css.open(QIODevice::ReadOnly));
++    const QString style=QString::fromUtf8(css.readAll());
++    SkinContext context(config(),QString());
++    for (bool browser : {false,true}) {
++        QFile xml(skin+(browser?"/rx3_library_deck.xml":"/deck.xml"));
++        ASSERT_TRUE(xml.open(QIODevice::ReadOnly));
++        QDomDocument doc; ASSERT_TRUE(doc.setContent(&xml));
++        QDomElement headerNode;
++        const QString headerName=browser?"RX3LibraryBpmHeader":"DeckHeaderBpmTitleRow";
++        const auto groups=doc.elementsByTagName("WidgetGroup");
++        for (int i=0;i<groups.size();++i) {
++            const auto group=groups.at(i).toElement();
++            if (group.firstChildElement("ObjectName").text()==headerName) headerNode=group;
++        }
++        ASSERT_FALSE(headerNode.isNull());
++        WWidgetGroup box;
++        box.setObjectName(browser?"RX3LibraryDeckBpmBox1":"DeckHeaderBpm");
++        QDomDocument boxDoc; ASSERT_TRUE(boxDoc.setContent(QStringLiteral("<WidgetGroup><Layout>vertical</Layout></WidgetGroup>")));
++        box.setup(boxDoc.documentElement(),context);
++        box.setProperty("highlight",1);
++        auto* header=new WWidgetGroup(&box); header->setup(headerNode,context);
++        header->setObjectName(headerName); header->setFixedHeight(16);
++        WLabel* master=nullptr;
++        WLabel* caption=nullptr;
++        const auto children=headerNode.firstChildElement("Children");
++        for (auto node=children.firstChildElement("Label");!node.isNull();node=node.nextSiblingElement("Label")) {
++            auto* label=new WLabel(header); label->setup(node,context);
++            label->setObjectName(node.firstChildElement("ObjectName").text());
++            if (label->objectName().contains("Master")) {
++                master=label; label->setSizePolicy(QSizePolicy::MinimumExpanding,QSizePolicy::MinimumExpanding);
++                label->setProperty("highlight",1);
++            } else caption=label;
++            header->layout()->addWidget(label);
++        }
++        ASSERT_NE(nullptr,master); ASSERT_NE(nullptr,caption);
++        box.layout()->addWidget(header);
++        auto* value=new QLabel("123.0",&box);
++        value->setObjectName(browser?"RX3LibraryDeckBpm1":"DeckHeaderBpmValue");
++        value->setProperty("highlight",1); value->setAlignment(Qt::AlignCenter);
++        box.layout()->addWidget(value);
++        box.setStyleSheet(style); box.resize(browser?100:120,80); box.show();
++        QCoreApplication::processEvents();
++        // The orange label must fill the header through its last inner pixel.
++        EXPECT_EQ(header->contentsRect().right(),master->geometry().right());
++        EXPECT_EQ(Qt::AlignCenter,master->alignment());
++        EXPECT_EQ(header->contentsRect().left(),caption->geometry().left());
++        EXPECT_TRUE(caption->alignment().testFlag(Qt::AlignLeft));
++        ASSERT_TRUE(box.grab().save(output+(browser?"/bpm-browser.png":"/bpm-performance.png")));
++    }
++}
