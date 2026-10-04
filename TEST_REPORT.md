@@ -2,8 +2,10 @@
 
 ## v1.7.0 — waveforms and overview divisions
 
-- macOS arm64: 92 native tests passed, 0 failed, 9 optional external fixtures
+- macOS arm64: 99 native tests passed, 0 failed, 9 optional external fixtures
   skipped. Controller, USB-only, XML and installer-input checks passed.
+- Seven metadata tests also passed after fixing Windows near/far macro-name
+  conflicts in their fixtures.
 - Tested PSSI plain/masked data, variable-tempo phrase boundaries, decoder offset,
   malformed/truncated records, 30-second ticks, missing analysis and progressive
   A→H overlap at 1×/2× density. Read actual USB phrase analysis without writes.
@@ -12,8 +14,17 @@
 - Main playhead reduced to 2 pixels at the maintainer's request, matching the
   overview. The change is in the skin and does not modify the engine binary.
 - Twenty source patches reproduce the current engine from official Mixxx 2.5.6.
-- Public macOS package verification and Windows CI results are recorded below
-  when complete. No new physical XDJ/CDJ jog comparison or Linux v1.7 test.
+- Public macOS ZIP/DMG: extracted app passes strict signature verification;
+  version 1.7.0, both own icons, English profile and 2 px playheads verified.
+  Finder shows the canonical NauticMixxx icon. DMG integrity/mounted bundle and
+  all release checksums pass. No isolated test profile is included.
+- Public source validation passed in GitHub Actions run 37226813917. Windows
+  native build/installer validation passed in 37226814295. No new physical
+  XDJ/CDJ jog comparison or Linux v1.7 test.
+- Windows x64: 121 native tests passed, 0 failed, 5 optional external
+  fixtures skipped. Actual NSIS EXE install/uninstall, application version,
+  English profile and controller payload checks passed on windows-2022.
+  Target-machine audio/controller/USB hardware validation remains pending.
 
 
 ## v1.6.0 — aviso de actualización al iniciar

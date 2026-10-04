@@ -1,10 +1,10 @@
-# Install NauticMixxx 1.5.0
+# Install NauticMixxx 1.7.0
 
 ## macOS Apple Silicon
 
 Requires macOS 11 or later and an Apple Silicon Mac.
 
-1. Put `NauticMixxx-1.5.0-macOS-arm64.dmg` and `SHA256SUMS.txt` in the same directory. Run `shasum -a 256 NauticMixxx-1.5.0-macOS-arm64.dmg` and compare the result with the DMG entry in `SHA256SUMS.txt`.
+1. Put `NauticMixxx-1.7.0-macOS-arm64.dmg` and `SHA256SUMS.txt` in the same directory. Run `shasum -a 256 NauticMixxx-1.7.0-macOS-arm64.dmg` and compare the result with the DMG entry in `SHA256SUMS.txt`.
 2. Open the DMG and drag **NauticMixxx.app** to Applications. The alternative ZIP includes the same app and `CONFIGURE-AND-OPEN.command` to prepare its profile and launch it.
 3. On first launch, macOS may ask you to confirm opening this ad hoc signed community build. Right-click the app and choose **Open**.
 4. Select your audio output and, if applicable, microphone input under **Preferences → Sound Hardware**.
@@ -15,11 +15,11 @@ The Inpulse 500 custom RX3 mapping is selected automatically when the device is 
 
 SOURCE waits for the USB catalog to finish loading before opening the drive. In PLAYLIST, highlight a playlist to preview its tracks on the right, then press ENTER to open the full track table. First-sound loading uses an existing marker. A USB track without that marker loads at its beginning because NauticMixxx does not analyze audio to create one.
 
-## Windows x64 — version 1.5.0
+## Windows x64 — version 1.7.0
 
-Download [NauticMixxx-1.5.0-Windows-x64-Setup.exe](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.5.0/NauticMixxx-1.5.0-Windows-x64-Setup.exe) and run it directly on Windows 10/11 x64. The installer is a native NSIS EXE and includes the complete NauticMixxx application. It does not need an existing Mixxx install or another download.
+Download [NauticMixxx-1.7.0-Windows-x64-Setup.exe](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.7.0/NauticMixxx-1.7.0-Windows-x64-Setup.exe) and run it directly on Windows 10/11 x64. The installer is a native NSIS EXE and includes the complete NauticMixxx application. It does not need an existing Mixxx install or another download.
 
-In 1.5.0, SOURCE waits for the USB catalog to finish loading before opening the drive; highlighting a playlist previews its tracks and ENTER opens the full table.
+In 1.7.0, SOURCE waits for the USB catalog to finish loading before opening the drive; highlighting a playlist previews its tracks and ENTER opens the full table.
 
 Setup installs the app under `%LOCALAPPDATA%\Programs\NauticMixxx` and applies the macOS RX3 settings to a separate profile under `%LOCALAPPDATA%\NauticMixxx`. It installs the XDJ RX3 skin, custom Hercules Inpulse 500 mapping, optional FLX6 browser mapping, four Sound Color FX chains, 3-Band waveform default, Rekordbox USB-only browsing, disabled analysis and ReplayGain, Pioneer Cue, ±6% tempo, and the other portable preferences. Existing personal settings are backed up before the managed RX3 preferences are merged. Audio devices, channel routing and music paths depend on the Windows laptop and must be selected there.
 
