@@ -1,5 +1,17 @@
 # NauticMixxx native patches
 
+## 0020 — Waveform ecosystem and overview divisions for v1.7
+
+Unifies BLUE/RGB/3Band rendering across Performance, Browser and track previews.
+Updates CUE/loop triangles, marker layering and HOT CUE placement; removes the
+cyan bar countdown. Overview divisions switch between 30-second TIME SCALE
+marks and PHRASE blocks decoded from Rekordbox PSSI/PQTZ. Later HOT CUE letters
+progressively overlap earlier ones. Playheads remain red stopped and white
+playing, with width 2 in the skin. Fixes retired controller preference-page
+references and adds native regression tests. The Inpulse 500 rim calibration
+and skin geometry are maintained in the overlay's controller and skin files.
+
+
 ## 0019 — Startup update notice for v1.6
 
 Apply after 0001–0018. Adds one asynchronous GitHub latest-release request at

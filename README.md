@@ -1,7 +1,9 @@
-# NauticMixxx 1.6.0
+# NauticMixxx 1.7.0
 
-Version 1.6.0 adds a startup-only update notice with manual downloads and
-persistent version skipping. See the [update behavior](docs/UPDATES-1.6.md).
+Version 1.7.0 unifies waveform colors throughout Performance and Browser, refines
+CUE/loop/HOT CUE markers and adds TIME SCALE / PHRASE overview divisions.
+Playheads are 2 pixels wide, red stopped and white playing. See the
+[waveform divisions guide](docs/WAVEFORM-DIVISIONS-1.7.md).
 Available for macOS Apple Silicon and Windows x64.
 
 ![NauticMixxx2](branding/NauticMixxx2.png)
@@ -32,10 +34,10 @@ Version 1.5 adds mouse-free navigation presets for seven Pioneer/Roland models, 
 
 ## Download and install
 
-Download NauticMixxx 1.6.0 from the [release page](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.6.0):
+Download NauticMixxx 1.7.0 from the [release page](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.7.0):
 
-- [macOS Apple Silicon DMG](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.6.0/NauticMixxx-1.6.0-macOS-arm64.dmg)
-- [Windows x64 installer](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.6.0/NauticMixxx-1.6.0-Windows-x64-Setup.exe)
+- [macOS Apple Silicon DMG](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.7.0/NauticMixxx-1.7.0-macOS-arm64.dmg)
+- [Windows x64 installer](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.7.0/NauticMixxx-1.7.0-Windows-x64-Setup.exe)
 
 The Windows installer includes the native NauticMixxx program, RX3 skin, controller mappings and effects. The app and profile are separate from official Mixxx. Uninstall from Windows Settings; personal settings remain in `%LOCALAPPDATA%\NauticMixxx`.
 

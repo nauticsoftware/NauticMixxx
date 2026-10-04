@@ -26,7 +26,7 @@ if [ ! -d "$source_tree" ]; then
   tar -xzf "$work/mixxx-2.5.6.tar.gz" -C "$work"
 fi
 if [ -f "$patch_marker" ] && [ "$(cat "$patch_marker")" != "$patch_digest" ]; then
-  printf 'La carpeta fuente no coincide con los diecinueve parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
+  printf 'La carpeta fuente no coincide con los veinte parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
   exit 1
 fi
 if [ ! -f "$patch_signature" ]; then
@@ -39,7 +39,7 @@ if [ ! -f "$patch_signature" ]; then
   printf '%s\n' "$patch_digest" > "$patch_marker"
 fi
 if [ ! -f "$patch_marker" ] || [ ! -f "$patch_signature" ] || [ "$(cat "$patch_marker")" != "$patch_digest" ]; then
-  printf 'La carpeta fuente no coincide con los diecinueve parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
+  printf 'La carpeta fuente no coincide con los veinte parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
   exit 1
 fi
 deps="$work/buildenv/$deps_name"
@@ -57,7 +57,7 @@ cmake -S "$work/mixxx-2.5.6" -B "$work/build" -G Ninja \
   -DBUILD_TESTING=ON -DBUILD_BENCH=OFF
 cmake --build "$work/build" --target mixxx mixxx-test --parallel "${RX3_BUILD_JOBS:-6}"
 (cd "$work/build" && QT_QPA_PLATFORM=offscreen ./mixxx-test \
-  --gtest_filter='StartupUpdateCheckerTest.*:StartupUpdateDialogTest.*:StreamCompletionTest.*:Rx3*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*' \
+  --gtest_filter='StartupUpdateCheckerTest.*:StartupUpdateDialogTest.*:StreamCompletionTest.*:LibraryTableViewStateTest.*:Rx3*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*' \
   --gtest_output=xml:rx3-tests.xml)
 cmake --install "$work/build" --prefix "$work/stage"
 app="$work/stage/NauticMixxx.app"

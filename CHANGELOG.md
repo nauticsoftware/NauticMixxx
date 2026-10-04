@@ -1,5 +1,32 @@
 # Historial de cambios
 
+## 1.7.0 — 2026-10-04
+
+- BLUE, RGB y 3Band se aplican a waveforms principales, overviews de ambos
+  modos y previsualizaciones de la biblioteca. Caché de previews por estilo.
+- CUE y comienzo del loop usan solo un triángulo blanco de 8 × 7; se eliminan
+  las líneas y cajas de estos marcadores y el marcador de fin de loop.
+- Conserva la región sombreada del loop y elimina el conteo azul de bars junto
+  al playhead.
+- Playhead rojo en pausa y blanco en reproducción, con un grosor de 2 en la
+  waveform principal y de 2 en los overviews.
+- El triángulo de CUE se dibuja por encima del playhead al coincidir.
+- HOT CUE en los márgenes exteriores, con altura de downbeat y un pequeño
+  tramo del tick visible hacia la waveform; conserva la paleta existente.
+- Overview con línea inferior blanca de mayor grosor, separación y playhead
+  más grueso. HOT CUE de mayor tamaño, con solapamiento progresivo A → H
+  independiente de su orden temporal; los inferiores van en la franja inferior.
+- WAVEFORM DIVISIONS en preferencias de Waveforms: TIME SCALE por defecto,
+  marcas cada 30 segundos, o PHRASE con los bloques PSSI exportados por Rekordbox.
+  Lee PSSI normal/cifrado y lo proyecta sobre PQTZ con el ajuste del decoder.
+- Elimina referencias a páginas de controlador retiradas al volver a
+  detectarlos, evitando un cierre inesperado al aceptar preferencias.
+- Reduce la sensibilidad del borde de la Hercules Inpulse 500 en reproducción
+  y amplía la progresión entre giro suave y rápido para dosificar la corrección
+  de fase. Mantiene scratch, búsqueda en pausa, SHIFT, loops y beatgrid.
+- Sin relación fija entre vueltas y beats. Validación física frente a XDJ/CDJ
+  pendiente; pruebas de handlers en decks 1–4 aprobadas.
+
 ## 1.6.0 — 2026-10-04
 
 - Consulta una vez al iniciar la última release estable pública de NauticMixxx.

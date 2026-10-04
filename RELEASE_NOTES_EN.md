@@ -1,3 +1,29 @@
+# NauticMixxx 1.7.0 — waveforms and overview divisions
+
+BLUE, RGB and 3Band now apply throughout Performance, Browser, overviews and
+track-list previews. Preview caches follow the chosen waveform style.
+
+- Main and overview playheads are 2 pixels wide: red stopped, white playing.
+- CUE and loop starts use small white triangles in front of the playhead.
+  Loop shading remains; thick boundaries, boxes and the end marker are removed.
+- HOT CUE squares move outward over the beat ticks, leaving a short tick visible.
+  Existing HOT CUE colors remain unchanged.
+- Overviews have a thicker white baseline, wider spacing and larger HOT CUEs.
+  B overlaps A, C overlaps B, and so on through H, regardless of time order.
+- Preferences → Waveforms → WAVEFORM DIVISIONS selects TIME SCALE (30-second
+  marks) or PHRASE (song-structure blocks exported by Rekordbox). Missing phrase
+  analysis leaves an empty strip. No audio analysis or USB writes are performed.
+- Removes the cyan bar count beside the main playhead.
+- Includes the approved Hercules Inpulse 500 jog rim adjustment and fixes a
+  preference-page lifetime crash after controller rescanning.
+
+New profiles default to English and all packages use NauticMixxx's own icon.
+Physical equivalence of the jog behavior to XDJ/CDJ hardware remains unmeasured.
+macOS is ad-hoc signed without Apple notarization; Windows is unsigned.
+See TEST_REPORT.md for validation and platform status.
+
+---
+
 # NauticMixxx 1.6.0 — update notice at startup
 
 NauticMixxx checks the latest stable public GitHub release once when the app starts. If a newer version is available, an English notice shows the installed and available versions.

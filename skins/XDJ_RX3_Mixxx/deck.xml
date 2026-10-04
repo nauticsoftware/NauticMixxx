@@ -178,7 +178,7 @@
                 <Layout>vertical</Layout>
                 <Size>0me,<Variable name="ovh"/>f</Size>
                 <Children>
-                  <Overview><Rx3Overview>true</Rx3Overview><DefaultMark><Rx3Hotcue>true</Rx3Hotcue><Color>#ff8800</Color><TextColor>#000000</TextColor></DefaultMark>
+                  <Overview><Rx3Overview>true</Rx3Overview><ShowCueTimes>false</ShowCueTimes><DefaultMark><Rx3Hotcue>true</Rx3Hotcue><Color>#ff8800</Color><TextColor>#000000</TextColor></DefaultMark>
                     <ObjectName>DeckOverview</ObjectName>
                     <Size>0me,<Variable name="ovwf"/>f</Size>
                     <Channel><Variable name="channel"/></Channel>
@@ -192,18 +192,18 @@
                     <SignalRGBMidColor>#32d060</SignalRGBMidColor>
                     <SignalRGBHighColor>#357bff</SignalRGBHighColor>
                     <PlayedOverlayColor>#99000000</PlayedOverlayColor>
-                    <PlayPosColor>#ff0000</PlayPosColor><PlayPosWidth>2</PlayPosWidth>
-                    <Mark><Control>cue_point</Control><Text>CUE</Text><Color>#c85d21</Color><TextColor>#c85d21</TextColor><Align>top</Align></Mark>
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    <Mark><Control>loop_start_position</Control><Text>▴</Text><Color>#6ee128</Color><TextColor>#6ee128</TextColor><Align>bottom</Align></Mark>
-                    <Mark><Control>loop_end_position</Control><Text>▴</Text><Color>#6ee128</Color><TextColor>#6ee128</TextColor><Align>bottom</Align></Mark>
+                    <PlayPosColor>#ffffff</PlayPosColor><PlayPosStoppedColor>#ff0000</PlayPosStoppedColor><PlayPosWidth>2</PlayPosWidth>
+                    <Mark><Control>cue_point</Control><Rx3Triangle>true</Rx3Triangle><Color>#ffffff</Color><TextColor>#ffffff</TextColor><Align>bottom</Align></Mark>
+
+
+
+
+
+
+
+
+                    <Mark><Control>loop_start_position</Control><Rx3Triangle>true</Rx3Triangle><Color>#ffffff</Color><TextColor>#ffffff</TextColor><Align>bottom</Align></Mark>
+
                     <MarkRange><StartControl>loop_start_position</StartControl><EndControl>loop_end_position</EndControl><EnabledControl>loop_enabled</EnabledControl><Color>#6ee128</Color><Opacity>0.8</Opacity><DisabledColor>#acacac</DisabledColor><DisabledOpacity>0.08</DisabledOpacity></MarkRange>
                     <Connection><ConfigKey>[Channel<Variable name="channel"/>],playposition</ConfigKey></Connection>
                   </Overview>

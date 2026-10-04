@@ -92,7 +92,7 @@
               </WidgetGroup>
 
 
-              
+
             </Children>
           </WidgetGroup>
         </Children>
@@ -123,7 +123,7 @@
         <BeatColor>#D0D0D0</BeatColor>
         <DownbeatColor>#ff0000</DownbeatColor>
         <BeatTickLength>10</BeatTickLength>
-        <PlayPosColor>#ff0000</PlayPosColor><PlayPosWidth>1</PlayPosWidth>
+        <PlayPosColor>#ffffff</PlayPosColor><PlayPosStoppedColor>#ff0000</PlayPosStoppedColor><PlayPosWidth>2</PlayPosWidth>
         <!-- rekordbox draws no centre line. Mixxx's filtered renderer paints one
              last, over the bands, and with AxesColor unset it defaults to
              #f5f5f5: invisible inside a cream core, a white seam across every
@@ -142,27 +142,9 @@
         <SignalRGBMidColor>#32d060</SignalRGBMidColor>
         <SignalRGBHighColor>#357bff</SignalRGBHighColor>
         <DefaultMark><Rx3Hotcue>true</Rx3Hotcue><Color>#ff8800</Color><TextColor>#000000</TextColor><Align>top</Align></DefaultMark>
-        <Mark>
-          <Control>cue_point</Control>
-          <Text>CUE</Text>
-          <Color>#ff6000</Color>
-          <TextColor>#ff6000</TextColor>
-          <Align>bottom</Align>
-        </Mark>
-        <Mark>
-          <Control>loop_start_position</Control>
-          <Text>▴</Text>
-          <Color>#ff8800</Color>
-          <TextColor>#ff8800</TextColor>
-          <Align>bottom</Align>
-        </Mark>
-        <Mark>
-          <Control>loop_end_position</Control>
-          <Text>▴</Text>
-          <Color>#ff8800</Color>
-          <TextColor>#ff8800</TextColor>
-          <Align>bottom</Align>
-        </Mark>
+        <Mark><Control>cue_point</Control><Rx3Triangle>true</Rx3Triangle><Color>#ffffff</Color><TextColor>#ffffff</TextColor><Align>bottom</Align></Mark>
+        <Mark><Control>loop_start_position</Control><Rx3Triangle>true</Rx3Triangle><Color>#ffffff</Color><TextColor>#ffffff</TextColor><Align>bottom</Align></Mark>
+
         <MarkRange>
           <StartControl>loop_start_position</StartControl>
           <EndControl>loop_end_position</EndControl>

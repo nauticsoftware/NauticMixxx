@@ -1,0 +1,2214 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d4a770d..d6ccde0 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2270,6 +2270,10 @@ if(BUILD_TESTING)
+   endif()
+ 
+   add_executable(mixxx-test ${src-mixxx-test})
++  # Preference-page lifetime tests include the library's generated dialog UI.
++  target_include_directories(mixxx-test PRIVATE
++    "${CMAKE_CURRENT_BINARY_DIR}/mixxx-lib_autogen/include$<$<BOOL:${CMAKE_CONFIGURATION_TYPES}>:_$<CONFIG>>"
++  )
+ 
+   target_precompile_headers(mixxx-test REUSE_FROM mixxx-lib)
+   set_target_properties(mixxx-test PROPERTIES AUTOMOC ON)
+diff --git a/src/library/rekordbox/rekordboxruntimetrackmodel.cpp b/src/library/rekordbox/rekordboxruntimetrackmodel.cpp
+index ac3f9fd..e3235b9 100644
+--- a/src/library/rekordbox/rekordboxruntimetrackmodel.cpp
++++ b/src/library/rekordbox/rekordboxruntimetrackmodel.cpp
+@@ -285,93 +285,54 @@ bool RekordboxRuntimeTrackModel::updateTrackGenre(Track*, const QString&) const
+     return false;
+ }
+ 
+-const QVector<RuntimeWaveformColumn>*
+-RekordboxRuntimeTrackModel::waveformPreview(const QModelIndex& index) const {
++const WaveformSeries* RekordboxRuntimeTrackModel::waveformPreview(
++        const QModelIndex& index, WaveformMode mode) const {
+     const auto* track = trackAt(index);
+-    return track ? m_waveformPreviewCache.object(track->rekordboxId) : nullptr;
++    return track ? m_waveformPreviewCache.object(quint64(track->rekordboxId) * 3 + int(mode)) : nullptr;
+ }
+ 
+ void RekordboxRuntimeTrackModel::requestWaveformPreview(
+-        const QModelIndex& index) {
++        const QModelIndex& index, WaveformMode mode) {
+     const auto* track = trackAt(index);
+-    if (!track || !m_session ||
+-            m_waveformPreviewCache.contains(track->rekordboxId) ||
+-            m_pendingWaveformPreviews.contains(track->rekordboxId)) {
+-        return;
+-    }
+-
+-    // Prefer the compact preview variants. Detailed variants are only a
+-    // fallback and are reduced to a bounded number of columns before caching.
+-    const auto priority = [](const RuntimeWaveform& waveform) {
+-        const auto& tag = waveform.sectionTag;
+-        if (tag == "PWV4")
+-            return 0;
+-        if (tag == "PWAV")
+-            return 1;
+-        if (tag == "PWV2")
+-            return 2;
+-        if (tag == "PWV7")
+-            return 3;
+-        if (tag == "PWV5")
+-            return 4;
+-        if (tag == "PWV3")
+-            return 5;
+-        if (tag == "PWV6")
+-            return 6;
+-        return 100;
+-    };
+-    const RuntimeWaveform* selected = nullptr;
+-    int selectedPriority = 100;
+-    for (const auto& candidate : track->waveforms) {
+-        const int candidatePriority = priority(candidate);
+-        if (candidatePriority < selectedPriority) {
+-            selected = &candidate;
+-            selectedPriority = candidatePriority;
+-        }
+-    }
+-
++    if (!track || !m_session) return;
+     const quint32 rekordboxId = track->rekordboxId;
+-    if (!selected) {
+-        m_waveformPreviewCache.insert(
+-                rekordboxId, new QVector<RuntimeWaveformColumn>());
+-        return;
+-    }
++    const quint64 key = quint64(rekordboxId) * 3 + int(mode);
++    if (m_waveformPreviewCache.contains(key) || m_pendingWaveformPreviews.contains(key)) return;
+ 
++    auto descriptors = track->waveforms;
++    std::stable_sort(descriptors.begin(), descriptors.end(), [mode](const auto& a, const auto& b) {
++        return previewWaveformPriority(a.sectionTag, mode) < previewWaveformPriority(b.sectionTag, mode);
++    });
+     const auto session = m_session;
+-    const auto descriptor = *selected;
+     const auto generation = m_previewGeneration;
+-    m_pendingWaveformPreviews.insert(rekordboxId);
+-    auto* watcher = new QFutureWatcher<QVector<RuntimeWaveformColumn>>(this);
+-    connect(watcher,
+-            &QFutureWatcher<QVector<RuntimeWaveformColumn>>::finished,
+-            this,
+-            [this, watcher, rekordboxId, generation] {
++    m_pendingWaveformPreviews.insert(key);
++    auto* watcher = new QFutureWatcher<WaveformSeries>(this);
++    connect(watcher, &QFutureWatcher<WaveformSeries>::finished, this,
++            [this, watcher, rekordboxId, key, generation] {
+                 auto preview = watcher->result();
+                 watcher->deleteLater();
+-                if (generation != m_previewGeneration) {
+-                    return;
+-                }
+-                m_pendingWaveformPreviews.remove(rekordboxId);
+-                m_waveformPreviewCache.insert(rekordboxId,
+-                        new QVector<RuntimeWaveformColumn>(std::move(preview)));
+-                const int previewColumn =
+-                        fieldIndex(ColumnCache::COLUMN_LIBRARYTABLE_PREVIEW);
++                if (generation != m_previewGeneration) return;
++                m_pendingWaveformPreviews.remove(key);
++                m_waveformPreviewCache.insert(key, new WaveformSeries(std::move(preview)));
++                const int previewColumn = fieldIndex(ColumnCache::COLUMN_LIBRARYTABLE_PREVIEW);
+                 for (int row = 0; row < m_rows.size(); ++row) {
+-                    if (m_rows[row].rekordboxId == rekordboxId &&
+-                            previewColumn >= 0) {
+-                        emit dataChanged(this->index(row, previewColumn),
+-                                this->index(row, previewColumn));
++                    if (m_rows[row].rekordboxId == rekordboxId && previewColumn >= 0) {
++                        emit dataChanged(this->index(row, previewColumn), this->index(row, previewColumn));
+                     }
+                 }
+             });
+-    watcher->setFuture(QtConcurrent::run([session, descriptor] {
+-        QString error;
+-        auto payload = session->loadWaveformPayload(descriptor, &error);
+-        if (!payload || payload->isEmpty()) {
+-            return QVector<RuntimeWaveformColumn>();
++    watcher->setFuture(QtConcurrent::run([session, descriptors] {
++        for (const auto& descriptor : descriptors) {
++            QString error;
++            auto payload = session->loadWaveformPayload(descriptor, &error);
++            if (!payload || payload->isEmpty()) continue;
++            WaveformSeries preview;
++            preview.tag = descriptor.sectionTag;
++            preview.columns = decodeRuntimeWaveformColumns(
++                    LoadedRuntimeWaveform{descriptor, std::move(*payload)}, 1024);
++            if (!preview.columns.isEmpty()) return preview;
+         }
+-        return decodeRuntimeWaveformColumns(
+-                LoadedRuntimeWaveform{descriptor, std::move(*payload)}, 1024);
++        return WaveformSeries{};
+     }));
+ }
+ 
+diff --git a/src/library/rekordbox/rekordboxruntimetrackmodel.h b/src/library/rekordbox/rekordboxruntimetrackmodel.h
+index 169c307..41b2e1b 100644
+--- a/src/library/rekordbox/rekordboxruntimetrackmodel.h
++++ b/src/library/rekordbox/rekordboxruntimetrackmodel.h
+@@ -61,9 +61,9 @@ class RekordboxRuntimeTrackModel final : public BaseTrackTableModel {
+     // session. nullptr means not ready yet; an empty vector means that no
+     // supported/valid preview is available. The cache is session-scoped and
+     // never enters SQL or the persistent Track model.
+-    const QVector<RuntimeWaveformColumn>* waveformPreview(
+-            const QModelIndex& index) const;
+-    void requestWaveformPreview(const QModelIndex& index);
++    const WaveformSeries* waveformPreview(
++            const QModelIndex& index, WaveformMode mode) const;
++    void requestWaveformPreview(const QModelIndex& index, WaveformMode mode);
+ 
+   protected:
+     QVariant rawValue(const QModelIndex& index) const override;
+@@ -80,8 +80,8 @@ class RekordboxRuntimeTrackModel final : public BaseTrackTableModel {
+     QHash<int, SortColumnId> m_sortColumnIds;
+     QHash<int, int> m_columnIndexes;
+     QString m_viewKey{QStringLiteral("rekordbox-usb:empty")};
+-    QCache<quint32, QVector<RuntimeWaveformColumn>> m_waveformPreviewCache{128};
+-    QSet<quint32> m_pendingWaveformPreviews;
++    QCache<quint64, WaveformSeries> m_waveformPreviewCache{128};
++    QSet<quint64> m_pendingWaveformPreviews;
+     quint64 m_previewGeneration{0};
+ };
+ 
+diff --git a/src/library/rekordbox/rekordboxtrackadapter.cpp b/src/library/rekordbox/rekordboxtrackadapter.cpp
+index 8621100..016ef33 100644
+--- a/src/library/rekordbox/rekordboxtrackadapter.cpp
++++ b/src/library/rekordbox/rekordboxtrackadapter.cpp
+@@ -299,7 +299,8 @@ TrackPointer RekordboxTrackAdapter::createTemporaryTrack(
+     }
+     if (!waveforms.isEmpty()) {
+         track->tryImportWaveforms(
+-                std::make_unique<RekordboxWaveformImporter>(std::move(waveforms)));
++                std::make_unique<RekordboxWaveformImporter>(std::move(waveforms),
++                        runtimeTrack.unmappedAnalysisSections, runtimeTrack.beats));
+     }
+ 
+     // PDB BPM is deliberately not converted into a Mixxx beat grid. With a
+diff --git a/src/library/rekordbox/rekordboxwaveformimporter.cpp b/src/library/rekordbox/rekordboxwaveformimporter.cpp
+index 27ce1c7..0a71d1a 100644
+--- a/src/library/rekordbox/rekordboxwaveformimporter.cpp
++++ b/src/library/rekordbox/rekordboxwaveformimporter.cpp
+@@ -5,6 +5,7 @@
+ #include <cmath>
+ #include <limits>
+ #include <utility>
++#include <QtEndian>
+ 
+ #include "analyzer/constants.h"
+ #include "sources/audiosourcestereoproxy.h"
+@@ -141,25 +142,91 @@ QVector<RuntimeWaveformColumn> decodeRuntimeWaveformColumns(
+         return decoded;
+     }
+ 
++    WaveformSeries series;
++    series.columns = std::move(decoded);
++    const bool preserveColor = source.descriptor.sectionTag == "PWV4" || source.descriptor.sectionTag == "PWV5";
+     QVector<RuntimeWaveformColumn> reduced;
+     reduced.reserve(maxColumns);
+     for (int column = 0; column < maxColumns; ++column) {
+-        const int first = column * decoded.size() / maxColumns;
+-        const int last = qMin(decoded.size(),
+-                qMax(first + 1, (column + 1) * decoded.size() / maxColumns));
+-        RuntimeWaveformColumn peak;
+-        for (int sourceColumn = first; sourceColumn < last; ++sourceColumn) {
+-            const auto& value = decoded[sourceColumn];
+-            peak.low = qMax(peak.low, value.low);
+-            peak.mid = qMax(peak.mid, value.mid);
+-            peak.high = qMax(peak.high, value.high);
+-            peak.all = qMax(peak.all, value.all);
+-        }
+-        reduced.push_back(peak);
++        reduced.push_back(peakColumn(series, double(column) * series.columns.size() / maxColumns,
++                double(column + 1) * series.columns.size() / maxColumns, preserveColor));
+     }
+     return reduced;
+ }
+ 
++int previewWaveformPriority(const QByteArray& tag, WaveformMode mode) {
++    const QList<QByteArray> tags = mode == WaveformMode::ThreeBand
++            ? QList<QByteArray>{"PWV6", "PWV7", "PWV4", "PWV5", "PWAV", "PWV2", "PWV3"}
++            : mode == WaveformMode::RGB
++            ? QList<QByteArray>{"PWV4", "PWV5", "PWV6", "PWV7", "PWAV", "PWV2", "PWV3"}
++            : QList<QByteArray>{"PWV4", "PWAV", "PWV2", "PWV3", "PWV5", "PWV6", "PWV7"};
++    const int index = tags.indexOf(tag);
++    return index < 0 ? 100 : index;
++}
++
++QVector<Phrase> decodeRekordboxPhrases(const QList<RuntimeAnlzSection>& sections,
++        const QList<RuntimeBeat>& beats, double timingOffsetSeconds) {
++    if (beats.size() < 2 || !std::isfinite(timingOffsetSeconds)) return {};
++    for (int i = 1; i < beats.size(); ++i) {
++        if (beats[i].timeMs <= beats[i-1].timeMs) return {};
++    }
++    // Layout/masking: Deep Symmetry's rekordbox_anlz.ksy song_structure_tag.
++    // All lengths are checked before touching either the header or entries.
++    for (const auto& section : sections) {
++        if (section.tag != "PSSI") continue;
++        auto bytes = section.bytes;
++        if (bytes.size() < 32 || bytes.left(4) != "PSSI") continue;
++        const auto u16 = [&bytes](int at) { return qFromBigEndian<quint16>(bytes.constData()+at); };
++        const auto u32 = [&bytes](int at) { return qFromBigEndian<quint32>(bytes.constData()+at); };
++        const int count = u16(16);
++        if (u32(4) != 32 || u32(8) != quint32(bytes.size()) || u32(12) != 24 ||
++                count == 0 || count > 4096 || bytes.size() != 32 + count*24) continue;
++        if (u16(18) > 20) {
++            constexpr quint8 mask[]{0xcb,0xe1,0xee,0xfa,0xe5,0xee,0xad,0xee,0xe9,
++                    0xd2,0xe9,0xeb,0xe1,0xe9,0xf3,0xe8,0xe9,0xf4,0xe1};
++            for (int i = 18; i < bytes.size(); ++i) {
++                bytes[i] = char(quint8(bytes[i]) ^ quint8(mask[(i-18)%19] + count));
++            }
++        }
++        const quint16 mood = u16(18);
++        const int endBeat = u16(26);
++        if (mood < 1 || mood > 3 || endBeat < 2 || endBeat > beats.size()+1) continue;
++        const auto secondsAtBeat = [&](int beat) {
++            if (beat <= beats.size()) return beats[beat-1].timeMs / 1000.0 + timingOffsetSeconds;
++            return (2.0*beats.last().timeMs-beats[beats.size()-2].timeMs)/1000.0 + timingOffsetSeconds;
++        };
++        QVector<Phrase> result;
++        bool valid = true;
++        int previousBeat = 0;
++        for (int i = 0; i < count; ++i) {
++            const int at = 32+i*24;
++            const int beat = u16(at+2);
++            const int nextBeat = i+1<count ? u16(at+24+2) : endBeat;
++            if (u16(at) != i+1 || beat <= previousBeat || nextBeat <= beat ||
++                    nextBeat > endBeat || beat > beats.size()) { valid=false; break; }
++            const quint16 kind = u16(at+4);
++            PhraseKind category = PhraseKind::Unknown;
++            if (kind == 1) category=PhraseKind::Intro;
++            else if (mood == 1) {
++                if (kind == 2) category=PhraseKind::Up;
++                else if (kind == 3) category=PhraseKind::Down;
++                else if (kind == 5) category=PhraseKind::Chorus;
++                else if (kind == 6) category=PhraseKind::Outro;
++            } else {
++                if (kind >= 2 && kind <= 7) category=PhraseKind::Verse;
++                else if (kind == 8) category=PhraseKind::Bridge;
++                else if (kind == 9) category=PhraseKind::Chorus;
++                else if (kind == 10) category=PhraseKind::Outro;
++            }
++            result.push_back({secondsAtBeat(beat),secondsAtBeat(nextBeat),category,kind,mood,
++                    quint8(bytes[at+7]),quint8(bytes[at+9]),quint8(bytes[at+19])});
++            previousBeat=beat;
++        }
++        if (valid) return result;
++    }
++    return {};
++}
++
+ std::shared_ptr<const SignedWaveform> decodeSignedWaveform(
+         const mixxx::AudioSourcePointer& source, const std::function<bool()>& cancelled) {
+     if (!source || source->frameIndexRange().empty()) return {};
+@@ -203,8 +270,9 @@ RekordboxWaveformImporter::RekordboxWaveformImporter(LoadedRuntimeWaveform sourc
+         : m_sources{std::move(source)} {
+ }
+ 
+-RekordboxWaveformImporter::RekordboxWaveformImporter(QList<LoadedRuntimeWaveform> sources)
+-        : m_sources(std::move(sources)) {
++RekordboxWaveformImporter::RekordboxWaveformImporter(QList<LoadedRuntimeWaveform> sources,
++        QList<RuntimeAnlzSection> sections, QList<RuntimeBeat> beats)
++        : m_sources(std::move(sources)), m_sections(std::move(sections)), m_beats(std::move(beats)) {
+ }
+ 
+ bool RekordboxWaveformImporter::isEmpty() const {
+@@ -217,6 +285,9 @@ mixxx::ImportedWaveforms RekordboxWaveformImporter::importWaveforms(
+     auto native = std::make_shared<WaveformSet>();
+     native->durationSeconds = streamInfo.getDuration().toDoubleSeconds();
+     if (native->durationSeconds <= 0) return {};
++    native->phrases = decodeRekordboxPhrases(m_sections, m_beats, m_offsetSeconds);
++    m_sections.clear();
++    m_beats.clear();
+     // Detail tags carry a fixed 150-column/s clock. Use that clock for the
+     // source duration instead of squeezing encoder padding into decoded PCM.
+     double sourceDuration = native->durationSeconds - m_offsetSeconds;
+diff --git a/src/library/rekordbox/rekordboxwaveformimporter.h b/src/library/rekordbox/rekordboxwaveformimporter.h
+index 8c74a18..3cb537e 100644
+--- a/src/library/rekordbox/rekordboxwaveformimporter.h
++++ b/src/library/rekordbox/rekordboxwaveformimporter.h
+@@ -30,6 +30,13 @@ using RuntimeWaveformColumn = WaveformColumn;
+ QVector<RuntimeWaveformColumn> decodeRuntimeWaveformColumns(
+         const LoadedRuntimeWaveform& source, int maxColumns = -1);
+ 
++int previewWaveformPriority(const QByteArray& tag, WaveformMode mode);
++
++// PSSI is retained only from PPTH-associated analysis containers. Resolve its
++// 1-based beat indices against PQTZ, never against a guessed constant BPM.
++QVector<Phrase> decodeRekordboxPhrases(const QList<RuntimeAnlzSection>& sections,
++        const QList<RuntimeBeat>& beats, double timingOffsetSeconds = 0);
++
+ // Read PCM extrema only. Cancel on unload/new load; discard incomplete data.
+ std::shared_ptr<const SignedWaveform> decodeSignedWaveform(
+         const mixxx::AudioSourcePointer& source,
+@@ -38,7 +45,8 @@ std::shared_ptr<const SignedWaveform> decodeSignedWaveform(
+ class RekordboxWaveformImporter final : public mixxx::WaveformImporter {
+   public:
+     explicit RekordboxWaveformImporter(LoadedRuntimeWaveform source);
+-    explicit RekordboxWaveformImporter(QList<LoadedRuntimeWaveform> sources);
++    explicit RekordboxWaveformImporter(QList<LoadedRuntimeWaveform> sources,
++            QList<RuntimeAnlzSection> sections = {}, QList<RuntimeBeat> beats = {});
+ 
+     bool isEmpty() const override;
+     void setSourceTimingOffsetMillis(double offset) override {
+@@ -49,6 +57,8 @@ class RekordboxWaveformImporter final : public mixxx::WaveformImporter {
+ 
+   private:
+     QList<LoadedRuntimeWaveform> m_sources;
++    QList<RuntimeAnlzSection> m_sections;
++    QList<RuntimeBeat> m_beats;
+     double m_offsetSeconds{0};
+ };
+ 
+diff --git a/src/preferences/dialog/dlgpreferences.cpp b/src/preferences/dialog/dlgpreferences.cpp
+index 06e6170..18ab2be 100644
+--- a/src/preferences/dialog/dlgpreferences.cpp
++++ b/src/preferences/dialog/dlgpreferences.cpp
+@@ -1,5 +1,7 @@
+ #include "preferences/dialog/dlgpreferences.h"
+ 
++#include <algorithm>
++
+ #include <QDialog>
+ #include <QEvent>
+ #include <QMoveEvent>
+@@ -510,6 +512,12 @@ DlgPreferencePage* DlgPreferences::currentPage() {
+ }
+ 
+ void DlgPreferences::removePageWidget(DlgPreferencePage* pWidget) {
++    // Controller rescans destroy their pages while this dialog remains open.
++    // Remove registry entries before those widgets and tree items are deleted.
++    m_allPages.erase(std::remove_if(m_allPages.begin(), m_allPages.end(),
++                            [pWidget](const PreferencesPage& page) { return page.pDlg == pWidget; }),
++            m_allPages.end());
++    disconnect(this, nullptr, pWidget, nullptr);
+     pagesWidget->removeWidget(pWidget->parentWidget()->parentWidget());
+ }
+ 
+diff --git a/src/preferences/dialog/dlgpreferences.h b/src/preferences/dialog/dlgpreferences.h
+index 8f508f2..3a0d4cc 100644
+--- a/src/preferences/dialog/dlgpreferences.h
++++ b/src/preferences/dialog/dlgpreferences.h
+@@ -4,6 +4,7 @@
+ #include <QDir>
+ #include <QEvent>
+ #include <QRect>
++#include <QPointer>
+ #include <QStringList>
+ #include <memory>
+ 
+@@ -39,8 +40,8 @@ class DlgPreferences : public QDialog, public Ui::DlgPreferencesDlg {
+                   pTreeItem(pTreeItem) {
+         }
+ 
+-        DlgPreferencePage* pDlg;
+-        QTreeWidgetItem* pTreeItem;
++        QPointer<DlgPreferencePage> pDlg;
++        QTreeWidgetItem* pTreeItem{nullptr};
+     };
+ 
+     DlgPreferences(
+diff --git a/src/preferences/dialog/dlgprefwaveform.cpp b/src/preferences/dialog/dlgprefwaveform.cpp
+index 58f43b1..8a0155c 100644
+--- a/src/preferences/dialog/dlgprefwaveform.cpp
++++ b/src/preferences/dialog/dlgprefwaveform.cpp
+@@ -79,6 +79,8 @@ DlgPrefWaveform::DlgPrefWaveform(
+     // slotUpdate can generate rebootMixxxView calls.
+     // TODO(XXX): Improve this awkwardness.
+     slotUpdate();
++    connect(overviewDivisionsComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
++            factory, &WaveformWidgetFactory::setOverviewDivisions);
+     enableWaveformCaching->setEnabled(false);
+     enableWaveformGenerationWithAnalysis->setEnabled(false);
+     normalizeOverviewCheckBox->setEnabled(false);
+@@ -242,6 +244,7 @@ void DlgPrefWaveform::slotUpdate() {
+ 
+     waveformOverviewComboBox->setCurrentIndex(factory->eqAffectsWaveform() ? 1 : 0);
+ 
++    overviewDivisionsComboBox->setCurrentIndex(factory->getOverviewDivisions());
+     WaveformSettings waveformSettings(m_pConfig);
+     enableWaveformCaching->setChecked(waveformSettings.waveformCachingEnabled());
+     enableWaveformGenerationWithAnalysis->setChecked(
+@@ -282,6 +285,7 @@ void DlgPrefWaveform::slotResetToDefaults() {
+             waveformOverviewComboBox->findData(false));
+ 
+     normalizeOverviewCheckBox->setChecked(true);
++    overviewDivisionsComboBox->setCurrentIndex(0);
+ 
+     // 60FPS is the default
+     frameRateSlider->setValue(60);
+diff --git a/src/preferences/dialog/dlgprefwaveformdlg.ui b/src/preferences/dialog/dlgprefwaveformdlg.ui
+index 6fb6e06..ef5d68b 100644
+--- a/src/preferences/dialog/dlgprefwaveformdlg.ui
++++ b/src/preferences/dialog/dlgprefwaveformdlg.ui
+@@ -69,7 +69,7 @@ Select from different types of displays for the waveform, which differ primarily
+       </widget>
+      </item>
+ 
+-     <item row="2" column="0">
++     <item row="3" column="0">
+       <widget class="QLabel" name="frameRateLabel">
+        <property name="text">
+         <string>Frame rate</string>
+@@ -82,7 +82,7 @@ Select from different types of displays for the waveform, which differ primarily
+        </property>
+       </widget>
+      </item>
+-     <item row="2" column="1" colspan="2">
++     <item row="3" column="1" colspan="2">
+       <widget class="QSlider" name="frameRateSlider">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+@@ -110,7 +110,7 @@ Select from different types of displays for the waveform, which differ primarily
+        </property>
+       </widget>
+      </item>
+-     <item row="2" column="3">
++     <item row="3" column="3">
+       <widget class="QSpinBox" name="frameRateSpinBox">
+        <property name="toolTip">
+         <string/>
+@@ -130,7 +130,7 @@ Select from different types of displays for the waveform, which differ primarily
+       </widget>
+      </item>
+ 
+-     <item row="3" column="0">
++     <item row="4" column="0">
+       <widget class="QLabel" name="endOfTrackWarningTimeLabel">
+        <property name="text">
+         <string>End of track warning</string>
+@@ -143,7 +143,7 @@ Select from different types of displays for the waveform, which differ primarily
+        </property>
+       </widget>
+      </item>
+-     <item row="3" column="1" colspan="2">
++     <item row="4" column="1" colspan="2">
+       <widget class="QSlider" name="endOfTrackWarningTimeSlider">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+@@ -171,7 +171,7 @@ Select from different types of displays for the waveform, which differ primarily
+        </property>
+       </widget>
+      </item>
+-     <item row="3" column="3">
++     <item row="4" column="3">
+       <widget class="QSpinBox" name="endOfTrackWarningTimeSpinBox">
+        <property name="toolTip">
+         <string>Highlight the waveforms when the last seconds of a track remains.</string>
+@@ -191,7 +191,7 @@ Select from different types of displays for the waveform, which differ primarily
+       </widget>
+      </item>
+ 
+-     <item row="4" column="0">
++     <item row="5" column="0">
+       <widget class="QLabel" name="BeatgridWaveform">
+        <property name="toolTip">
+         <string/>
+@@ -207,7 +207,7 @@ Select from different types of displays for the waveform, which differ primarily
+        </property>
+       </widget>
+      </item>
+-     <item row="4" column="1" colspan="2">
++     <item row="5" column="1" colspan="2">
+       <widget class="QSlider" name="beatGridAlphaSlider">
+        <property name="maximum">
+         <number>100</number>
+@@ -220,7 +220,7 @@ Select from different types of displays for the waveform, which differ primarily
+        </property>
+       </widget>
+      </item>
+-     <item row="4" column="3">
++     <item row="5" column="3">
+       <widget class="QSpinBox" name="beatGridAlphaSpinBox">
+        <property name="toolTip">
+         <string>Set amount of opacity on beat grid lines.</string>
+@@ -237,14 +237,14 @@ Select from different types of displays for the waveform, which differ primarily
+       </widget>
+      </item>
+ 
+-     <item row="5" column="0">
++     <item row="6" column="0">
+       <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Play marker position</string>
+       </property>
+       </widget>
+       </item>
+-     <item row="5" column="1" colspan="3">
++     <item row="6" column="1" colspan="3">
+       <widget class="QSlider" name="playMarkerPositionSlider">
+        <property name="toolTip">
+         <string>Moves the play marker position on the waveforms to the left, right or center (default).</string>
+@@ -276,7 +276,7 @@ Select from different types of displays for the waveform, which differ primarily
+       </widget>
+      </item>
+ 
+-     <item row="6" column="0">
++     <item row="7" column="0">
+       <widget class="QLabel" name="defaultZoomLabel">
+        <property name="text">
+         <string extracomment="Waveform zoom">Default zoom level</string>
+@@ -289,11 +289,11 @@ Select from different types of displays for the waveform, which differ primarily
+        </property>
+       </widget>
+      </item>
+-     <item row="6" column="1" colspan="3">
++     <item row="7" column="1" colspan="3">
+       <widget class="QComboBox" name="defaultZoomComboBox"/>
+      </item>
+ 
+-     <item row="7" column="1" colspan="3">
++     <item row="8" column="1" colspan="3">
+       <widget class="QCheckBox" name="synchronizeZoomCheckBox">
+        <property name="toolTip">
+         <string>Synchronize zoom level across all waveform displays.</string>
+@@ -304,7 +304,7 @@ Select from different types of displays for the waveform, which differ primarily
+       </widget>
+      </item>
+ 
+-     <item row="9" column="1">
++     <item row="10" column="1">
+       <widget class="QCheckBox" name="normalizeOverviewCheckBox">
+        <property name="text">
+         <string>Normalize waveform overview</string>
+@@ -312,7 +312,7 @@ Select from different types of displays for the waveform, which differ primarily
+       </widget>
+      </item>
+ 
+-     <item row="10" column="0">
++     <item row="11" column="0">
+       <widget class="QLabel" name="visualGainLabel">
+        <property name="text">
+         <string>Visual gain</string>
+@@ -325,7 +325,7 @@ Select from different types of displays for the waveform, which differ primarily
+        </property>
+       </widget>
+      </item>
+-     <item row="10" column="1" colspan="3">
++     <item row="11" column="1" colspan="3">
+       <layout class="QGridLayout" name="gridLayout_3">
+        <item row="1" column="2">
+         <widget class="QDoubleSpinBox" name="midVisualGain">
+@@ -458,7 +458,7 @@ Select from different types of displays for the waveform, which differ primarily
+       </layout>
+      </item>
+ 
+-     <item row="11" column="0">
++     <item row="12" column="0">
+       <widget class="QLabel" name="untilMarkLabel">
+        <property name="text">
+         <string>Play marker hints</string>
+@@ -468,7 +468,7 @@ Select from different types of displays for the waveform, which differ primarily
+        </property>
+       </widget>
+      </item>
+-     <item row="11" column="1" colspan="3">
++     <item row="12" column="1" colspan="3">
+       <layout class="QGridLayout" name="gridLayout_4">
+        <item row="0" column="0">
+         <widget class="QCheckBox" name="untilMarkShowBeatsCheckBox">
+@@ -550,7 +550,7 @@ Select from different types of displays for the waveform, which differ primarily
+        </item>
+       </layout>
+      </item>
+-     <item row="14" column="1" colspan="2">
++     <item row="15" column="1" colspan="2">
+       <widget class="QLabel" name="requiresGLSLLabel">
+        <property name="text">
+         <string>This functionality requires a waveform type marked "(GLSL)".</string>
+@@ -560,7 +560,7 @@ Select from different types of displays for the waveform, which differ primarily
+        </property>
+       </widget>
+      </item>
+-     <item row="15" column="0">
++     <item row="16" column="0">
+       <widget class="QLabel" name="cachedWaveforms">
+        <property name="text">
+         <string>Caching</string>
+@@ -570,7 +570,7 @@ Select from different types of displays for the waveform, which differ primarily
+        </property>
+       </widget>
+      </item>
+-     <item row="15" column="1" colspan="3">
++     <item row="16" column="1" colspan="3">
+       <layout class="QGridLayout" name="cachingGridLayout">
+        <item row="4" column="0">
+         <widget class="QPushButton" name="clearCachedWaveforms">
+@@ -622,7 +622,20 @@ Select from different types of displays for the waveform, which differ primarily
+       </layout>
+      </item>
+ 
+-     <item row="17" column="0" colspan="4">
++     <item row="2" column="0">
++      <widget class="QLabel" name="overviewDivisionsLabel">
++       <property name="text"><string>WAVEFORM DIVISIONS</string></property>
++       <property name="buddy"><cstring>overviewDivisionsComboBox</cstring></property>
++      </widget>
++     </item>
++     <item row="2" column="1" colspan="3">
++      <widget class="QComboBox" name="overviewDivisionsComboBox">
++       <property name="toolTip"><string>TIME SCALE: marks every 30 seconds. PHRASE: phrase blocks exported by Rekordbox, when available.</string></property>
++       <item><property name="text"><string>TIME SCALE</string></property></item>
++       <item><property name="text"><string>PHRASE</string></property></item>
++      </widget>
++     </item>
++     <item row="18" column="0" colspan="4">
+       <widget class="QGroupBox" name="openGLStatus">
+        <property name="title">
+         <string>OpenGL status</string>
+diff --git a/src/test/rekordboxdatabase_test.cpp b/src/test/rekordboxdatabase_test.cpp
+index 5f8d567..7dbea0a 100644
+--- a/src/test/rekordboxdatabase_test.cpp
++++ b/src/test/rekordboxdatabase_test.cpp
+@@ -431,19 +431,19 @@ TEST(RekordboxMetadataTest, BadAudioPathStringDoesNotDiscardOtherRows) {
+     EXPECT_FALSE(index.diagnostics.isEmpty());
+ }
+ TEST(RekordboxMetadataTest, ResolvesNearAndFarArtistNames) {
+-    QByteArray nearRow(10, '\0');
+-    put32(&nearRow, 4, 5);
+-    nearRow[9] = 10;
+-    nearRow += shortText("Artist");
+-    QByteArray farRow(12, '\0');
+-    put16(&farRow, 0, 100);
+-    put32(&farRow, 4, 7);
+-    put16(&farRow, 10, 12);
+-    farRow += wideText(QString::fromUtf8("Compositor ñ"));
++    QByteArray near(10, '\0');
++    put32(&near, 4, 5);
++    near[9] = 10;
++    near += shortText("Artist");
++    QByteArray far(12, '\0');
++    put16(&far, 0, 100);
++    put32(&far, 4, 7);
++    put16(&far, 10, 12);
++    far += wideText(QString::fromUtf8("Compositor ñ"));
+     auto row = metadataTrack();
+     put32(&row, 68, 5);
+     put32(&row, 12, 7);
+-    const auto index = tracksFromRows({{0, row}, {2, nearRow}, {2, farRow}});
++    const auto index = tracksFromRows({{0, row}, {2, near}, {2, far}});
+     ASSERT_EQ(index.tracks.size(), 1);
+     EXPECT_EQ(index.tracks.first().metadata.value("artist").toString(), "Artist");
+     EXPECT_EQ(index.tracks.first().metadata.value("composer").toString(), QString::fromUtf8("Compositor ñ"));
+diff --git a/src/test/rekordboxusbsession_test.cpp b/src/test/rekordboxusbsession_test.cpp
+index c797352..d732eff 100644
+--- a/src/test/rekordboxusbsession_test.cpp
++++ b/src/test/rekordboxusbsession_test.cpp
+@@ -5,6 +5,9 @@
+ 
+ #include <QCryptographicHash>
+ #include <QDateTime>
++#include <QElapsedTimer>
++#include <QCoreApplication>
++#include <QThread>
+ #include <QDir>
+ #include <QDirIterator>
+ #include <QFile>
+@@ -342,6 +345,53 @@ TEST_F(RekordboxRuntimeTrackModelTest,
+     EXPECT_FALSE(model.getTrack(model.index(0, 0)));
+ }
+ 
++TEST_F(RekordboxRuntimeTrackModelTest, BrowserPreviewCacheSeparatesStylesAndClearsWithSession) {
++    QTemporaryDir volume;
++    ASSERT_TRUE(write(pdb(volume), database(rows())));
++    QByteArray analysis(28, '\0');
++    analysis.replace(0,4,"PMAI"); putAnlz32(&analysis,4,28);
++    analysis += anlzPpth(QStringLiteral("/Contents/test.mp3"));
++    for (const auto& tag : {QByteArray("PWV4"), QByteArray("PWV6")}) {
++        const int header = tag == "PWV4" ? 24 : 20;
++        const int stride = tag == "PWV4" ? 6 : 3;
++        QByteArray section(header, '\0');
++        section.replace(0,4,tag); putAnlz32(&section,4,header);
++        putAnlz32(&section,12,stride); putAnlz32(&section,16,2);
++        section += QByteArray(stride*2, char(100));
++        putAnlz32(&section,8,section.size()); analysis += section;
++    }
++    putAnlz32(&analysis,8,analysis.size());
++    ASSERT_TRUE(write(volume.filePath("PIONEER/USBANLZ/test.DAT"),analysis));
++    auto session = std::make_shared<RekordboxUsbSession>(volume.path());
++    ASSERT_TRUE(session->load());
++    ASSERT_EQ(2,session->catalog()->findTrack(1)->waveforms.size());
++    RekordboxRuntimeTrackModel model(nullptr,trackCollectionManager());
++    model.showAllTracks(session);
++    const auto index = model.index(0,0);
++    for (auto mode : {WaveformMode::ThreeBand,WaveformMode::RGB,WaveformMode::Blue}) {
++        EXPECT_EQ(nullptr,model.waveformPreview(index,mode));
++        model.requestWaveformPreview(index,mode);
++        // Switching styles while earlier requests are pending must not reuse
++        // or suppress another mode's request.
++    }
++    QElapsedTimer timer; timer.start();
++    while ((!model.waveformPreview(index,WaveformMode::RGB) ||
++            !model.waveformPreview(index,WaveformMode::Blue) ||
++            !model.waveformPreview(index,WaveformMode::ThreeBand)) && timer.elapsed()<3000) {
++        QCoreApplication::processEvents(); QThread::msleep(1);
++    }
++    for (auto mode : {WaveformMode::ThreeBand,WaveformMode::RGB,WaveformMode::Blue}) {
++        const auto* preview = model.waveformPreview(index,mode);
++        ASSERT_NE(nullptr,preview);
++        EXPECT_EQ(mode==WaveformMode::ThreeBand ? QByteArray("PWV6") : QByteArray("PWV4"),preview->tag);
++        EXPECT_EQ(2,preview->columns.size());
++        EXPECT_FALSE(model.getTrackId(index).isValid());
++    }
++    model.clearSession();
++    EXPECT_EQ(0,model.rowCount());
++    EXPECT_EQ(nullptr,model.waveformPreview(index,WaveformMode::RGB));
++}
++
+ TEST_F(RekordboxRuntimeTrackModelTest,
+         ProjectionRevalidatesFingerprintAtSameMountpoint) {
+     QTemporaryDir volume;
+diff --git a/src/test/rekordboxwaveformimporter_test.cpp b/src/test/rekordboxwaveformimporter_test.cpp
+index 7436b6d..cf73d7c 100644
+--- a/src/test/rekordboxwaveformimporter_test.cpp
++++ b/src/test/rekordboxwaveformimporter_test.cpp
+@@ -6,12 +6,14 @@
+ #include <QJsonArray>
+ #include <QJsonObject>
+ #include <QDir>
++#include <QDirIterator>
+ #include <QImage>
+ #include <QPainter>
+ #include <QLinearGradient>
+ #include <QTemporaryDir>
+ #include <QDataStream>
+ #include <QElapsedTimer>
++#include <QtEndian>
+ #include "sources/soundsourceproxy.h"
+ #include "track/track.h"
+ #include "library/rekordbox/rekordboxanlzreader.h"
+@@ -219,14 +221,14 @@ TEST(RekordboxWaveformImporterTest, SignedPcmKeepsDcPolarityAndCancellationDisca
+ TEST(RekordboxWaveformImporterTest, BeatTicksStayAtEdgesAndRedExtendsOutward) {
+     const auto white = mixxx::beatgrid::edgeTicks(114.f, 1.f, 10.f, false);
+     const auto red = mixxx::beatgrid::edgeTicks(114.f, 1.f, 10.f, true);
+-    EXPECT_FLOAT_EQ(white.topStart, 2.f);
+-    EXPECT_FLOAT_EQ(white.topEnd, 12.f);
+-    EXPECT_FLOAT_EQ(white.bottomStart, 102.f);
+-    EXPECT_FLOAT_EQ(white.bottomEnd, 112.f);
+-    EXPECT_FLOAT_EQ(red.topStart, 0.f);
++    EXPECT_FLOAT_EQ(white.topStart, 4.f);
++    EXPECT_FLOAT_EQ(white.topEnd, 14.f);
++    EXPECT_FLOAT_EQ(white.bottomStart, 100.f);
++    EXPECT_FLOAT_EQ(white.bottomEnd, 110.f);
++    EXPECT_FLOAT_EQ(red.topStart, 2.f);
+     EXPECT_FLOAT_EQ(red.topEnd, white.topEnd);
+     EXPECT_FLOAT_EQ(red.bottomStart, white.bottomStart);
+-    EXPECT_FLOAT_EQ(red.bottomEnd, 114.f);
++    EXPECT_FLOAT_EQ(red.bottomEnd, 112.f);
+ }
+ 
+ TEST(RekordboxWaveformImporterTest, BeatTicksStartAtFirstAudibleColumn) {
+@@ -330,5 +332,128 @@ TEST(RekordboxWaveformImporterTest, RenderCalibrationFixtures) {
+     }
+ }
+ 
++TEST(RekordboxWaveformImporterTest, BrowserStylesPreferTheirOwnNativePayload) {
++    EXPECT_LT(previewWaveformPriority("PWV6", WaveformMode::ThreeBand),
++            previewWaveformPriority("PWV4", WaveformMode::ThreeBand));
++    EXPECT_LT(previewWaveformPriority("PWV4", WaveformMode::RGB),
++            previewWaveformPriority("PWV6", WaveformMode::RGB));
++    EXPECT_LT(previewWaveformPriority("PWV4", WaveformMode::Blue),
++            previewWaveformPriority("PWAV", WaveformMode::Blue));
++    EXPECT_LT(previewWaveformPriority("PWAV", WaveformMode::Blue),
++            previewWaveformPriority("PWV6", WaveformMode::Blue));
++    EXPECT_EQ(100, previewWaveformPriority("UNKNOWN", WaveformMode::RGB));
++}
++
++TEST(RekordboxWaveformImporterTest, BrowserReductionPreservesPeakColorAndWhiteness) {
++    const QByteArray payload = QByteArray::fromHex("640064500a00c80000a0000a");
++    const LoadedRuntimeWaveform source{descriptor("PWV4", RuntimeWaveformQuality::Preview, 6, 2), payload};
++    const auto full = decodeRuntimeWaveformColumns(source);
++    const auto reduced = decodeRuntimeWaveformColumns(source,1);
++    ASSERT_EQ(2, full.size()); ASSERT_EQ(1, reduced.size());
++    EXPECT_EQ(full[1].all, reduced[0].all);
++    EXPECT_EQ(full[1].low, reduced[0].low);
++    EXPECT_EQ(full[1].mid, reduced[0].mid);
++    EXPECT_EQ(full[1].high, reduced[0].high);
++    EXPECT_EQ(255, reduced[0].whiteness);
++}
++
++RuntimeAnlzSection phraseFixture(bool masked, quint16 mood=2) {
++    QByteArray bytes(32+3*24,'\0');
++    bytes.replace(0,4,"PSSI");
++    qToBigEndian<quint32>(32,bytes.data()+4);
++    qToBigEndian<quint32>(bytes.size(),bytes.data()+8);
++    qToBigEndian<quint32>(24,bytes.data()+12);
++    qToBigEndian<quint16>(3,bytes.data()+16);
++    qToBigEndian<quint16>(mood,bytes.data()+18);
++    qToBigEndian<quint16>(11,bytes.data()+26);
++    const int starts[]{1,5,8};
++    const int kinds[]{1,2,mood==1?5:9};
++    for (int i=0;i<3;++i) {
++        qToBigEndian<quint16>(i+1,bytes.data()+32+i*24);
++        qToBigEndian<quint16>(starts[i],bytes.data()+34+i*24);
++        qToBigEndian<quint16>(kinds[i],bytes.data()+36+i*24);
++    }
++    if (masked) {
++        const QByteArray key=QByteArray::fromHex("cbe1eefae5eeadeee9d2e9ebe1e9f3e8e9f4e1");
++        for(int i=18;i<bytes.size();++i) bytes[i]=char(quint8(bytes[i])^quint8(quint8(key[(i-18)%key.size()])+3));
++    }
++    return {"PSSI",32,bytes};
++}
++QList<RuntimeBeat> phraseBeats() {
++    QList<RuntimeBeat> beats;
++    for (quint32 time : {0,500,1000,1500,2000,3000,4000,5000,6000,7000})
++        beats.append({time,1,12000});
++    return beats;
++}
++TEST(RekordboxWaveformImporterTest, PlainAndMaskedPhrasesFollowOriginalVariableTempoGrid) {
++    for (bool masked : {false,true}) {
++        for (quint16 mood : {1,2,3}) {
++            const auto phrases=decodeRekordboxPhrases({phraseFixture(masked,mood)},phraseBeats(),-.02);
++            ASSERT_EQ(3,phrases.size());
++            EXPECT_DOUBLE_EQ(-.02,phrases[0].startSeconds);
++            EXPECT_DOUBLE_EQ(1.98,phrases[0].endSeconds);
++            EXPECT_DOUBLE_EQ(4.98,phrases[1].endSeconds);
++            EXPECT_DOUBLE_EQ(7.98,phrases[2].endSeconds);
++            EXPECT_EQ(PhraseKind::Intro,phrases[0].kind);
++            EXPECT_EQ(mood==1?PhraseKind::Up:PhraseKind::Verse,phrases[1].kind);
++            EXPECT_EQ(PhraseKind::Chorus,phrases[2].kind);
++        }
++    }
++}
++TEST(RekordboxWaveformImporterTest, RejectsTruncatedPhraseDataAndBadBeatIndices) {
++    const auto valid=phraseFixture(false);
++    for (int size=0;size<valid.bytes.size();++size) {
++        auto truncated=valid;truncated.bytes.truncate(size);
++        EXPECT_TRUE(decodeRekordboxPhrases({truncated},phraseBeats()).isEmpty());
++    }
++    auto bad=valid;
++    qToBigEndian<quint16>(0,bad.bytes.data()+34);
++    EXPECT_TRUE(decodeRekordboxPhrases({bad},phraseBeats()).isEmpty());
++    bad=valid;qToBigEndian<quint16>(65535,bad.bytes.data()+16);
++    EXPECT_TRUE(decodeRekordboxPhrases({bad},phraseBeats()).isEmpty());
++    bad=valid;qToBigEndian<quint16>(99,bad.bytes.data()+26);
++    EXPECT_TRUE(decodeRekordboxPhrases({bad},phraseBeats()).isEmpty());
++    EXPECT_TRUE(decodeRekordboxPhrases({valid},{}).isEmpty());
++    EXPECT_TRUE(decodeRekordboxPhrases({},phraseBeats()).isEmpty());
++}
++TEST(RekordboxWaveformImporterTest, PhraseMetadataIsSharedByDetailAndOverviewAndUsesDecoderOffset) {
++    RekordboxWaveformImporter importer(QList<LoadedRuntimeWaveform>{
++            {descriptor("PWV7",RuntimeWaveformQuality::Detailed,3,1500),QByteArray(4500,char(100))}},
++            {phraseFixture(true)},phraseBeats());
++    importer.setSourceTimingOffsetMillis(-20);
++    const auto imported=importer.importWaveforms(streamInfo(10));
++    ASSERT_TRUE(imported.waveform);ASSERT_TRUE(imported.summary);
++    ASSERT_EQ(imported.waveform->rekordbox,imported.summary->rekordbox);
++    ASSERT_EQ(3,imported.summary->rekordbox->phrases.size());
++    EXPECT_DOUBLE_EQ(1.98,imported.summary->rekordbox->phrases[1].startSeconds);
++}
++
++TEST(RekordboxWaveformImporterTest, OptionalRealPhrasesReadOnly) {
++    const auto root=QString::fromLocal8Bit(qgetenv("MIXXX_REKORDBOX_PHRASE_FIXTURE"));
++    if (root.isEmpty()) GTEST_SKIP()<<"External Rekordbox phrase export unavailable";
++    QDirIterator files(QDir(root).filePath("PIONEER/USBANLZ"),{"*.EXT"},
++            QDir::Files,QDirIterator::Subdirectories);
++    int decoded=0;
++    int visited=0;
++    while (files.hasNext() && decoded<8 && visited++<100) {
++        const auto path=files.next();
++        auto datPath=path; datPath.chop(4);datPath+=".DAT";
++        const auto ext=readAnlzFile(path,AnlzWaveformReadMode::Descriptor);
++        const auto dat=readAnlzFile(datPath,AnlzWaveformReadMode::Descriptor);
++        if (!ext.containerValid || !dat.containerValid || !ext.hasPathSection ||
++                ext.exportedAudioPath!=dat.exportedAudioPath) continue;
++        const auto& beats=dat.beats.isEmpty()?ext.beats:dat.beats;
++        const auto phrases=decodeRekordboxPhrases(ext.unmappedSections,beats);
++        if (phrases.isEmpty()) continue;
++        ++decoded;
++        for (int i=0;i<phrases.size();++i) {
++            EXPECT_LT(phrases[i].startSeconds,phrases[i].endSeconds);
++            if (i>0) EXPECT_DOUBLE_EQ(phrases[i-1].endSeconds,phrases[i].startSeconds);
++        }
++    }
++    EXPECT_GT(decoded,0);
++    qInfo()<<"Real read-only phrase exports validated:"<<decoded;
++}
++
+ } // namespace
+ } // namespace mixxx::rekordbox
+diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
+index e7a488b..c470ceb 100644
+--- a/src/test/rx3display_test.cpp
++++ b/src/test/rx3display_test.cpp
+@@ -192,6 +192,7 @@ TEST_F(Rx3ReferenceScaleTest, SuccessfulDeckLoadAutoClosesBrowser) {
+ #include "skin/legacy/skincontext.h"
+ #include "waveform/renderers/waveformmark.h"
+ #include "waveform/renderers/waveformsignalcolors.h"
++#include "waveform/beatgridmarkers.h"
+ class Rx3HotcueTest : public MixxxTest {};
+ TEST_F(Rx3HotcueTest, PlayheadWidthIsOptInAndRejectsInvalidValues) {
+     SkinContext context(config(), QString());
+@@ -224,9 +225,21 @@ TEST_F(Rx3HotcueTest, PairedBadgesLeaveSignalTransparentAtBothPixelRatios) {
+         mark.setBreadth(200);
+         EXPECT_TRUE(mark.rx3Hotcue()); EXPECT_EQ(QStringLiteral("A"),mark.rx3Label());
+         const auto image=mark.generateImage(ratio);
+-        EXPECT_EQ(255,image.pixelColor(qRound(2*ratio),qRound(20*ratio)).alpha());
+-        EXPECT_EQ(255,image.pixelColor(qRound(2*ratio),qRound(170*ratio)).alpha());
++        EXPECT_EQ(255,image.pixelColor(qRound(2*ratio),qRound(2*ratio)).alpha());
++        EXPECT_EQ(255,image.pixelColor(qRound(2*ratio),qRound(190*ratio)).alpha());
+         for(int x=0;x<image.width();++x) EXPECT_EQ(0,image.pixelColor(x,qRound(100*ratio)).alpha());
++        EXPECT_EQ(0,image.pixelColor(qRound(2*ratio),qRound(12*ratio)).alpha());
++        const auto red = mixxx::beatgrid::edgeTicks(200, 1, 10, true);
++        QImage composite(image.size(), image.format());
++        composite.setDevicePixelRatio(ratio);
++        composite.fill(Qt::transparent);
++        QPainter painter(&composite);
++        painter.fillRect(QRectF(7, red.topStart, 1, red.topEnd-red.topStart), Qt::red);
++        painter.fillRect(QRectF(7, red.bottomStart, 1, red.bottomEnd-red.bottomStart), Qt::red);
++        painter.drawImage(QPointF(0,0), image);
++        painter.end();
++        EXPECT_EQ(QColor(Qt::red),composite.pixelColor(qRound(7*ratio),qRound(13*ratio)));
++        EXPECT_EQ(QColor(Qt::red),composite.pixelColor(qRound(7*ratio),qRound(186*ratio)));
+     }
+ }
+ TEST_F(Rx3HotcueTest, StandardSkinsRetainContinuousMarkerAndNumericLabels) {
+@@ -327,3 +340,191 @@ TEST_F(Rx3HotcueTest, AssignedPadsUseFixedRx3PaletteAndEmptyPadsUseWhite) {
+         EXPECT_GT(countPixels(Qt::white), 0);
+     }
+ }
++
++TEST_F(Rx3HotcueTest, PlayheadIsRedWhenStoppedAndWhiteWhenPlaying) {
++    SkinContext context(config(), QString());
++    QDomDocument doc;
++    ASSERT_TRUE(doc.setContent(QStringLiteral("<Visual><PlayPosColor>#ffffff</PlayPosColor>"
++            "<PlayPosStoppedColor>#ff0000</PlayPosStoppedColor><PlayPosWidth>2</PlayPosWidth></Visual>")));
++    WaveformSignalColors colors;
++    colors.setup(doc.documentElement(), context);
++    EXPECT_EQ(QColor(Qt::red), colors.getPlayPosColor(false));
++    EXPECT_EQ(QColor(Qt::white), colors.getPlayPosColor(true));
++    EXPECT_EQ(2, colors.getPlayPosWidth());
++    // Other skins keep their static color when they omit the new option.
++    ASSERT_TRUE(doc.setContent(QStringLiteral("<Visual><PlayPosColor>#123456</PlayPosColor></Visual>")));
++    colors.setup(doc.documentElement(), context);
++    EXPECT_EQ(QColor("#123456"), colors.getPlayPosColor(false));
++    EXPECT_EQ(QColor("#123456"), colors.getPlayPosColor(true));
++}
++
++TEST_F(Rx3HotcueTest, CueAndLoopStartRenderOnlySmallWhiteTriangle) {
++    SkinContext context(config(), QString());
++    WaveformSignalColors colors;
++    for (const QString& key : {QStringLiteral("cue_point"), QStringLiteral("loop_start_position")}) {
++        ControlObject position(ConfigKey("[Channel1]", key));
++        QDomDocument doc;
++        ASSERT_TRUE(doc.setContent(QStringLiteral("<Mark><Control>%1</Control>"
++                "<Rx3Triangle>true</Rx3Triangle><Color>#ffffff</Color><Align>bottom</Align></Mark>").arg(key)));
++        WaveformMark mark("[Channel1]", doc.documentElement(), context, 0, colors, Cue::kNoHotCue);
++        mark.setBreadth(100);
++        ASSERT_TRUE(mark.rx3Triangle());
++        for (float ratio : {1.f, 2.f}) {
++            const auto image = mark.generateImage(ratio);
++            EXPECT_EQ(QSize(qRound(9*ratio), qRound(100*ratio)), image.size());
++            int whitePixels = 0;
++            for (int y = 0; y < image.height(); ++y) {
++                for (int x = 0; x < image.width(); ++x) {
++                    const auto pixel = image.pixelColor(x,y);
++                    if (!pixel.alpha()) continue;
++                    EXPECT_GE(y, qRound(92*ratio));
++                    EXPECT_EQ(QColor(Qt::white), pixel);
++                    ++whitePixels;
++                }
++            }
++            EXPECT_GT(whitePixels, 10*ratio*ratio);
++            EXPECT_LT(whitePixels, 60*ratio*ratio);
++        }
++    }
++}
++
++TEST(Rx3Overview, SummaryUsesGlobalBlueAndRgbModesWithoutThreeBandColors) {
++    using Mode = mixxx::rekordbox::WaveformMode;
++    for (auto mode : {Mode::Blue, Mode::RGB}) {
++        QImage image(8, 120, QImage::Format_ARGB32_Premultiplied);
++        image.fill(Qt::transparent);
++        QPainter painter(&image);
++        rx3::drawSummaryColumn(&painter,3,110,1,90,90,30,10,mode);
++        painter.end();
++        const QColor expected = mode == Mode::Blue ? QColor("#1d6fe0") : QColor(90,30,10);
++        EXPECT_EQ(expected, image.pixelColor(3,100));
++        EXPECT_EQ(expected, image.pixelColor(3,30));
++        EXPECT_EQ(0, image.pixelColor(3,10).alpha());
++    }
++    EXPECT_EQ(Mode::Blue, rx3::waveformModeForType(WaveformWidgetType::AllShaderSimpleWaveform));
++    EXPECT_EQ(Mode::RGB, rx3::waveformModeForType(WaveformWidgetType::AllShaderRGBWaveform));
++    EXPECT_EQ(Mode::ThreeBand, rx3::waveformModeForType(WaveformWidgetType::AllShaderFilteredWaveform));
++}
++
++TEST(Rx3Overview, TimeScaleMarksEveryThirtySecondsBelowThickAxis) {
++    for (int dpr : {1,2}) {
++        QImage image(302*dpr,80*dpr,QImage::Format_ARGB32_Premultiplied);
++        image.setDevicePixelRatio(dpr); image.fill(Qt::black);
++        QPainter painter(&image);
++        rx3::drawOverviewDivisions(&painter,302,80,1,150,0);
++        painter.end();
++        for (int y : {64,65,66}) EXPECT_EQ(QColor(Qt::white),image.pixelColor(25*dpr,y*dpr));
++        EXPECT_EQ(QColor(Qt::black),image.pixelColor(25*dpr,61*dpr));
++        for (int x : {61,121,181,241}) EXPECT_EQ(QColor(Qt::white),image.pixelColor(x*dpr,73*dpr));
++        EXPECT_EQ(QColor(Qt::black),image.pixelColor(91*dpr,73*dpr));
++        EXPECT_EQ(QColor(Qt::white),image.pixelColor(121*dpr,77*dpr));
++        EXPECT_EQ(QColor(Qt::black),image.pixelColor(61*dpr,77*dpr));
++    }
++}
++
++TEST(Rx3Overview, PhraseModeUsesExportedIntervalsAndDoesNotInventMissingPhrases) {
++    using namespace mixxx::rekordbox;
++    const QVector<Phrase> phrases{{0,30,PhraseKind::Intro},{30,90,PhraseKind::Chorus}};
++    for (int dpr : {1,2}) {
++        for (bool available : {false,true}) {
++            QImage image(302*dpr,80*dpr,QImage::Format_ARGB32_Premultiplied);
++            image.setDevicePixelRatio(dpr); image.fill(Qt::black);
++            QPainter painter(&image);
++            rx3::drawOverviewDivisions(&painter,302,80,1,150,1,available?phrases:QVector<Phrase>{});
++            painter.end();
++            EXPECT_EQ(available?rx3::phraseColor(PhraseKind::Intro):QColor(Qt::black),image.pixelColor(30*dpr,76*dpr));
++            EXPECT_EQ(available?rx3::phraseColor(PhraseKind::Chorus):QColor(Qt::black),image.pixelColor(90*dpr,76*dpr));
++            EXPECT_EQ(QColor(Qt::black),image.pixelColor(220*dpr,76*dpr));
++        }
++    }
++}
++
++TEST(Rx3Overview, EveryLaterHotcueOverlapsEarlierSlotsRegardlessOfTimeOrder) {
++    const QColor colors[]{QColor("#ff376f"),QColor("#45acdb"),QColor("#7dc13d"),QColor("#aa72ff"),
++            QColor("#30d26e"),QColor("#e0641b"),QColor("#305aff"),QColor("#c3af04")};
++    for (int dpr : {1,2}) {
++        for (int later=1; later<8; ++later) {
++            QImage image(100*dpr,80*dpr,QImage::Format_ARGB32_Premultiplied);
++            image.setDevicePixelRatio(dpr);image.fill(Qt::black);
++            QPainter painter(&image);
++            // Reverse chronological/list order on purpose; letters decide stacking.
++            rx3::drawOverviewHotcues(&painter,{{later,49,colors[later],QString()},
++                    {later-1,50,colors[later-1],QString()}},100,80);
++            painter.end();
++            EXPECT_EQ(colors[later],image.pixelColor(50*dpr,5*dpr));
++            EXPECT_EQ(colors[later],image.pixelColor(50*dpr,75*dpr));
++            EXPECT_EQ(10,rx3::overviewHotcueRects(100,80,50)[0].height());
++        }
++    }
++}
++
++
++#include "preferences/dialog/dlgpreferences.h"
++namespace {
++class Rx3PreferenceFixturePage : public DlgPreferencePage {
++  public:
++    Rx3PreferenceFixturePage() : DlgPreferencePage(nullptr) {}
++    void slotUpdate() override {}
++    void slotApply() override {}
++    void slotResetToDefaults() override {}
++};
++}
++TEST_F(Rx3HotcueTest, DeletedControllerPreferencePageCannotLeaveDanglingValidationPointer) {
++    DlgPreferences::PreferencesPage empty;
++    EXPECT_EQ(nullptr, empty.pDlg.data());
++    EXPECT_EQ(nullptr, empty.pTreeItem);
++    auto page = std::make_unique<Rx3PreferenceFixturePage>();
++    DlgPreferences::PreferencesPage stored(page.get(), nullptr);
++    const auto copy = stored;
++    EXPECT_EQ(page.get(), stored.pDlg.data());
++    EXPECT_TRUE(stored.pDlg->okayToClose());
++    page.reset();
++    EXPECT_EQ(nullptr, stored.pDlg.data());
++    EXPECT_EQ(nullptr, copy.pDlg.data());
++}
++
++#include "waveform/renderers/waveformwidgetrenderer.h"
++#include "waveform/visualplayposition.h"
++namespace {
++class Rx3MarkerLayerRenderer : public WaveformWidgetRenderer {
++  public:
++    Rx3MarkerLayerRenderer() : WaveformWidgetRenderer("[Channel1]") {}
++    void prepare() {
++        m_width=100; m_height=100;
++        m_audioSamplePerPixel=1;
++        m_playMarkerPosition=.5;
++        onPreRender(nullptr);
++    }
++};
++}
++TEST_F(Rx3HotcueTest, CueTriangleCoversThePlayheadAtTheSamePosition) {
++    ControlObject position(ConfigKey("[Channel1]", "cue_point")); position.set(100);
++    ControlObject play(ConfigKey("[Channel1]", "play"));
++    ControlObject samples(ConfigKey("[Channel1]", "track_samples")); samples.set(200);
++    ControlObject rate(ConfigKey("[Channel1]", "rate_ratio")); rate.set(1);
++    ControlObject gain(ConfigKey("[Channel1]", "total_gain")); gain.set(1);
++    auto visual = VisualPlayPosition::getVisualPlayPosition("[Channel1]");
++    // A stationary published position needs no VSync clock or audio device.
++    visual->set(.5,0,0,0,0,SlipModeState::Disabled,false,false,false,0,0,1,0);
++    SkinContext context(config(),QString());
++    QDomDocument doc;
++    ASSERT_TRUE(doc.setContent(QStringLiteral("<Visual><PlayPosColor>#ffffff</PlayPosColor>"
++            "<PlayPosStoppedColor>#ff0000</PlayPosStoppedColor><PlayPosWidth>2</PlayPosWidth>"
++            "<Mark><Control>cue_point</Control><Rx3Triangle>true</Rx3Triangle><Color>#ffffff</Color></Mark></Visual>")));
++    Rx3MarkerLayerRenderer renderer;
++    ASSERT_TRUE(renderer.init());
++    renderer.setup(doc.documentElement(),context); renderer.prepare();
++    auto mark=WaveformMarkPointer::create("[Channel1]",doc.documentElement().firstChildElement("Mark"),
++            context,0,*renderer.getWaveformSignalColors(),Cue::kNoHotCue);
++    renderer.setMarkPositions({{mark,46}});
++    for (int playing : {0,1}) {
++        play.set(playing);
++        for (int dpr : {1,2}) {
++            QImage image(100*dpr,100*dpr,QImage::Format_ARGB32_Premultiplied);
++            image.setDevicePixelRatio(dpr); image.fill(Qt::transparent);
++            QPainter painter(&image); renderer.draw(&painter,nullptr); painter.end();
++            EXPECT_EQ(QColor(Qt::white),image.pixelColor(50*dpr,96*dpr));
++            EXPECT_EQ(QColor(playing ? Qt::white : Qt::red),image.pixelColor(50*dpr,50*dpr));
++        }
++    }
++}
+diff --git a/src/waveform/beatgridmarkers.h b/src/waveform/beatgridmarkers.h
+index b30e8e4..058fbfa 100644
+--- a/src/waveform/beatgridmarkers.h
++++ b/src/waveform/beatgridmarkers.h
+@@ -22,10 +22,12 @@ struct EdgeTicks {
+ inline EdgeTicks edgeTicks(float breadth, float scale, float length, bool downbeat) {
+     const float tick = std::min(length * scale, breadth / 2.f);
+     const float extension = downbeat ? std::min(2.f * scale, tick / 4.f) : 0.f;
+-    const float topStart = std::max(0.f, 2.f * scale - extension);
+-    const float bottomStart = std::max(0.f, breadth - 2.f * scale - tick);
++    // Leave two pixels outside a downbeat for the HOT CUE badge. Its inner
++    // end remains visible underneath the badge at both edges.
++    const float topStart = std::max(0.f, 4.f * scale - extension);
++    const float bottomStart = std::max(0.f, breadth - 4.f * scale - tick);
+     return {topStart,
+-            std::min(breadth, 2.f * scale + tick),
++            std::min(breadth, 4.f * scale + tick),
+             bottomStart,
+             std::min(breadth, bottomStart + tick + extension)};
+ }
+diff --git a/src/waveform/rekordboxwaveform.h b/src/waveform/rekordboxwaveform.h
+index 526ea07..1b9bcff 100644
+--- a/src/waveform/rekordboxwaveform.h
++++ b/src/waveform/rekordboxwaveform.h
+@@ -34,10 +34,20 @@ struct SignedWaveform {
+     double columnsPerSecond{1500.0};
+     double firstAudibleSecond{-1.0};
+ };
++enum class PhraseKind { Intro, Verse, Up, Down, Bridge, Chorus, Outro, Unknown };
++struct Phrase {
++    double startSeconds{0};
++    double endSeconds{0};
++    PhraseKind kind{PhraseKind::Unknown};
++    quint16 sourceKind{0};
++    quint16 mood{0};
++    quint8 k1{0}, k2{0}, k3{0};
++};
+ struct WaveformSet {
+     std::array<WaveformSeries, 3> detail;
+     std::array<WaveformSeries, 3> overview;
+     double durationSeconds{0};
++    QVector<Phrase> phrases;
+     // Published atomically after decoding on the reader worker, never on the
+     // audio callback. No file or library cache is written.
+     mutable std::shared_ptr<const SignedWaveform> signedAudio;
+diff --git a/src/waveform/renderers/allshader/waveformrendermark.cpp b/src/waveform/renderers/allshader/waveformrendermark.cpp
+index 52a546c..3a4d9cf 100644
+--- a/src/waveform/renderers/allshader/waveformrendermark.cpp
++++ b/src/waveform/renderers/allshader/waveformrendermark.cpp
+@@ -1,7 +1,6 @@
+ #include "waveform/renderers/allshader/waveformrendermark.h"
+ 
+ #include <QOpenGLTexture>
+-#include "widget/rx3displayformat.h"
+ #include <QPainterPath>
+ 
+ #include "track/track.h"
+@@ -70,6 +69,7 @@ allshader::WaveformRenderMark::WaveformRenderMark(
+ }
+ 
+ bool allshader::WaveformRenderMark::init() {
++    m_pPlayControl = std::make_unique<ControlProxy>(m_waveformRenderer->getGroup(), "play");
+     m_pTimeRemainingControl = std::make_unique<ControlProxy>(
+             m_waveformRenderer->getGroup(), "time_remaining");
+     return true;
+@@ -211,11 +211,17 @@ void allshader::WaveformRenderMark::paintGL() {
+     }
+     // Will create textures so requires OpenGL context
+     updateMarkImages();
++    const QColor playPosColor = m_waveformRenderer->getWaveformSignalColors()
++            ->getPlayPosColor(m_pPlayControl->toBool());
++    if (playPosColor != m_playPosTextureColor) {
++        updatePlayPosMarkTexture();
++    }
+ 
+     QMatrix4x4 matrix = matrixForWidgetGeometry(m_waveformRenderer, false);
+ 
+     const double playPosition = m_waveformRenderer->getTruePosSample();
+     double nextMarkPosition = std::numeric_limits<double>::max();
++    QList<std::pair<QPointF, QOpenGLTexture*>> foregroundTriangles;
+ 
+     for (const auto& pMark : std::as_const(m_marks)) {
+         if (!pMark->isValid()) {
+@@ -263,12 +269,13 @@ void allshader::WaveformRenderMark::paintGL() {
+         if (drawOffset > -markHalfWidth &&
+                 drawOffset < m_waveformRenderer->getLength() +
+                                 markHalfWidth) {
+-            drawTexture(matrix,
+-                    drawOffset,
+-                    !m_isSlipRenderer && slipActive
+-                            ? m_waveformRenderer->getBreadth() / 2
+-                            : 0,
+-                    pTexture);
++            const QPointF position(drawOffset, !m_isSlipRenderer && slipActive
++                            ? m_waveformRenderer->getBreadth() / 2 : 0);
++            if (pMark->rx3Triangle()) {
++                foregroundTriangles.append({position, pTexture});
++            } else {
++                drawTexture(matrix, position.x(), position.y(), pTexture);
++            }
+             visible = true;
+         }
+ 
+@@ -317,29 +324,9 @@ void allshader::WaveformRenderMark::paintGL() {
+         drawTexture(matrix, drawOffset, 0.f, &m_playPosMarkTexture);
+     }
+ 
+-    const auto track = m_waveformRenderer->getTrackInfo();
+-    const auto beats = track ? track->getBeats() : nullptr;
+-    if (beats && !m_isSlipRenderer) {
+-        const auto position = mixxx::audio::FramePos::fromEngineSamplePos(playPosition);
+-        auto beat = beats->iteratorFrom(position);
+-        if (*beat > position) --beat;
+-        const QString label = rx3::bars(beat - beats->cfirstmarker()) + QStringLiteral("Bars");
+-        if (label != m_barLabel || !m_barLabelTexture.isStorageAllocated()) {
+-            m_barLabel = label;
+-            QFont font(QStringLiteral("Arial"));
+-            font.setPixelSize(qRound(14 * scaleFactor() * devicePixelRatio));
+-            const QFontMetrics fm(font);
+-            QImage image(fm.horizontalAdvance(label) + 2, fm.height(), QImage::Format_ARGB32_Premultiplied);
+-            image.fill(Qt::transparent);
+-            QPainter painter(&image);
+-            painter.setFont(font);
+-            painter.setPen(QColor(0, 125, 225));
+-            painter.drawText(0, fm.ascent(), label);
+-            painter.end();
+-            m_barLabelTexture.setData(image);
+-        }
+-        drawTexture(matrix, currentMarkPoint - m_barLabelTexture.width() / devicePixelRatio - 2,
+-                0, &m_barLabelTexture);
++    // CUE/loop triangles remain intact where the playhead crosses them.
++    for (const auto& [position, texture] : foregroundTriangles) {
++        drawTexture(matrix, position.x(), position.y(), texture);
+     }
+ 
+     if (m_showUntilNextMark && (WaveformWidgetFactory::instance()->getUntilMarkShowBeats() ||
+@@ -414,11 +401,82 @@ void allshader::WaveformRenderMark::drawUntilMark(const QMatrix4x4& matrix, floa
+ // Note that in the legacy waveform widgets this is drawn directly
+ // in the WaveformWidgetRenderer itself. Doing it here is cleaner.
+ void allshader::WaveformRenderMark::updatePlayPosMarkTexture() {
+-    const float dpr = m_waveformRenderer->getDevicePixelRatio();
+-    const int height = qRound(m_waveformRenderer->getBreadth() * dpr);
+-    if (height <= 0) return;
+-    QImage image(1, height, QImage::Format_ARGB32_Premultiplied);
+-    image.fill(Qt::red);
++    const auto* colors = m_waveformRenderer->getWaveformSignalColors();
++    m_playPosTextureColor = colors->getPlayPosColor(m_pPlayControl && m_pPlayControl->toBool());
++    if (colors->getPlayPosColor(false) != colors->getPlayPosColor(true)) {
++        const float dpr = m_waveformRenderer->getDevicePixelRatio();
++        const int height = qRound(m_waveformRenderer->getBreadth() * dpr);
++        if (height <= 0) return;
++        const int width = qMax(1, qRound(colors->getPlayPosWidth() * scaleFactor() * dpr));
++        QImage image(width, height, QImage::Format_ARGB32_Premultiplied);
++        image.fill(m_playPosTextureColor);
++        m_playPosMarkTexture.setData(image);
++        return;
++    }
++
++    const float imgHeight = m_waveformRenderer->getBreadth();
++    const float imgWidth = 11.f;
++
++    if (imgHeight == 0.0f) {
++        return;
++    }
++
++    const float devicePixelRatio = m_waveformRenderer->getDevicePixelRatio();
++    const float lineX = 5.5f;
++
++    QImage image(static_cast<int>(imgWidth * devicePixelRatio),
++            static_cast<int>(imgHeight * devicePixelRatio),
++            QImage::Format_ARGB32_Premultiplied);
++    VERIFY_OR_DEBUG_ASSERT(!image.isNull()) {
++        return;
++    }
++    image.setDevicePixelRatio(devicePixelRatio);
++    image.fill(QColor(0, 0, 0, 0).rgba());
++
++    // See comment on use of QPainter at top of file
++    QPainter painter;
++
++    painter.begin(&image);
++    painter.setRenderHint(QPainter::Antialiasing);
++
++    painter.setWorldMatrixEnabled(false);
++
++    const QColor fgColor{m_waveformRenderer->getWaveformSignalColors()->getPlayPosColor()};
++    const QColor bgColor{m_waveformRenderer->getWaveformSignalColors()->getBgColor()};
++
++    // draw dim outlines to increase playpos/waveform contrast
++    painter.setPen(bgColor);
++    painter.setOpacity(0.5);
++    // lines next to playpos
++    // Note: don't draw lines where they would overlap the triangles,
++    // otherwise both translucent strokes add up to a darker tone.
++    painter.drawLine(QLineF(lineX + 1.f, 4.f, lineX + 1.f, imgHeight));
++    painter.drawLine(QLineF(lineX - 1.f, 4.f, lineX - 1.f, imgHeight));
++
++    // triangle at top edge
++    // Increase line/waveform contrast
++    painter.setOpacity(0.8);
++    {
++        QPointF baseL = QPointF(lineX - 5.f, 0.f);
++        QPointF baseR = QPointF(lineX + 5.f, 0.f);
++        QPointF tip = QPointF(lineX, 5.f);
++        drawTriangle(&painter, bgColor, baseL, baseR, tip);
++    }
++    // draw colored play position indicators
++    painter.setPen(QPen(fgColor,
++            m_waveformRenderer->getWaveformSignalColors()->getPlayPosWidth() * scaleFactor()));
++    painter.setOpacity(1.0);
++    // play position line
++    painter.drawLine(QLineF(lineX, 0.f, lineX, imgHeight));
++    // triangle at top edge
++    {
++        QPointF baseL = QPointF(lineX - 4.f, 0.f);
++        QPointF baseR = QPointF(lineX + 4.f, 0.f);
++        QPointF tip = QPointF(lineX, 4.f);
++        drawTriangle(&painter, fgColor, baseL, baseR, tip);
++    }
++    painter.end();
++
+     m_playPosMarkTexture.setData(image);
+ }
+ 
+diff --git a/src/waveform/renderers/allshader/waveformrendermark.h b/src/waveform/renderers/allshader/waveformrendermark.h
+index a5702b1..2f4cf19 100644
+--- a/src/waveform/renderers/allshader/waveformrendermark.h
++++ b/src/waveform/renderers/allshader/waveformrendermark.h
+@@ -59,8 +59,8 @@ class allshader::WaveformRenderMark : public ::WaveformRenderMarkBase,
+     mixxx::RGBAShader m_rgbaShader;
+     mixxx::TextureShader m_textureShader;
+     OpenGLTexture2D m_playPosMarkTexture;
+-    OpenGLTexture2D m_barLabelTexture;
+-    QString m_barLabel;
++    QColor m_playPosTextureColor;
++    std::unique_ptr<ControlProxy> m_pPlayControl;
+     DigitsRenderer m_digitsRenderer;
+     int m_beatsUntilMark;
+     double m_timeUntilMark;
+diff --git a/src/waveform/renderers/waveformmark.cpp b/src/waveform/renderers/waveformmark.cpp
+index 9d1d128..307ee87 100644
+--- a/src/waveform/renderers/waveformmark.cpp
++++ b/src/waveform/renderers/waveformmark.cpp
+@@ -8,6 +8,7 @@
+ #include "waveform/renderers/waveformsignalcolors.h"
+ #include "widget/wimagestore.h"
+ #include "widget/wskincolor.h"
++#include "widget/rx3waveform.h"
+ 
+ namespace {
+ 
+@@ -116,6 +117,7 @@ WaveformMark::WaveformMark(const QString& group,
+           m_iHotCue(hotCue),
+           m_showUntilNext{} {
+     m_rx3Hotcue = context.selectBool(node, "Rx3Hotcue", false);
++    m_rx3Triangle = context.selectBool(node, "Rx3Triangle", false);
+     QString positionControl;
+     QString endPositionControl;
+     QString typeControl;
+@@ -355,15 +357,28 @@ QImage WaveformMark::generateImage(float devicePixelRatio) {
+         return {};
+     }
+ 
++    if (rx3Triangle()) {
++        QImage image(QSize(qCeil(9 * devicePixelRatio), qCeil(m_breadth * devicePixelRatio)),
++                QImage::Format_ARGB32_Premultiplied);
++        image.setDevicePixelRatio(devicePixelRatio);
++        image.fill(Qt::transparent);
++        QPainter painter(&image);
++        m_linePosition = 4.5f;
++        m_label.setAreaRect(rx3::positionTriangleRect(m_linePosition, m_breadth - 1));
++        rx3::drawPositionTriangle(&painter, m_linePosition, m_breadth - 1);
++        return image;
++    }
++
+     if (rx3Hotcue()) {
+-        const qreal badge = 15;
+-        const qreal inset = 18;
+-        QImage image(QSize(qCeil(17 * devicePixelRatio), qCeil(m_breadth * devicePixelRatio)), QImage::Format_ARGB32_Premultiplied);
++        // Match the downbeat height and sit two pixels outward of its tick.
++        const qreal badge = 12;
++        const qreal inset = 0;
++        QImage image(QSize(qCeil(14 * devicePixelRatio), qCeil(m_breadth * devicePixelRatio)), QImage::Format_ARGB32_Premultiplied);
+         image.setDevicePixelRatio(devicePixelRatio);
+         image.fill(Qt::transparent);
+         QPainter painter(&image);
+-        m_linePosition = 8.5f;
+-        QFont font("Arial"); font.setPixelSize(12); font.setBold(true);
++        m_linePosition = 7.f;
++        QFont font("Arial"); font.setPixelSize(10); font.setBold(true);
+         painter.setFont(font);
+         const QRectF top(1, inset, badge, badge);
+         const QRectF bottom(1, m_breadth - inset - badge, badge, badge);
+diff --git a/src/waveform/renderers/waveformmark.h b/src/waveform/renderers/waveformmark.h
+index b2ee196..75f2ba5 100644
+--- a/src/waveform/renderers/waveformmark.h
++++ b/src/waveform/renderers/waveformmark.h
+@@ -153,6 +153,7 @@ class WaveformMark {
+     QImage generateImage(float devicePixelRatio);
+ 
+     bool rx3Hotcue() const { return m_rx3Hotcue && m_iHotCue >= 0; }
++    bool rx3Triangle() const { return m_rx3Triangle; }
+     QString rx3Label() const { return m_iHotCue < 8 ? QString(QChar('A' + m_iHotCue)) : QString::number(m_iHotCue + 1); }
+     QColor m_textColor;
+     QString m_text;
+@@ -184,6 +185,7 @@ class WaveformMark {
+     // Whether this marker is used in the show beats/time until next marker display.
+     bool m_showUntilNext;
+     bool m_rx3Hotcue = false;
++    bool m_rx3Triangle = false;
+ 
+     QColor m_fillColor;
+     QColor m_borderColor;
+diff --git a/src/waveform/renderers/waveformsignalcolors.cpp b/src/waveform/renderers/waveformsignalcolors.cpp
+index 5896817..cf88a4d 100644
+--- a/src/waveform/renderers/waveformsignalcolors.cpp
++++ b/src/waveform/renderers/waveformsignalcolors.cpp
+@@ -76,6 +76,10 @@ bool WaveformSignalColors::setup(const QDomNode &node, const SkinContext& contex
+     m_axesColor = WSkinColor::getCorrectColor(m_axesColor).toRgb();
+ 
+     m_playPosColor = context.selectColor(node, "PlayPosColor");
++    m_playPosStoppedColor = context.selectColor(node, "PlayPosStoppedColor");
++    if (m_playPosStoppedColor.isValid()) {
++        m_playPosStoppedColor = WSkinColor::getCorrectColor(m_playPosStoppedColor).toRgb();
++    }
+     m_playPosColor = WSkinColor::getCorrectColor(m_playPosColor).toRgb();
+     if (!m_playPosColor.isValid()) {
+         m_playPosColor = m_axesColor;
+diff --git a/src/waveform/renderers/waveformsignalcolors.h b/src/waveform/renderers/waveformsignalcolors.h
+index e318602..83d980d 100644
+--- a/src/waveform/renderers/waveformsignalcolors.h
++++ b/src/waveform/renderers/waveformsignalcolors.h
+@@ -48,6 +48,9 @@ class WaveformSignalColors {
+     inline const QColor& getPlayPosColor() const {
+         return m_playPosColor;
+     }
++    inline const QColor& getPlayPosColor(bool playing) const {
++        return !playing && m_playPosStoppedColor.isValid() ? m_playPosStoppedColor : m_playPosColor;
++    }
+     // Width in reference pixels; skins that omit PlayPosWidth keep one pixel.
+     inline int getPlayPosWidth() const {
+         return m_playPosWidth;
+@@ -87,6 +90,7 @@ class WaveformSignalColors {
+     QColor m_rgbHighFilteredColor;
+     QColor m_axesColor;
+     QColor m_playPosColor;
++    QColor m_playPosStoppedColor;
+     int m_playPosWidth = 1;
+     QColor m_playedOverlayColor;
+     QColor m_passthroughOverlayColor;
+diff --git a/src/waveform/renderers/waveformwidgetrenderer.cpp b/src/waveform/renderers/waveformwidgetrenderer.cpp
+index 0c912ca..6c186bf 100644
+--- a/src/waveform/renderers/waveformwidgetrenderer.cpp
++++ b/src/waveform/renderers/waveformwidgetrenderer.cpp
+@@ -2,6 +2,7 @@
+ 
+ #include <QPainter>
+ #include <QPainterPath>
++#include "widget/rx3waveform.h"
+ 
+ #include "control/controlproxy.h"
+ #include "track/track.h"
+@@ -37,6 +38,7 @@ WaveformWidgetRenderer::WaveformWidgetRenderer(const QString& group)
+           m_visualPlayPosition(nullptr),
+           m_totalVSamples(0),
+           m_pRateRatioCO(nullptr),
++          m_pPlayCO(nullptr),
+           m_pGainControlObject(nullptr),
+           m_gain(1.0),
+           m_pTrackSamplesControlObject(nullptr),
+@@ -77,6 +79,7 @@ WaveformWidgetRenderer::~WaveformWidgetRenderer() {
+     }
+ 
+     delete m_pRateRatioCO;
++    delete m_pPlayCO;
+     delete m_pGainControlObject;
+     delete m_pTrackSamplesControlObject;
+ 
+@@ -90,6 +93,7 @@ bool WaveformWidgetRenderer::init() {
+ 
+     m_visualPlayPosition = VisualPlayPosition::getVisualPlayPosition(m_group);
+ 
++    m_pPlayCO = new ControlProxy(m_group, "play");
+     m_pRateRatioCO = new ControlProxy(
+             m_group, "rate_ratio");
+     m_pGainControlObject = new ControlProxy(
+@@ -222,6 +226,18 @@ void WaveformWidgetRenderer::draw(QPainter* painter, QPaintEvent* event) {
+         }
+ 
+         drawPlayPosmarker(painter);
++        if (m_orientation == Qt::Horizontal) {
++            painter->save();
++            painter->setWorldMatrixEnabled(false);
++            for (const auto& mark : std::as_const(m_markPositions)) {
++                if (mark.m_pMark->rx3Triangle()) {
++                    rx3::drawPositionTriangle(painter,
++                            transformSamplePositionInRendererWorld(mark.m_pMark->getSamplePosition()),
++                            m_height - 1);
++                }
++            }
++            painter->restore();
++        }
+     }
+ 
+ #ifdef WAVEFORMWIDGETRENDERER_DEBUG
+@@ -265,6 +281,14 @@ void WaveformWidgetRenderer::drawPlayPosmarker(QPainter* painter) {
+     const int lineX = static_cast<int>(m_width * m_playMarkerPosition);
+     const int lineY = static_cast<int>(m_height * m_playMarkerPosition);
+ 
++    if (m_colors.getPlayPosColor(false) != m_colors.getPlayPosColor(true)) {
++        painter->setOpacity(1);
++        painter->setPen(QPen(m_colors.getPlayPosColor(m_pPlayCO && m_pPlayCO->toBool()),
++                m_colors.getPlayPosWidth() * m_scaleFactor));
++        if (m_orientation == Qt::Horizontal) painter->drawLine(lineX, 0, lineX, m_height);
++        else painter->drawLine(0, lineY, m_width, lineY);
++        return;
++    }
+     // draw dim outlines to increase playpos/waveform contrast
+     painter->setOpacity(0.5);
+     painter->setPen(m_colors.getBgColor());
+diff --git a/src/waveform/renderers/waveformwidgetrenderer.h b/src/waveform/renderers/waveformwidgetrenderer.h
+index f315fee..ab98560 100644
+--- a/src/waveform/renderers/waveformwidgetrenderer.h
++++ b/src/waveform/renderers/waveformwidgetrenderer.h
+@@ -221,6 +221,7 @@ class WaveformWidgetRenderer {
+     int m_posVSample[2];
+     int m_totalVSamples;
+     ControlProxy* m_pRateRatioCO;
++    ControlProxy* m_pPlayCO;
+     ControlProxy* m_pGainControlObject;
+     double m_gain;
+     ControlProxy* m_pTrackSamplesControlObject;
+diff --git a/src/waveform/waveformwidgetfactory.cpp b/src/waveform/waveformwidgetfactory.cpp
+index bebd809..64771ae 100644
+--- a/src/waveform/waveformwidgetfactory.cpp
++++ b/src/waveform/waveformwidgetfactory.cpp
+@@ -421,6 +421,7 @@ bool WaveformWidgetFactory::setConfig(UserSettingsPointer config) {
+         }
+     }
+ 
++    setOverviewDivisions(m_config->getValue(ConfigKey("[Waveform]", "OverviewDivisions"), 0));
+     int overviewNormalized = m_config->getValueString(ConfigKey("[Waveform]","OverviewNormalized")).toInt(&ok);
+     if (ok) {
+         setOverviewNormalized(static_cast<bool>(overviewNormalized));
+@@ -740,6 +741,12 @@ void WaveformWidgetFactory::setOverviewNormalized(bool normalize) {
+     emit overviewNormalizeChanged();
+ }
+ 
++void WaveformWidgetFactory::setOverviewDivisions(int mode) {
++    m_overviewDivisions = mode == 1 ? 1 : 0;
++    if (m_config) m_config->set(ConfigKey("[Waveform]", "OverviewDivisions"), ConfigValue(m_overviewDivisions));
++    emit overviewDivisionsChanged();
++}
++
+ void WaveformWidgetFactory::setPlayMarkerPosition(double position) {
+     m_playMarkerPosition = position;
+     if (m_config) {
+diff --git a/src/waveform/waveformwidgetfactory.h b/src/waveform/waveformwidgetfactory.h
+index 7b1905a..df731dc 100644
+--- a/src/waveform/waveformwidgetfactory.h
++++ b/src/waveform/waveformwidgetfactory.h
+@@ -149,6 +149,9 @@ class WaveformWidgetFactory : public QObject, public Singleton<WaveformWidgetFac
+     void setEqAffectsWaveform(bool enabled);
+     void setOverviewNormalized(bool normalize);
+     int isOverviewNormalized() const { return m_overviewNormalized;}
++    // RX3 WAVEFORM DIVISIONS: 0 = TIME SCALE, 1 = PHRASE.
++    int getOverviewDivisions() const { return m_overviewDivisions; }
++    void setOverviewDivisions(int mode);
+ 
+     const QVector<WaveformWidgetAbstractHandle>& getAvailableTypes() const {
+         return m_waveformWidgetHandles;
+@@ -178,6 +181,7 @@ class WaveformWidgetFactory : public QObject, public Singleton<WaveformWidgetFac
+ 
+     void waveformStyleChanged();
+     void overviewNormalizeChanged();
++    void overviewDivisionsChanged();
+     void overallVisualGainChanged();
+ 
+   public slots:
+@@ -227,6 +231,7 @@ class WaveformWidgetFactory : public QObject, public Singleton<WaveformWidgetFac
+     bool m_zoomSync;
+     double m_visualGain[FilterCount];
+     bool m_overviewNormalized;
++    int m_overviewDivisions{0};
+ 
+     bool m_untilMarkShowBeats;
+     bool m_untilMarkShowTime;
+diff --git a/src/widget/rx3waveform.h b/src/widget/rx3waveform.h
+index 85fc8ba..5489c9e 100644
+--- a/src/widget/rx3waveform.h
++++ b/src/widget/rx3waveform.h
+@@ -1,15 +1,187 @@
+ #pragma once
+ 
+ #include <QPainter>
++#include <QList>
++#include <QString>
++#include "waveform/rekordboxwaveform.h"
++#include "waveform/widgets/waveformwidgettype.h"
+ 
+ namespace rx3 {
++struct OverviewGeometry {
++    qreal signalBottom;
++    qreal axisTop;
++    qreal axisThickness;
++    qreal ticksTop;
++    qreal ticksHeight;
++};
++inline OverviewGeometry overviewGeometry(qreal height, qreal scale = 1) {
++    const qreal axisTop = qMax(qreal(0), height - 16*scale);
++    return {qMax(qreal(0),axisTop-4*scale),axisTop,3*scale,
++            axisTop+6*scale,10*scale};
++}
++inline qreal overviewTimeX(double seconds, double duration, qreal width) {
++    if (!(duration>0) || !std::isfinite(duration)) return 1;
++    return 1 + qMax(qreal(0),width-2)*std::clamp(seconds/duration,0.0,1.0);
++}
++inline QString phraseName(mixxx::rekordbox::PhraseKind kind) {
++    using Kind = mixxx::rekordbox::PhraseKind;
++    switch (kind) {
++    case Kind::Intro: return QStringLiteral("Intro");
++    case Kind::Verse: return QStringLiteral("Verse");
++    case Kind::Up: return QStringLiteral("Up");
++    case Kind::Down: return QStringLiteral("Down");
++    case Kind::Bridge: return QStringLiteral("Bridge");
++    case Kind::Chorus: return QStringLiteral("Chorus / Drop");
++    case Kind::Outro: return QStringLiteral("Outro");
++    default: return QStringLiteral("Phrase");
++    }
++}
++inline QColor phraseColor(mixxx::rekordbox::PhraseKind kind) {
++    using Kind = mixxx::rekordbox::PhraseKind;
++    switch (kind) {
++    case Kind::Intro: return QColor(225,70,70);
++    case Kind::Verse: return QColor(80,110,255);
++    case Kind::Up: return QColor(140,50,255);
++    case Kind::Down: return QColor(155,115,45);
++    case Kind::Bridge: return QColor(225,215,65);
++    case Kind::Chorus: return QColor(120,195,125);
++    case Kind::Outro: return QColor(115,130,150);
++    default: return QColor("#707070");
++    }
++}
++inline QColor phraseColor(const mixxx::rekordbox::Phrase& phrase) {
++    // Rekordbox's mood/kind palette, documented by Beat Link's Util.java.
++    const auto kind=phrase.sourceKind;
++    if (phrase.mood==3) {
++        if (kind==1) return QColor(255,170,180);
++        if (kind>=2 && kind<=4) return QColor(165,160,255);
++        if (kind>=5 && kind<=7) return QColor(190,160,255);
++        if (kind==8) return QColor(255,250,165);
++        if (kind==9) return QColor(185,225,185);
++        if (kind==10) return QColor(145,160,180);
++    } else if (phrase.mood==2) {
++        constexpr QRgb colors[]{qRgb(225,70,70),qRgb(80,110,255),qRgb(80,85,255),
++                qRgb(100,80,255),qRgb(120,80,255),qRgb(140,80,255),qRgb(160,80,255),
++                qRgb(225,215,65),qRgb(120,195,125),qRgb(115,130,150)};
++        if (kind>=1 && kind<=10) return QColor(colors[kind-1]);
++    } else if (phrase.mood==1) {
++        if (kind==1) return phrase.k1==1?QColor(200,0,0):QColor(200,50,0);
++        if (kind==2) return phrase.k2!=0?QColor(90,50,255):
++                phrase.k3==0?QColor(140,50,255):QColor(105,50,255);
++        if (kind==3) return QColor(155,115,45);
++        if (kind==5) return QColor(15,170,0);
++        if (kind==6) return phrase.k1==1?QColor(80,135,195):QColor(95,135,175);
++    }
++    return phraseColor(phrase.kind);
++}
++inline void drawOverviewDivisions(QPainter* painter, qreal width, qreal height,
++        qreal scale, double duration, int mode,
++        const QVector<mixxx::rekordbox::Phrase>& phrases = {}) {
++    const auto g = overviewGeometry(height,scale);
++    painter->save();
++    painter->setRenderHint(QPainter::Antialiasing,false);
++    painter->fillRect(QRectF(0,g.axisTop,width,g.axisThickness),Qt::white);
++    if (duration > 0 && std::isfinite(duration)) {
++        if (mode == 1) {
++            for (const auto& phrase : phrases) {
++                const qreal left=overviewTimeX(phrase.startSeconds,duration,width);
++                const qreal right=overviewTimeX(phrase.endSeconds,duration,width);
++                if (right > left) painter->fillRect(QRectF(left,g.ticksTop,
++                        qMax(qreal(0),right-left-scale),g.ticksHeight),phraseColor(phrase));
++            }
++        } else {
++            // Source time: changing playback tempo must not move these ticks.
++            for (int n=1; n<=int(std::min(duration/30.0,10000.0)); ++n) {
++                const qreal x=overviewTimeX(n*30.0,duration,width);
++                const bool minute=n%2==0;
++                painter->fillRect(QRectF(x-(minute?scale:scale/2),g.ticksTop,
++                        minute?2*scale:scale,minute?8*scale:5*scale),Qt::white);
++            }
++        }
++    }
++    painter->restore();
++}
++inline std::array<QRectF,2> overviewHotcueRects(qreal width, qreal height,
++        qreal position, qreal scale = 1) {
++    const qreal badge=10*scale;
++    const qreal x=qBound(qreal(0),position-badge/2,qMax(qreal(0),width-badge));
++    const auto g=overviewGeometry(height,scale);
++    return {QRectF(x,0,badge,badge),
++            QRectF(x,g.ticksTop,badge,badge)};
++}
++struct OverviewHotcue {
++    int slot;
++    qreal position;
++    QColor color;
++    QString label;
++};
++inline void drawOverviewHotcues(QPainter* painter, QList<OverviewHotcue> cues,
++        qreal width, qreal height, qreal scale = 1) {
++    std::stable_sort(cues.begin(),cues.end(),[](const auto& a,const auto& b) {
++        return a.slot<b.slot;
++    });
++    painter->save();
++    QFont font("Arial"); font.setPixelSize(qMax(7,qRound(9*scale)));font.setBold(true);
++    painter->setFont(font);
++    for (const auto& cue : cues) {
++        for (const auto& rect : overviewHotcueRects(width,height,cue.position,scale)) {
++            painter->fillRect(rect,cue.color);
++            painter->setPen(Qt::black);
++            painter->drawText(rect,Qt::AlignCenter,cue.label);
++        }
++    }
++    painter->restore();
++}
++
++inline mixxx::rekordbox::WaveformMode waveformModeForType(WaveformWidgetType::Type type) {
++    using Mode = mixxx::rekordbox::WaveformMode;
++    switch (type) {
++    case WaveformWidgetType::SoftwareSimpleWaveform:
++    case WaveformWidgetType::QtSimpleWaveform:
++    case WaveformWidgetType::GLSimpleWaveform:
++    case WaveformWidgetType::AllShaderSimpleWaveform:
++        return Mode::Blue;
++    case WaveformWidgetType::RGBWaveform:
++    case WaveformWidgetType::GLRGBWaveform:
++    case WaveformWidgetType::GLSLRGBWaveform:
++    case WaveformWidgetType::QtRGBWaveform:
++    case WaveformWidgetType::AllShaderRGBWaveform:
++    case WaveformWidgetType::AllShaderLRRGBWaveform:
++    case WaveformWidgetType::AllShaderTexturedRGB:
++        return Mode::RGB;
++    default:
++        return Mode::ThreeBand;
++    }
++}
++
++// Same small, upward-pointing marker in detail waveforms and deck overviews.
++inline QRectF positionTriangleRect(qreal x, qreal bottom, qreal scale = 1) {
++    return QRectF(x - 4 * scale, bottom - 7 * scale, 8 * scale, 7 * scale);
++}
++inline void drawPositionTriangle(QPainter* painter, qreal x, qreal bottom, qreal scale = 1) {
++    const auto rect = positionTriangleRect(x, bottom, scale);
++    painter->save();
++    painter->setPen(Qt::NoPen);
++    painter->setBrush(Qt::white);
++    painter->drawPolygon(QPolygonF{rect.bottomLeft(), QPointF(x, rect.top()), rect.bottomRight()});
++    painter->restore();
++}
++
+ // One-sided, three-band summary: measured low frequencies at the baseline,
+ // mids above them, highs at the envelope. Never invent signal for silence.
+ inline void drawSummaryColumn(QPainter* painter, qreal x, qreal baseline,
+-        qreal scale, int all, int low, int mid, int high) {
++        qreal scale, int all, int low, int mid, int high,
++        mixxx::rekordbox::WaveformMode mode = mixxx::rekordbox::WaveformMode::ThreeBand) {
+     if (all <= 0 || scale <= 0) return;
+     const int sum = low + mid + high;
+     const qreal peak = qBound(0, all, 255) * scale;
++    if (mode != mixxx::rekordbox::WaveformMode::ThreeBand) {
++        const QColor color = mode == mixxx::rekordbox::WaveformMode::Blue
++                ? QColor("#1d6fe0") : QColor(qBound(0, low, 255), qBound(0, mid, 255), qBound(0, high, 255));
++        painter->setPen(color);
++        painter->drawLine(QPointF(x, baseline), QPointF(x, baseline - peak));
++        return;
++    }
+     const qreal orange = sum > 0 ? peak * (low + mid) / sum : 0;
+     const qreal blue = sum > 0 ? peak * low / sum : 0;
+     painter->setPen(QColor("#ffffff"));
+diff --git a/src/widget/woverview.cpp b/src/widget/woverview.cpp
+index c8ed20c..1e6a52d 100644
+--- a/src/widget/woverview.cpp
++++ b/src/widget/woverview.cpp
+@@ -77,6 +77,8 @@ WOverview::WOverview(
+           m_playpositionControl(
+                   m_group,
+                   QStringLiteral("playposition")) {
++    m_pPlayControl = make_parented<ControlProxy>(m_group, QStringLiteral("play"), this, ControlFlag::NoAssertIfMissing);
++    m_pPlayControl->connectValueChanged(this, [this](double) { update(); });
+     m_endOfTrackControl = make_parented<ControlProxy>(
+             m_group, QStringLiteral("end_of_track"), this, ControlFlag::NoAssertIfMissing);
+     m_endOfTrackControl->connectValueChanged(this, &WOverview::onEndOfTrackChange);
+@@ -108,8 +110,20 @@ WOverview::WOverview(
+             &WaveformWidgetFactory::overallVisualGainChanged,
+             this,
+             &WOverview::slotNormalizeOrVisualGainChanged);
++    connect(widgetFactory, &WaveformWidgetFactory::overviewDivisionsChanged,
++            this, [this] { update(); });
+ 
+-    connect(widgetFactory, &WaveformWidgetFactory::waveformStyleChanged, this, [this] { update(); });
++    connect(widgetFactory, &WaveformWidgetFactory::waveformStyleChanged, this, [this] {
++        if (m_rx3Overview) {
++            m_waveformSourceImage = QImage();
++            m_waveformImageScaled = QImage();
++            m_actualCompletion = 0;
++            m_pixmapDone = false;
++            m_waveformPeak = -1;
++            drawNextPixmapPart();
++        }
++        update();
++    });
+     const QString eqGroup = QStringLiteral("[EqualizerRack1_%1_Effect1]").arg(m_group);
+     for (int i = 0; i < 7; ++i) {
+         m_nativeEqControls[i] = make_parented<ControlProxy>(
+@@ -543,6 +557,33 @@ void WOverview::mouseMoveEvent(QMouseEvent* e) {
+     }
+ 
+     m_pHoveredMark = m_marks.findHoveredMark(e->pos(), m_orientation);
++    if (m_rx3Overview && m_orientation == Qt::Horizontal) {
++        // Mouse targeting must follow the same A-to-H stacking as drawing,
++        // even when the slots are in a different chronological order.
++        WaveformMarkPointer topmost;
++        for (const auto& mark : std::as_const(m_marks)) {
++            if (!mark->rx3Hotcue()) continue;
++            for (const auto& rect : rx3::overviewHotcueRects(width(),height(),mark->m_linePosition,m_scaleFactor)) {
++                if (rect.contains(e->pos()) && (!topmost || mark->getHotCue()>topmost->getHotCue())) topmost=mark;
++            }
++        }
++        if (topmost) m_pHoveredMark=topmost;
++        if (e->pos().y() >= rx3::overviewGeometry(height(),m_scaleFactor).ticksTop &&
++                WaveformWidgetFactory::instance()->getOverviewDivisions()==1) {
++            QString label=tr("No Rekordbox phrase analysis available for this track.");
++            if (m_pWaveform && m_pWaveform->rekordbox) {
++                const auto& native=*m_pWaveform->rekordbox;
++                if (!native.phrases.isEmpty()) label=QString();
++                const double second=(e->pos().x()-1.0)/qMax(1,width()-2)*native.durationSeconds;
++                for (const auto& phrase : native.phrases) {
++                    if (second>=phrase.startSeconds && second<phrase.endSeconds) {
++                        label=rx3::phraseName(phrase.kind); break;
++                    }
++                }
++            }
++            setToolTip(label);
++        } else setToolTip(QString());
++    }
+ 
+     // qDebug() << "WOverview::mouseMoveEvent" << e->pos();
+     update();
+@@ -706,6 +747,7 @@ void WOverview::paintEvent(QPaintEvent* pEvent) {
+                     static_cast<CSAMPLE_GAIN>(trackSamples);
+ 
+             drawRangeMarks(&painter, offset, gain);
++            drawRx3Divisions(&painter);
+             drawMarks(&painter, offset, gain);
+             drawPickupPosition(&painter);
+             drawTimeRuler(&painter);
+@@ -747,8 +789,7 @@ void WOverview::drawWaveformPixmap(QPainter* pPainter) {
+         using namespace mixxx::rekordbox;
+         const auto factory = WaveformWidgetFactory::instance();
+         const auto type = factory->getType();
+-        const auto mode = type == WaveformWidgetType::AllShaderSimpleWaveform ? WaveformMode::Blue :
+-                type == WaveformWidgetType::AllShaderRGBWaveform ? WaveformMode::RGB : WaveformMode::ThreeBand;
++        const auto mode = rx3::waveformModeForType(type);
+         const auto& native = *m_pWaveform->rekordbox;
+         std::array<float, 3> gains{1, 1, 1};
+         if (factory->eqAffectsWaveform()) {
+@@ -761,8 +802,7 @@ void WOverview::drawWaveformPixmap(QPainter* pPainter) {
+         pPainter->scale(1 / dpr, 1 / dpr);
+         pPainter->setRenderHint(QPainter::Antialiasing, false);
+         const int w = qRound(width() * dpr);
+-        const int h = qRound(height() * dpr);
+-        const int baseline = h - 4;
++        const int baseline = qRound(rx3::overviewGeometry(height(),m_scaleFactor).signalBottom*dpr);
+         if (mode!=WaveformMode::ThreeBand) {
+             const auto& preview=mode==WaveformMode::Blue && !native.overview[1].columns.isEmpty()
+                     ? native.overview[1] : native.overview[static_cast<int>(mode)];
+@@ -778,10 +818,6 @@ void WOverview::drawWaveformPixmap(QPainter* pPainter) {
+                     const float offset=baseline-1-std::min(float(baseline-1),float(28*m_scaleFactor*dpr));
+                     pPainter->fillRect(QRectF(x1, offset+std::floor(y1), x2-x1, std::ceil(y2)-std::floor(y1)), QColor(color));
+                 }, &native.overview[2]);
+-        pPainter->fillRect(0, baseline + 1, w, 1, QColor(128, 128, 128));
+-        pPainter->fillRect(0, baseline + 3, w, 1, Qt::white);
+-        pPainter->fillRect(0, baseline + 1, qRound(m_iPlayPos * dpr), 1, QColor(0, 125, 225));
+-        pPainter->fillRect(qRound(m_iPlayPos * dpr), 0, 1, h, Qt::red);
+         return;
+     }
+ 
+@@ -816,20 +852,27 @@ void WOverview::drawWaveformPixmap(QPainter* pPainter) {
+         }
+ 
+         if (m_rx3Overview && m_orientation == Qt::Horizontal) {
+-            const qreal inset = 10 * m_scaleFactor;
++            const qreal inset = 12 * m_scaleFactor;
+             // The RX3 overview rises from a baseline, with cue lanes above
+             // and below it. The RX3 source contains the measured three-band signal here.
+-            const qreal gap = 4 * m_scaleFactor;
+-            const QRectF target(0, inset, width(), qMax(qreal(1), height()-2*inset-gap));
++            const auto g=rx3::overviewGeometry(height(),m_scaleFactor);
++            const QRectF target(0, inset, width(), qMax(qreal(1), g.signalBottom-inset));
+             const QRectF source(0, 0, m_waveformImageScaled.width(), m_waveformImageScaled.height()/2.0);
+             pPainter->drawImage(target, m_waveformImageScaled, source);
+-            pPainter->setPen(QPen(Qt::white, 2 * m_scaleFactor));
+-            const qreal baseline = height()-inset;
+-            pPainter->drawLine(QPointF(0,baseline), QPointF(width(),baseline));
+         } else pPainter->drawImage(rect(), m_waveformImageScaled);
+     }
+ }
+ 
++void WOverview::drawRx3Divisions(QPainter* pPainter) {
++    if (!m_rx3Overview || m_orientation != Qt::Horizontal) return;
++    const double duration=m_pWaveform && m_pWaveform->rekordbox ?
++            m_pWaveform->rekordbox->durationSeconds : samplePositionToSeconds(getTrackSamples());
++    const QVector<mixxx::rekordbox::Phrase> empty;
++    const auto& phrases=m_pWaveform && m_pWaveform->rekordbox ? m_pWaveform->rekordbox->phrases : empty;
++    rx3::drawOverviewDivisions(pPainter,width(),height(),m_scaleFactor,duration,
++            WaveformWidgetFactory::instance()->getOverviewDivisions(),phrases);
++}
++
+ void WOverview::drawPlayedOverlay(QPainter* pPainter) {
+     if (m_rx3Overview && m_pWaveform && m_pWaveform->rekordbox) return;
+     // Overlay the played part of the overview-waveform with a skin defined color
+@@ -862,7 +905,7 @@ void WOverview::drawPlayPosition(QPainter* pPainter) {
+         } else {
+             line.setLine(0.0, m_iPlayPos, width(), m_iPlayPos);
+         }
+-        pPainter->setPen(QPen(m_playPosColor,
++        pPainter->setPen(QPen(m_signalColors.getPlayPosColor(m_pPlayControl->toBool()),
+                 m_signalColors.getPlayPosWidth() * m_scaleFactor));
+         pPainter->setOpacity(0.5);
+         pPainter->drawLine(line);
+@@ -883,7 +926,7 @@ void WOverview::drawAnalyzerProgress(QPainter* pPainter) {
+     if ((m_analyzerProgress >= kAnalyzerProgressNone) &&
+             (m_analyzerProgress < kAnalyzerProgressDone)) {
+         PainterScope painterScope(pPainter);
+-        pPainter->setPen(QPen(m_playPosColor, 3 * m_scaleFactor));
++        pPainter->setPen(QPen(m_signalColors.getPlayPosColor(m_pPlayControl->toBool()), 3 * m_scaleFactor));
+ 
+         if (m_analyzerProgress > kAnalyzerProgressNone) {
+             if (m_orientation == Qt::Horizontal) {
+@@ -949,10 +992,13 @@ void WOverview::drawRangeMarks(QPainter* pPainter, const float& offset, const fl
+             pPainter->setBrush(markRange.m_disabledColor);
+         }
+ 
++        if (m_rx3Overview) pPainter->setPen(Qt::NoPen);
++
+         // let top and bottom of the rect out of the widget
+         if (m_orientation == Qt::Horizontal) {
+             pPainter->drawRect(QRectF(QPointF(startPosition, -2.0),
+-                    QPointF(endPosition, height() + 1.0)));
++                    QPointF(endPosition, m_rx3Overview ?
++                            rx3::overviewGeometry(height(),m_scaleFactor).signalBottom+2*m_scaleFactor : height()+1.0)));
+         } else {
+             pPainter->drawRect(QRectF(QPointF(-2.0, startPosition),
+                     QPointF(width() + 1.0, endPosition)));
+@@ -990,10 +1036,13 @@ void WOverview::drawMarks(QPainter* pPainter, const float offset, const float ga
+                 static_cast<float>(width()));
+         pMark->m_linePosition = markPosition;
+ 
++        if (pMark->rx3Triangle() && m_orientation == Qt::Horizontal) {
++            pMark->m_label.setAreaRect(rx3::positionTriangleRect(markPosition,
++                    height()-m_scaleFactor,m_scaleFactor));
++            continue;
++        }
+         if (pMark->rx3Hotcue() && m_orientation == Qt::Horizontal) {
+-            const qreal badge = 8 * m_scaleFactor;
+-            const QRectF top(qBound(qreal(0), markPosition - badge / 2, qMax(qreal(0), width()-badge)), 0, badge, badge);
+-            pMark->m_label.setAreaRect(top);
++            pMark->m_label.setAreaRect(rx3::overviewHotcueRects(width(),height(),markPosition,m_scaleFactor)[0]);
+             continue;
+         }
+ 
+@@ -1191,6 +1240,13 @@ void WOverview::drawPickupPosition(QPainter* pPainter) {
+         pPainter->setTransform(QTransform(0, 1, 1, 0, 0, 0));
+     }
+ 
++    if (m_rx3Overview) {
++        pPainter->setPen(QPen(m_signalColors.getPlayPosColor(m_pPlayControl->toBool()),
++                m_signalColors.getPlayPosWidth() * m_scaleFactor));
++        pPainter->drawLine(QPointF(m_iPickupPos,0),QPointF(m_iPickupPos,
++                rx3::overviewGeometry(height(),m_scaleFactor).axisTop+3*m_scaleFactor));
++        return;
++    }
+     // draw dark play position outlines
+     pPainter->setPen(QPen(QBrush(m_backgroundColor), m_scaleFactor));
+     pPainter->setOpacity(0.5);
+@@ -1198,7 +1254,7 @@ void WOverview::drawPickupPosition(QPainter* pPainter) {
+     pPainter->drawLine(m_iPickupPos - 1, 0, m_iPickupPos - 1, breadth());
+ 
+     // draw colored play position line
+-    pPainter->setPen(QPen(m_playPosColor,
++    pPainter->setPen(QPen(m_signalColors.getPlayPosColor(m_pPlayControl->toBool()),
+             m_signalColors.getPlayPosWidth() * m_scaleFactor));
+     pPainter->setOpacity(1.0);
+     pPainter->drawLine(m_iPickupPos, 0, m_iPickupPos, breadth());
+@@ -1239,7 +1295,7 @@ void WOverview::drawTimeRuler(QPainter* pPainter) {
+             pPainter->setPen(shadowPen);
+             pPainter->drawLine(line);
+ 
+-            pPainter->setPen(QPen(m_playPosColor, m_scaleFactor));
++            pPainter->setPen(QPen(m_signalColors.getPlayPosColor(m_pPlayControl->toBool()), m_scaleFactor));
+             pPainter->drawLine(line);
+         }
+ 
+@@ -1303,20 +1359,16 @@ void WOverview::drawMarkLabels(QPainter* pPainter, const float offset, const flo
+     markerFont.setPixelSize(static_cast<int>(m_iLabelFontSize * m_scaleFactor));
+     QFontMetricsF fontMetrics(markerFont);
+ 
++    QList<rx3::OverviewHotcue> rx3Hotcues;
++    QList<WaveformMarkPointer> rx3Triangles;
+     // Draw WaveformMark labels
+     for (const auto& pMark : std::as_const(m_marks)) {
++        if (pMark->rx3Triangle() && m_orientation == Qt::Horizontal) {
++            rx3Triangles.append(pMark);
++            continue;
++        }
+         if (pMark->rx3Hotcue() && m_orientation == Qt::Horizontal) {
+-            PainterScope scope(pPainter);
+-            const qreal badge = 8 * m_scaleFactor;
+-            const qreal x = qBound(qreal(0), pMark->m_linePosition - badge / 2, qMax(qreal(0), width()-badge));
+-            QFont font("Arial"); font.setPixelSize(qMax(6, qRound(7 * m_scaleFactor))); font.setBold(true);
+-            pPainter->setFont(font);
+-            for (qreal y : {qreal(0), height() - badge}) {
+-                const QRectF rect(x, y, badge, badge);
+-                pPainter->fillRect(rect, pMark->fillColor());
+-                pPainter->setPen(Qt::black);
+-                pPainter->drawText(rect, Qt::AlignCenter, pMark->rx3Label());
+-            }
++            rx3Hotcues.append({pMark->getHotCue(),pMark->m_linePosition,pMark->fillColor(),pMark->rx3Label()});
+             continue;
+         }
+         if (m_pHoveredMark != nullptr && pMark != m_pHoveredMark) {
+@@ -1334,6 +1386,11 @@ void WOverview::drawMarkLabels(QPainter* pPainter, const float offset, const flo
+ 
+         pMark->m_label.draw(pPainter);
+     }
++    rx3::drawOverviewHotcues(pPainter,rx3Hotcues,width(),height(),m_scaleFactor);
++    for (const auto& mark : rx3Triangles) {
++        rx3::drawPositionTriangle(pPainter,mark->m_linePosition,
++                height()-m_scaleFactor,m_scaleFactor);
++    }
+ 
+     if (m_bShowCueTimes) {
+         m_cuePositionLabel.draw(pPainter);
+@@ -1449,7 +1506,8 @@ bool WOverview::drawNextPixmapPart() {
+             rx3::drawSummaryColumn(&painter, i / 2, 0, 1, peak,
+                     qMax(pWaveform->getLow(i), pWaveform->getLow(i + 1)),
+                     qMax(pWaveform->getMid(i), pWaveform->getMid(i + 1)),
+-                    qMax(pWaveform->getHigh(i), pWaveform->getHigh(i + 1)));
++                    qMax(pWaveform->getHigh(i), pWaveform->getHigh(i + 1)),
++                    rx3::waveformModeForType(WaveformWidgetFactory::instance()->getType()));
+             m_waveformPeak = qMax(m_waveformPeak, static_cast<float>(peak));
+         }
+         m_actualCompletion = nextCompletion;
+diff --git a/src/widget/woverview.h b/src/widget/woverview.h
+index b8465fa..146e3fd 100644
+--- a/src/widget/woverview.h
++++ b/src/widget/woverview.h
+@@ -96,6 +96,7 @@ class WOverview : public WWidget, public TrackDropTarget {
+     void drawEndOfTrackBackground(QPainter* pPainter);
+     void drawAxis(QPainter* pPainter);
+     void drawWaveformPixmap(QPainter* pPainter);
++    void drawRx3Divisions(QPainter* pPainter);
+     void drawPlayedOverlay(QPainter* pPainter);
+     void drawPlayPosition(QPainter* pPainter);
+     void drawEndOfTrackFrame(QPainter* pPainter);
+@@ -204,6 +205,7 @@ class WOverview : public WWidget, public TrackDropTarget {
+     PollingControlProxy m_playpositionControl;
+     parented_ptr<ControlProxy> m_pPassthroughControl;
+     parented_ptr<ControlProxy> m_pTypeControl;
++    parented_ptr<ControlProxy> m_pPlayControl;
+ 
+     QPointF m_timeRulerPos;
+     WaveformMarkLabel m_timeRulerPositionLabel;
+diff --git a/src/widget/wtracktableview.cpp b/src/widget/wtracktableview.cpp
+index fd9e44a..638c923 100644
+--- a/src/widget/wtracktableview.cpp
++++ b/src/widget/wtracktableview.cpp
+@@ -1,4 +1,5 @@
+ #include "widget/rx3waveform.h"
++#include "waveform/waveformwidgetfactory.h"
+ #include "widget/wtracktableview.h"
+ 
+ #include <QDrag>
+@@ -99,12 +100,13 @@ class Rx3TrackDelegate : public QStyledItemDelegate {
+             auto* rekordboxModel =
+                     qobject_cast<mixxx::rekordbox::RekordboxRuntimeTrackModel*>(
+                             sourceModel);
+-            const QVector<mixxx::rekordbox::RuntimeWaveformColumn>* runtimeWave =
++            const auto mode = rx3::waveformModeForType(WaveformWidgetFactory::instance()->getType());
++            const mixxx::rekordbox::WaveformSeries* runtimeWave =
+                     nullptr;
+             if (rekordboxModel) {
+-                runtimeWave = rekordboxModel->waveformPreview(sourceIndex);
++                runtimeWave = rekordboxModel->waveformPreview(sourceIndex, mode);
+                 if (!runtimeWave) {
+-                    rekordboxModel->requestWaveformPreview(sourceIndex);
++                    rekordboxModel->requestWaveformPreview(sourceIndex, mode);
+                 }
+             }
+             auto* model = dynamic_cast<TrackModel*>(m_view->model());
+@@ -131,22 +133,22 @@ class Rx3TrackDelegate : public QStyledItemDelegate {
+             }
+             const QRect r = option.rect.adjusted(6, 6, -6, -4);
+             p->setPen(QColor("#aaa")); p->drawLine(r.bottomLeft(), r.bottomRight());
+-            if (runtimeWave && !runtimeWave->isEmpty()) {
+-                const int count = runtimeWave->size();
+-                for (int x = 0; x < r.width(); ++x) {
+-                    int all = 0, low = 0, mid = 0, high = 0;
+-                    const int first = x * count / r.width();
+-                    const int last = qMin(count,
+-                            qMax(first + 1, (x + 1) * count / r.width()));
+-                    for (int i = first; i < last; ++i) {
+-                        const auto& column = runtimeWave->at(i);
+-                        all = qMax(all, int(column.all));
+-                        low = qMax(low, int(column.low));
+-                        mid = qMax(mid, int(column.mid));
+-                        high = qMax(high, int(column.high));
++            if (runtimeWave && !runtimeWave->columns.isEmpty()) {
++                using namespace mixxx::rekordbox;
++                if (mode != WaveformMode::ThreeBand) {
++                    renderPreviewColumns(*runtimeWave, mode, r.width(), r.height(), {1, 1, 1},
++                            [&](float x1, float y1, float x2, float y2, QRgb c1, QRgb c2) {
++                                QLinearGradient gradient(0, r.y()+y1, 0, r.y()+y2);
++                                gradient.setColorAt(0, QColor(c1)); gradient.setColorAt(1, QColor(c2));
++                                p->fillRect(QRectF(r.x()+x1, r.y()+y1, x2-x1, y2-y1), gradient);
++                            }, r.height());
++                } else {
++                    const int count = runtimeWave->columns.size();
++                    for (int x = 0; x < r.width(); ++x) {
++                        const auto column = peakColumn(*runtimeWave, double(x)*count/r.width(), double(x+1)*count/r.width());
++                        rx3::drawSummaryColumn(p, r.x()+x, r.bottom(), r.height()/255.0,
++                                column.all, column.low, column.mid, column.high, mode);
+                     }
+-                    rx3::drawSummaryColumn(p, r.x() + x, r.bottom(),
+-                            r.height() / 255.0, all, low, mid, high);
+                 }
+             } else if (wave && wave->getCompletion() > 1) {
+                 const int count = qMin(wave->getCompletion(), wave->getDataSize());
+@@ -161,7 +163,7 @@ class Rx3TrackDelegate : public QStyledItemDelegate {
+                         high = qMax(high, int(wave->getHigh(i)));
+                     }
+                     rx3::drawSummaryColumn(p, r.x()+x, r.bottom(),
+-                            r.height()/255.0, all, low, mid, high);
++                            r.height()/255.0, all, low, mid, high, mode);
+                 }
+             }
+         } else {
+@@ -216,6 +218,8 @@ WTrackTableView::WTrackTableView(QWidget* pParent,
+           m_sorting(false),
+           m_selectionChangedSinceLastGuiTick(true),
+           m_loadCachedOnly(false) {
++    connect(WaveformWidgetFactory::instance(), &WaveformWidgetFactory::waveformStyleChanged,
++            this, [this] { viewport()->update(); });
+     // Connect slots and signals to make the world go 'round.
+     connect(this, &WTrackTableView::doubleClicked, this, &WTrackTableView::slotMouseDoubleClicked);
+ 

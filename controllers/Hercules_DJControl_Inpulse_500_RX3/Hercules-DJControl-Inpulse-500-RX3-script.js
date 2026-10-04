@@ -343,18 +343,22 @@ DJCi500.rx3FastSeekSecondsPerRevolution = 12;
 
 // The Inpulse 500 reports jog-edge velocity in CC 0x09 (1..63), not a
 // displacement in track frames. Mixxx's jog control applies another 0.1 gain
-// and a 25-buffer moving average. Strengthen the first slow step and
-// compress fast turns. The final feel requires a physical controller test.
+// and a 25-buffer moving average. Keep the first step small and progressively
+// increase the bend as the rim turns faster, instead of giving nearly the
+// same correction to slow and fast turns. Every nonzero message contributes;
+// there is no MIDI dead zone or fixed number of revolutions per beat.
+// The final feel requires a physical controller test.
 // These are mapper values, not Pioneer hardware calibration values.
 // As in the DDJ-SX mapper, a separate sensitivity multiplier lets the user
 // tune the bend without changing scratch or SHIFT search.
 DJCi500.rx3JogBendSensitivity = 1.0;
-DJCi500.rx3JogBendSlow = 1.9;
-DJCi500.rx3JogBendFast = 2.4;
+DJCi500.rx3JogBendSlow = 0.35;
+DJCi500.rx3JogBendFast = 1.6;
+DJCi500.rx3JogBendCurve = 0.75;
 DJCi500.rx3ShapeJogBend = function(tickVelocity) {
     if (!Number.isFinite(tickVelocity) || tickVelocity === 0) return 0;
-    const magnitude = Math.min(63, Math.abs(tickVelocity));
-    const normalized = Math.log(magnitude) / Math.log(63);
+    const magnitude = Math.max(1, Math.min(63, Math.abs(tickVelocity)));
+    const normalized = Math.pow((magnitude - 1) / 62, DJCi500.rx3JogBendCurve);
     const bend = DJCi500.rx3JogBendSlow +
         (DJCi500.rx3JogBendFast - DJCi500.rx3JogBendSlow) * normalized;
     return Math.sign(tickVelocity) * bend * DJCi500.rx3JogBendSensitivity;

@@ -66,7 +66,7 @@ try {
     }
     $source = Join-Path $WorkRoot 'mixxx-2.5.6'
     $patches = @(Get-ChildItem (Join-Path $projectRoot 'patches\00[0-9][0-9]-*.patch') | Sort-Object Name)
-    if ($patches.Count -ne 19) { throw 'One or more of the nineteen NauticMixxx patches is missing.' }
+    if ($patches.Count -ne 20) { throw 'One or more of the twenty NauticMixxx patches is missing.' }
     $patchState = ($patches | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash }) -join ','
     if (-not (Test-Path $source)) {
         Invoke-Checked -File tar -Arguments @('-xzf', $sourceArchive, '-C', $WorkRoot)
@@ -113,7 +113,7 @@ try {
     Push-Location $build
     try {
         Invoke-Checked -File (Join-Path $build 'mixxx-test.exe') -Arguments @(
-            '--gtest_filter=StartupUpdateCheckerTest.*:StartupUpdateDialogTest.*:StreamCompletionTest.*:Rx3*:BeatGridTest.*:BeatMapTest.*:BeatsTest.*:CueTest.*:CueControlTest.*:WPushButtonTest.*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*',
+            '--gtest_filter=StartupUpdateCheckerTest.*:StartupUpdateDialogTest.*:StreamCompletionTest.*:LibraryTableViewStateTest.*:Rx3*:BeatGridTest.*:BeatMapTest.*:BeatsTest.*:CueTest.*:CueControlTest.*:WPushButtonTest.*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*',
             "--gtest_output=xml:$testXml")
     } finally { Pop-Location }
     Invoke-Checked -File cmake -Arguments @('--install', $build, '--prefix', $stage)

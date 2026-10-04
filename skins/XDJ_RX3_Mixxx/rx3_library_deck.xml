@@ -12,12 +12,15 @@
           <NumberPos><ObjectName>RX3LibraryDeckTime</ObjectName><Rx3Format>browse</Rx3Format><Size>0me,34f</Size><Channel><Variable name="channel"/></Channel><Connection><ConfigKey>[Channel<Variable name="channel"/>],playposition</ConfigKey></Connection></NumberPos>
           <WidgetGroup><Size>0me,0me</Size><SizePolicy>me,me</SizePolicy></WidgetGroup>
         </Children></WidgetGroup>
-          <Overview><Rx3Overview>true</Rx3Overview>
+          <Overview><Rx3Overview>true</Rx3Overview><ShowCueTimes>false</ShowCueTimes>
             <ObjectName>RX3LibraryDeckOverview</ObjectName><Size>0me,0me</Size><SizePolicy>me,me</SizePolicy><Channel><Variable name="channel"/></Channel>
             <BgColor>#050607</BgColor><AxesColor>#00000000</AxesColor>
             <SignalColor>#1d6fe0</SignalColor><SignalLowColor>#0055e1</SignalLowColor><SignalMidColor>#f0a000</SignalMidColor><SignalHighColor>#ffffff</SignalHighColor>
             <SignalRGBLowColor>#ff3030</SignalRGBLowColor><SignalRGBMidColor>#32d060</SignalRGBMidColor><SignalRGBHighColor>#357bff</SignalRGBHighColor>
-            <PlayedOverlayColor>#99000000</PlayedOverlayColor><PlayPosColor>#ff0000</PlayPosColor><PlayPosWidth>2</PlayPosWidth><DefaultMark><Rx3Hotcue>true</Rx3Hotcue><Align>bottom</Align><Color>#00c6ee</Color><TextColor>#000000</TextColor></DefaultMark>
+            <PlayedOverlayColor>#99000000</PlayedOverlayColor><PlayPosColor>#ffffff</PlayPosColor><PlayPosStoppedColor>#ff0000</PlayPosStoppedColor><PlayPosWidth>2</PlayPosWidth><DefaultMark><Rx3Hotcue>true</Rx3Hotcue><Align>bottom</Align><Color>#00c6ee</Color><TextColor>#000000</TextColor></DefaultMark>
+            <Mark><Control>cue_point</Control><Rx3Triangle>true</Rx3Triangle><Color>#ffffff</Color><Align>bottom</Align></Mark>
+            <Mark><Control>loop_start_position</Control><Rx3Triangle>true</Rx3Triangle><Color>#ffffff</Color><Align>bottom</Align></Mark>
+            <MarkRange><StartControl>loop_start_position</StartControl><EndControl>loop_end_position</EndControl><EnabledControl>loop_enabled</EnabledControl><Color>#ff8800</Color><Opacity>0.35</Opacity><DisabledColor>#acacac</DisabledColor><DisabledOpacity>0.08</DisabledOpacity></MarkRange>
             <Connection><ConfigKey>[Channel<Variable name="channel"/>],playposition</ConfigKey></Connection>
           </Overview>
           <WidgetGroup><ObjectName>RX3LibraryDeckBpmBox<Variable name="channel"/></ObjectName><Connection><ConfigKey>[RX3Display],master<Variable name="channel"/></ConfigKey><BindProperty>highlight</BindProperty></Connection><Layout>vertical</Layout><Size>88f,0me</Size><SizePolicy>f,me</SizePolicy><Children>

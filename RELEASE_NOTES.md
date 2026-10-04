@@ -1,3 +1,33 @@
+# NauticMixxx 1.7.0 — waveforms y divisiones del overview
+
+La elección BLUE, RGB o 3Band se aplica a toda la interfaz: waveforms
+principales, overviews de Performance y Browser, y previews de la biblioteca.
+Las previews nativas se cargan en segundo plano y se guardan por estilo.
+
+- El playhead es rojo con el deck detenido y blanco en reproducción. La línea
+  principal y la de los overviews tienen 2 píxeles de grosor.
+- CUE y comienzo de loop tienen únicamente un pequeño triángulo blanco debajo
+  de la waveform, por encima del playhead. El final del loop no lleva marcador.
+- Los cuadrados de HOT CUE se sitúan hacia afuera de los ticks y dejan visible
+  un pequeño tramo de estos hacia la waveform. Conservan sus colores.
+- Overview con línea inferior y playhead más gruesos, mayor separación y HOT CUE
+  ampliados. Cada letra posterior tapa a la anterior cuando coinciden.
+- Preferences → Waveforms → WAVEFORM DIVISIONS alterna entre TIME SCALE
+  (marcas cada 30 segundos) y PHRASE (frases exportadas por Rekordbox).
+  Los HOT CUE inferiores se sitúan sobre esta franja. PHRASE requiere PSSI/PQTZ
+  válidos en el USB; no analiza ni escribe pistas y no inventa frases ausentes.
+- Se conserva el sombreado del loop, sin líneas gruesas ni cajas en sus bordes.
+- Se elimina el conteo azul de bars junto al playhead principal.
+- Se incluye el ajuste del borde del jog de la Hercules Inpulse 500 aprobado
+  durante las pruebas de v1.6.
+
+Incluye inglés predeterminado para perfiles nuevos e icono propio. La validación
+física de la equivalencia del jog con XDJ/CDJ sigue pendiente. macOS usa firma
+ad hoc sin notarización de Apple. Las plataformas y comprobaciones disponibles
+se detallan en TEST_REPORT.md.
+
+---
+
 # NauticMixxx 1.6.0 — aviso de actualización al iniciar
 
 NauticMixxx consulta una vez al arrancar la última versión estable pública en GitHub. Si hay una versión superior, muestra un aviso en inglés con la versión instalada y la nueva.

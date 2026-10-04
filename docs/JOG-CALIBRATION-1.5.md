@@ -1,4 +1,6 @@
-# Jog wheels — calibración inicial para v1.5
+# Jog wheels — calibración del borde Inpulse 500
+
+Ajuste de prueba del 4 de octubre de 2026 para NauticMixxx 1.6.0.
 
 ## Diagnóstico
 
@@ -7,8 +9,8 @@ scratch en CC `0A`. El byte de giro codifica **sentido y velocidad**: `01` a
 `3F` en sentido horario, `7F` a `40` en sentido antihorario. No son cuadros de
 audio ni grados absolutos de giro. El mapeo anterior convertía el byte con
 `inValueScale()` y enviaba el resultado `-64..63` directamente a `[ChannelN],jog`.
-Por eso los valores bajos se perdían en el suavizado y los altos generaban
-correcciones difíciles de dosificar.
+El suavizado atenúa la respuesta inicial de los valores bajos; los altos
+pueden generar correcciones difíciles de dosificar.
 
 Mixxx aplica a `jog` una ganancia de `0.1` y un promedio móvil de 25 buffers
 durante la reproducción. En pausa usa, además, un multiplicador de `18` para
@@ -16,24 +18,40 @@ búsqueda. La v1.5 aplica una curva únicamente al borde **mientras la pista
 reproduce**; conserva la búsqueda en pausa, el scratch de la superficie, SHIFT,
 el ajuste de loops y el ajuste del beatgrid.
 
-## Seteo inicial implementado
+## Curva progresiva de prueba
 
-`jog = signo × sensibilidad × [1.9 + 0.5 × ln(magnitud) / ln(63)]`, con magnitud limitada a
-`1..63`. Los extremos configurables están en el mapper como
-`rx3JogBendSlow = 1.9` y `rx3JogBendFast = 2.4`. El multiplicador general
-`rx3JogBendSensitivity = 1.0` permite ajustar ambos sin tocar scratch ni SHIFT.
+`jog = signo × sensibilidad × [slow + (fast − slow) × ((magnitud − 1) / 62)^curva]`, con magnitud limitada a `1..63`.
 
-| Valor MIDI del borde | Antes: valor a Mixxx | v1.5: valor a Mixxx |
+Parámetros del mapper:
+
+- `rx3JogBendSlow = 0.35`
+- `rx3JogBendFast = 1.6`
+- `rx3JogBendCurve = 0.75`
+- `rx3JogBendSensitivity = 1.0`
+
+| Valor MIDI del borde | Curva inicial v1.5 | Ajuste de prueba |
 | ---: | ---: | ---: |
-| 1 | 1 | 1.90 |
-| 4 | 4 | 2.07 |
-| 16 | 16 | 2.23 |
-| 63 | 63 | 2.40 |
+| 1 | 1.90 | 0.35 |
+| 4 | 2.07 | 0.48 |
+| 16 | 2.23 | 0.78 |
+| 63 | 2.40 | 1.60 |
 
-Esto aumenta la respuesta del giro muy lento y limita de forma fuerte los
-giros rápidos. La cifra no representa un porcentaje fijo de pitch bend ni una
+La curva anterior daba casi la misma corrección a un giro lento que a uno
+rápido. El nuevo ajuste reduce la ganancia en todo el rango y abre el margen
+entre movimientos finos y giros más rápidos. El primer mensaje tiene un 82 %
+menos de ganancia; el máximo tiene un 33 % menos. Ningún mensaje de giro
+válido se descarta por una zona muerta ni se redondea a un entero.
+
+Las 1,5–2 vueltas mencionadas durante la prueba fueron una referencia de
+sensación, no un requisito ni un valor publicado por Pioneer. No se fija una
+cantidad de vueltas por beat y no se usa el BPM para determinar la ganancia.
+Los valores nuevos son una hipótesis de calibración para la Inpulse 500,
+no una curva de firmware XDJ/CDJ medida o copiada.
+
+La cifra de salida no representa un porcentaje fijo de pitch bend ni una
 distancia fija por vuelta: la salida real depende de la frecuencia de mensajes
-MIDI, el tamaño del buffer de audio y el filtro del motor de Mixxx.
+MIDI, el tamaño del buffer de audio y el filtro del motor de Mixxx. Este ajuste
+no cambia ese filtro ni puede recuperar movimiento que no produzca MIDI.
 
 ## Contraste con los mapeos de Pioneer en Mixxx
 
@@ -63,8 +81,9 @@ por vuelta con la pista pausada como calibración del pitch bend al reproducir.
 1. Cargar dos copias de una pista a 120 BPM con beatgrid correcto. Desactivar
    SYNC y SLIP, igualar el tempo con el fader y activar VINYL.
 2. En ambos decks, mover solo el borde unos 15–20 grados lentamente. Debe
-   aparecer una corrección audible y de fase, sin detener la reproducción ni
-   entrar en scratch. Repetir en ambos sentidos.
+   aparecer una corrección pequeña y de fase, sin detener la reproducción ni
+   entrar en scratch. Repetir en ambos sentidos, con movimientos sucesivos
+   mínimos y una inversión inmediata del giro. Registrar si aún no responde.
 3. Girar el borde cerca de media vuelta a velocidad normal. La pista no debe
    saltar ni adelantar un beat completo; al soltarlo debe volver al tempo del
    fader. Repetir con giros rápidos y comparar con una XDJ/CDJ real usando la
@@ -78,8 +97,11 @@ por vuelta con la pista pausada como calibración del pitch bend al reproducir.
    necesitan subir o bajar en la misma proporción, usar
    `rx3JogBendSensitivity` (por ejemplo `0.8` o `1.2`).
 
-La prueba automática comprueba la curva y su simetría. La equivalencia física
-con Pioneer requiere la comparación de los pasos 1–5; no está validada aquí.
+La prueba automática ejecuta los handlers reales en los decks 1–4, con
+VINYL encendido/apagado, mensajes lentos repetidos e inversión de sentido.
+Comprueba también scratch, pausa, SHIFT y prioridad de loops/beatgrid.
+La equivalencia física con Pioneer y la respuesta audible a movimientos muy
+suaves requieren la comparación de los pasos 1–5; no están validadas aquí.
 
 ## Fuentes
 

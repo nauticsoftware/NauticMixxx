@@ -1,34 +1,45 @@
-# Inpulse 500 jog rim settings in v1.5
+# Inpulse 500 progressive jog rim calibration
+
+October 4, 2026 test adjustment for NauticMixxx 1.6.0.
 
 ## What changes
 
-The previous playing-track rim path sent MIDI magnitude directly to Mixxx's
-`jog` control. Very slow movements produced little response, while faster
-movements could overcorrect. v1.5 introduces a compressed curve on this path:
+The initial v1.5 curve gave almost the same bend output to slow and fast
+rim turns (1.9–2.4). This test adjustment reduces gain across the range and
+provides more room for small phase corrections, progressively increasing
+response as the rim turns faster:
 
 ```
-jog = sign × sensitivity × [slow + (fast − slow) × ln(magnitude) / ln(63)]
+jog = sign × sensitivity × [slow + (fast − slow) × ((magnitude − 1) / 62)^curve]
 ```
 
-Magnitude is clamped to 1–63. Defaults in the Inpulse RX3 script:
+Magnitude is clamped to 1–63. Inpulse RX3 mapping defaults:
 
 ```
-rx3JogBendSlow = 1.9
-rx3JogBendFast = 2.4
+rx3JogBendSlow = 0.35
+rx3JogBendFast = 1.6
+rx3JogBendCurve = 0.75
 rx3JogBendSensitivity = 1.0
 ```
 
-| MIDI magnitude | Previous output | v1.5 output |
+| MIDI magnitude | Initial v1.5 output | Test output |
 | ---: | ---: | ---: |
-| 1 | 1 | 1.90 |
-| 4 | 4 | 2.07 |
-| 16 | 16 | 2.23 |
-| 63 | 63 | 2.40 |
+| 1 | 1.90 | 0.35 |
+| 4 | 2.07 | 0.48 |
+| 16 | 2.23 | 0.78 |
+| 63 | 2.40 | 1.60 |
 
-This strengthens individual slow-turn messages and limits individual fast-turn
-messages. The output is not a fixed pitch percentage or displacement per
-revolution: message frequency and the Mixxx engine affect the result. It cannot
-recover motion for which the controller sends no MIDI message.
+The slowest message has 82% less gain and the fastest has 33% less gain.
+Every nonzero message contributes, without an added MIDI dead zone or integer
+rounding. The reported 1.5–2 revolutions was a feel reference, not a fixed
+requirement or a published Pioneer specification. No beat-per-revolution rule
+or BPM-dependent gain is imposed. These values are an Inpulse calibration
+hypothesis, not a measured or copied XDJ/CDJ firmware curve.
+
+Output is not a fixed pitch percentage or displacement per revolution:
+message frequency, audio buffer size and Mixxx smoothing still affect the
+result. This adjustment does not change the engine filter or recover motion
+for which the controller sends no MIDI message.
 
 Scratch on the top surface, paused seeking, SHIFT searching, loops and grid
 adjustments retain their existing paths. This change applies only to Hercules
@@ -56,7 +67,9 @@ Pioneer is **not validated**.
 1. Load two copies of a 120 BPM track with a correct beatgrid. Disable SYNC
    and SLIP, match tempo with the faders and enable VINYL.
 2. Move only the rim slowly through 15–20 degrees in both directions. Check
-   for a useful phase correction without scratching or stopping playback.
+   for a small phase correction without scratching or stopping playback. Try
+   repeated minimal movements and an immediate direction reversal; record any
+   remaining lack of audible response.
 3. Try approximately half a turn, then faster movements. Check the phase
    correction and return to fader tempo after release. Compare with a real
    XDJ/CDJ using the same track, tempo, angle and approximate turning speed.
@@ -66,8 +79,9 @@ Pioneer is **not validated**.
    `rx3JogBendFast` for fast-turn overshoot. Use `rx3JogBendSensitivity` (for
    example 0.8 or 1.2) to scale both together. Restart the mapping after editing.
 
-Automated tests verify the curve, direction symmetry and preserved alternate
-jog paths. They do not measure mechanical resistance, MIDI resolution or
+Automated tests exercise the actual handlers on decks 1–4 with VINYL on/off,
+slow repeated messages and direction reversal. They also verify scratching,
+paused search, SHIFT and grid/loop priority. They do not measure mechanical resistance, MIDI resolution or
 physical audible response.
 
 ## Sources

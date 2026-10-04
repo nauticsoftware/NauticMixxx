@@ -1,5 +1,21 @@
 # Informe de validación — NauticMixxx
 
+## v1.7.0 — waveforms and overview divisions
+
+- macOS arm64: 92 native tests passed, 0 failed, 9 optional external fixtures
+  skipped. Controller, USB-only, XML and installer-input checks passed.
+- Tested PSSI plain/masked data, variable-tempo phrase boundaries, decoder offset,
+  malformed/truncated records, 30-second ticks, missing analysis and progressive
+  A→H overlap at 1×/2× density. Read actual USB phrase analysis without writes.
+- Verified the selector and rendered PHRASE strip with a real USB track in the
+  macOS test app; own icon checked inside the bundle and visually in Finder.
+- Main playhead reduced to 2 pixels at the maintainer's request, matching the
+  overview. The change is in the skin and does not modify the engine binary.
+- Twenty source patches reproduce the current engine from official Mixxx 2.5.6.
+- Public macOS package verification and Windows CI results are recorded below
+  when complete. No new physical XDJ/CDJ jog comparison or Linux v1.7 test.
+
+
 ## v1.6.0 — aviso de actualización al iniciar
 
 - Compilación nativa macOS arm64 Release de la app y mixxx-test completada.
