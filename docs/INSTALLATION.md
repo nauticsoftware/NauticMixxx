@@ -1,10 +1,10 @@
-# Instalar NauticMixxx 1.7.0
+# Instalar NauticMixxx 1.8.0
 
 ## macOS Apple Silicon
 
 Requisitos: macOS 11 o posterior y un Mac con chip Apple Silicon.
 
-1. Copia `NauticMixxx-1.7.0-macOS-arm64.dmg` y `SHA256SUMS.txt` en la misma carpeta. Calcula `shasum -a 256 NauticMixxx-1.7.0-macOS-arm64.dmg` y compara el resultado con la línea del DMG en `SHA256SUMS.txt`.
+1. Copia `NauticMixxx-1.8.0-macOS-arm64.dmg` y `SHA256SUMS.txt` en la misma carpeta. Calcula `shasum -a 256 NauticMixxx-1.8.0-macOS-arm64.dmg` y compara el resultado con la línea del DMG en `SHA256SUMS.txt`.
 2. Abre el DMG y arrastra **NauticMixxx.app** a Aplicaciones. La alternativa ZIP contiene la misma aplicación y `CONFIGURE-AND-OPEN.command` para preparar el perfil y abrirla.
 3. Si macOS advierte que es una build comunitaria firmada de forma ad hoc, haz clic derecho en la aplicación y elige **Abrir**.
 4. En **Preferencias → Hardware de sonido**, elige la salida de audio y, si corresponde, la entrada de micrófono.
@@ -15,11 +15,11 @@ El Inpulse 500 usa automáticamente el mapeo RX3 personalizado al detectarse. Co
 
 SOURCE espera a que la lectura del USB termine antes de permitir el acceso. Dentro de PLAYLIST, resalta una lista para ver sus pistas a la derecha y pulsa ENTER para abrir su tabla completa. La opción **primer sonido** requiere que el marcador ya exista en los metadatos. En una pista USB sin ese marcador, la carga comienza al principio porque NauticMixxx no analiza el audio para generarlo.
 
-## Windows x64 — versión 1.7.0
+## Windows x64 — versión 1.8.0
 
-Descarga directamente [NauticMixxx-1.7.0-Windows-x64-Setup.exe](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.7.0/NauticMixxx-1.7.0-Windows-x64-Setup.exe) y ejecútalo en Windows 10/11 x64. El instalador NSIS incluye el programa nativo; no necesita un BAT, descomprimir un ZIP ni instalar Mixxx oficial.
+Descarga directamente [NauticMixxx-1.8.0-Windows-x64-Setup.exe](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.8.0/NauticMixxx-1.8.0-Windows-x64-Setup.exe) y ejecútalo en Windows 10/11 x64. El instalador NSIS incluye el programa nativo; no necesita un BAT, descomprimir un ZIP ni instalar Mixxx oficial.
 
-En 1.7.0, SOURCE espera a que la lectura del USB termine antes de abrirlo; resaltar una playlist muestra sus pistas y ENTER abre la tabla completa.
+En 1.8.0, SOURCE espera a que la lectura del USB termine antes de abrirlo; resaltar una playlist muestra sus pistas y ENTER abre la tabla completa.
 
 La aplicación queda en `%LOCALAPPDATA%\Programs\NauticMixxx` y utiliza un perfil propio en `%LOCALAPPDATA%\NauticMixxx`. El instalador aplica las mismas preferencias portables de la edición Mac: skin RX3, 3-Band, USB Rekordbox, análisis y ReplayGain desactivados, Pioneer Cue, tempo ±6 %, mapeo Hercules Inpulse 500, mapeo opcional FLX6 y cuatro Sound Color FX. Conserva los datos personales y hace una copia de la configuración anterior al actualizarla. Selecciona el dispositivo de audio y sus canales en la PC Windows.
 
