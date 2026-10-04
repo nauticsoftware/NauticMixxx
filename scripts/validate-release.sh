@@ -37,7 +37,7 @@ node scripts/test-pioneer-roland-browser.js
 python3 scripts/test-pioneer-roland-presets.py
 
 printf '%s\n' '6/6 Pruebas nativas'
-native_test_dir="build/test-candidate/$(cat VERSION)-native-build"
+native_test_dir=${NAUTIC_NATIVE_BUILD_DIR:-"build/test-candidate/$(cat VERSION)-native-build"}
 native_test="$native_test_dir/mixxx-test"
 if [ ! -x "$native_test" ] && [ -x ../build/mixxx-test ]; then
   native_test=../build/mixxx-test
