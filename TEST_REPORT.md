@@ -21,9 +21,21 @@
 - Arranque real del candidato hasta la interfaz RX3 aprobado; app cerrada al
   terminar. El acceso al USB se canceló durante esta prueba de arranque.
 - Vista previa del aviso en build/test-candidate/1.6.0-update-1 usa la versión
-  futura simulada 1.7.0; no se publicó ninguna release nueva.
-- Windows x64: candidata de publicación enviada al runner nativo para
-  compilación, suite de regresión e instalación/desinstalación del EXE.
+  futura simulada 1.7.0; no se publicó una release durante esa prueba.
+- Windows x64: compilación nativa con los 19 parches completada; 107 pruebas
+  aprobadas, 4 fixtures externos opcionales omitidos y ninguna fallida. Las
+  12 pruebas del aviso aprobaron también en Windows. Instalación/desinstalación
+  silenciosa del EXE real aprobada, conservando el perfil del usuario.
+  [Evidencia CI](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37176160896).
+- EXE descargado de CI y extraído: hash del ejecutable y de los 19 parches
+  coinciden con el registro de compilación. Perfil en inglés, Qt Network,
+  backend OpenSSL y siete tamaños del icono propio dentro del ejecutable comprobados.
+- Paquetes públicos macOS ZIP/DMG: firma estricta, versión 1.6.0, ambos iconos,
+  perfil en inglés, permiso de red y ausencia de perfil aislado verificados.
+  Icono público confirmado en Finder; integridad del DMG y acceso a Aplicaciones
+  aprobados. Las fuentes distribuidas incluyen el comprobador y el helper de branding.
+- Auditoría y suite del repositorio público aprobadas también en GitHub Actions.
+  [Evidencia](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37176160735).
 - Linux: receta actualizada; no se compiló v1.6 en esta sesión. No se hizo
   una nueva prueba física de audio.
 
