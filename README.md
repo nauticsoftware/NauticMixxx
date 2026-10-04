@@ -31,7 +31,7 @@ Version 1.5 adds mouse-free navigation presets for seven Pioneer/Roland models, 
 Download NauticMixxx 1.5.1 from the [release page](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.5.1):
 
 - [macOS Apple Silicon DMG](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.5.1/NauticMixxx-1.5.1-macOS-arm64.dmg)
-- [Windows x64 installer](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.5.0/NauticMixxx-1.5.0-Windows-x64-Setup.exe)
+- [Windows x64 installer](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.5.1/NauticMixxx-1.5.1-Windows-x64-Setup.exe)
 
 The Windows installer includes the native NauticMixxx program, RX3 skin, controller mappings and effects. The app and profile are separate from official Mixxx. Uninstall from Windows Settings; personal settings remain in `%LOCALAPPDATA%\NauticMixxx`.
 

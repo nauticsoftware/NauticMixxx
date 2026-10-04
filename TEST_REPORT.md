@@ -1,5 +1,31 @@
 # Informe de validación — NauticMixxx
 
+## v1.5.1 — audio reconfiguration hotfix
+
+- Captured v1.5.0 freezing on Core Audio shutdown: the main thread waited in
+  AudioUnitReset while the finished callback waited for a mutex. Music kept
+  running on the M2 clock device.
+- Native macOS Release build passed 65 tests; 9 optional external fixtures
+  were skipped. The stream completion regression tests passed, including
+  timeout, late/repeated notification and reset.
+- Real MOTU M2 and Hercules DJControl Inpulse 500: 24 reconfigurations passed
+  in 11.259 seconds. M2 main 1–2 and Hercules headphones 3–4 remained assigned;
+  Hercules booth 1–2 alternated off/on across synchronization modes 0, 1 and 2
+  at 48 and 44.1 kHz. Audio callbacks ran with silence; audible output levels
+  and musical continuity were not measured.
+- Windows x64 compiled and passed 95 native tests (4 optional fixtures skipped), plus EXE installation and
+  uninstallation checks. [CI evidence](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37164223488).
+- Installed macOS v1.5.1 accepted the reported configuration via OK and
+  returned to the main window. Removing and restoring booth via Apply also
+  completed without freezing. Reopening preferences confirmed all three
+  assignments, and quitting/restarting the app succeeded with booth saved.
+- After a later Mac restart, both v1.5.0 and v1.5.1 encountered a separate
+  Core Audio wait in AudioDeviceCreateIOProcID during device opening.
+  Reconnecting the M2 and Hercules cleared that condition before GUI validation.
+- New profiles keep en_US. The canonical NauticMixxx icon was generated and
+  verified in the bundle and visually in Finder. macOS uses ad-hoc signing;
+  Apple notarization is not included.
+
 ## v1.5.0 — release validation
 
 ### Linux extension — 3 October 2026

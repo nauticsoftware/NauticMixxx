@@ -7,7 +7,8 @@ candidate_name=${1:?Uso: package-test-candidate-macos.sh VERSION-REVISION [BUILD
 case "$candidate_name" in
   *[!A-Za-z0-9._-]*|'') printf 'Nombre de candidato inválido.\n' >&2; exit 1 ;;
 esac
-build_dir=${2:-"$project/tmp/v1.1/build"}
+version=$(cat "$project/VERSION")
+build_dir=${2:-"$project/build/test-candidate/$version-native-build"}
 candidate="$project/build/test-candidate/$candidate_name"
 if [ -e "$candidate" ]; then
   printf 'El test candidate ya existe: %s\n' "$candidate" >&2
