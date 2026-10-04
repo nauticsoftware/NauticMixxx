@@ -657,7 +657,7 @@ index 6fb6e06..ef5d68b 100644
         <property name="title">
          <string>OpenGL status</string>
 diff --git a/src/test/rekordboxdatabase_test.cpp b/src/test/rekordboxdatabase_test.cpp
-index 5f8d567..7dbea0a 100644
+index 5f8d567..d348dd6 100644
 --- a/src/test/rekordboxdatabase_test.cpp
 +++ b/src/test/rekordboxdatabase_test.cpp
 @@ -431,19 +431,19 @@ TEST(RekordboxMetadataTest, BadAudioPathStringDoesNotDiscardOtherRows) {
@@ -673,20 +673,20 @@ index 5f8d567..7dbea0a 100644
 -    put32(&farRow, 4, 7);
 -    put16(&farRow, 10, 12);
 -    farRow += wideText(QString::fromUtf8("Compositor ñ"));
-+    QByteArray near(10, '\0');
-+    put32(&near, 4, 5);
-+    near[9] = 10;
-+    near += shortText("Artist");
-+    QByteArray far(12, '\0');
-+    put16(&far, 0, 100);
-+    put32(&far, 4, 7);
-+    put16(&far, 10, 12);
-+    far += wideText(QString::fromUtf8("Compositor ñ"));
++    QByteArray nearArtistRow(10, '\0');
++    put32(&nearArtistRow, 4, 5);
++    nearArtistRow[9] = 10;
++    nearArtistRow += shortText("Artist");
++    QByteArray farArtistRow(12, '\0');
++    put16(&farArtistRow, 0, 100);
++    put32(&farArtistRow, 4, 7);
++    put16(&farArtistRow, 10, 12);
++    farArtistRow += wideText(QString::fromUtf8("Compositor ñ"));
      auto row = metadataTrack();
      put32(&row, 68, 5);
      put32(&row, 12, 7);
 -    const auto index = tracksFromRows({{0, row}, {2, nearRow}, {2, farRow}});
-+    const auto index = tracksFromRows({{0, row}, {2, near}, {2, far}});
++    const auto index = tracksFromRows({{0, row}, {2, nearArtistRow}, {2, farArtistRow}});
      ASSERT_EQ(index.tracks.size(), 1);
      EXPECT_EQ(index.tracks.first().metadata.value("artist").toString(), "Artist");
      EXPECT_EQ(index.tracks.first().metadata.value("composer").toString(), QString::fromUtf8("Compositor ñ"));
