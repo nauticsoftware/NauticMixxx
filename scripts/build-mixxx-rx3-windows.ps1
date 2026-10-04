@@ -46,6 +46,7 @@ try {
         if (-not (Get-Command $command -ErrorAction SilentlyContinue)) { throw "Missing build tool: $command." }
     }
     Invoke-Checked -File python -Arguments @('--version')
+    Invoke-Checked -File python -Arguments @((Join-Path $PSScriptRoot 'test-windows-installer-contract.py'))
     $WorkRoot = [IO.Path]::GetFullPath($WorkRoot)
     New-Item -ItemType Directory -Path $WorkRoot -Force | Out-Null
     $sourceArchive = Join-Path $WorkRoot 'mixxx-2.5.6.tar.gz'

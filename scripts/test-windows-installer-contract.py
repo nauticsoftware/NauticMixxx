@@ -3,12 +3,37 @@
 import hashlib
 import importlib.util
 import json
+import re
 from pathlib import Path
 import struct
 import tempfile
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def windows_macro_identifiers(code):
+    # Ignore comments/literals; detect bare Windows near/far macro names.
+    code = re.sub(r'//[^\n]*|/\*.*?\*/|"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'',
+                  '', code, flags=re.DOTALL)
+    return re.findall(r'\b(?:near|far)\b', code)
+
+
+assert windows_macro_identifiers('QByteArray near(10); auto far = row;') == ['near', 'far']
+assert not windows_macro_identifiers('auto nearArtistRow = row; auto farArtistRow = row;')
+assert not windows_macro_identifiers('// near and far\nconst char *s = "near far"; /* far */')
+for patch in sorted((ROOT / 'patches').glob('00[0-9][0-9]-*.patch')):
+    additions = {}
+    target = None
+    for line in patch.read_text().splitlines():
+        if line.startswith('+++ b/'):
+            target = line[6:]
+        elif line.startswith('+') and target and Path(target).suffix in {'.cpp', '.h', '.hpp', '.cc'}:
+            additions.setdefault(target, []).append(line[1:])
+    for target, lines in additions.items():
+        hits = windows_macro_identifiers('\n'.join(lines))
+        assert not hits, f'{patch.name}: {target}: Windows macro identifiers {hits}; use explicit names'
+
 script = (ROOT / 'packaging/windows/NauticMixxx.nsi').read_text()
 for required in ('Name "NauticMixxx"', 'RequestExecutionLevel user',
                  'NauticMixxx.exe', 'Uninstall-NauticMixxx.exe',

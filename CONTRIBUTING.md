@@ -19,3 +19,11 @@ modo que puedan aplicarse sobre Mixxx 2.5.6 limpio.
 
 Al contribuir aceptas que tu aporte se distribuya bajo las licencias vigentes
 del componente modificado.
+
+## C++ compartido con Windows
+
+No usar `near` ni `far` como identificadores, tampoco en tests: Windows los
+define como macros y MSVC puede fallar con C2059/C3409. Usar nombres explícitos
+como `nearArtistRow` y `farArtistRow`. La comprobación de inputs de Windows
+rechaza estos identificadores en código C++ añadido por los parches antes de
+iniciar la compilación.
