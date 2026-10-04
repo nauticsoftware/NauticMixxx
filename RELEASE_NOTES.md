@@ -1,3 +1,14 @@
+# NauticMixxx 1.5.1 — corrección de bloqueo al cambiar salidas de audio
+
+Corrige el congelamiento al aceptar o aplicar cambios de audio con la M2 como salida principal, DJControl Inpulse 500 canales 3–4 en auriculares y canales 1–2 en cabina.
+
+- El callback de finalización usa una señal atómica sin mutex.
+- El reloj del motor se detiene antes de cerrar las salidas secundarias y se inicia después de prepararlas.
+- Las salidas secundarias en modo experimental se abortan sin esperar un callback que no existe en streams de audio bloqueantes.
+- Se conserva el idioma inglés por defecto para perfiles nuevos y el icono propio de NauticMixxx.
+
+Las pruebas y plataformas disponibles se detallan en TEST_REPORT.md. macOS tiene firma ad hoc y no está notarizado por Apple.
+
 # NauticMixxx 1.5.0 — vista previa pública
 
 - ASSISTANT mantenido 600 ms sale de BROWSE sin cargar pista; pulsación corta abre SOURCE al soltar.

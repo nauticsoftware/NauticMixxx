@@ -66,7 +66,7 @@ try {
     }
     $source = Join-Path $WorkRoot 'mixxx-2.5.6'
     $patches = @(Get-ChildItem (Join-Path $projectRoot 'patches\00[0-9][0-9]-*.patch') | Sort-Object Name)
-    if ($patches.Count -ne 17) { throw 'One or more of the seventeen NauticMixxx patches is missing.' }
+    if ($patches.Count -ne 18) { throw 'One or more of the eighteen NauticMixxx patches is missing.' }
     $patchState = ($patches | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash }) -join ','
     if (-not (Test-Path $source)) {
         Invoke-Checked -File tar -Arguments @('-xzf', $sourceArchive, '-C', $WorkRoot)
@@ -111,7 +111,7 @@ try {
     Push-Location $build
     try {
         Invoke-Checked -File (Join-Path $build 'mixxx-test.exe') -Arguments @(
-            '--gtest_filter=Rx3*:BeatGridTest.*:BeatMapTest.*:BeatsTest.*:CueTest.*:CueControlTest.*:WPushButtonTest.*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*',
+            '--gtest_filter=StreamCompletionTest.*:Rx3*:BeatGridTest.*:BeatMapTest.*:BeatsTest.*:CueTest.*:CueControlTest.*:WPushButtonTest.*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*',
             "--gtest_output=xml:$testXml")
     } finally { Pop-Location }
     Invoke-Checked -File cmake -Arguments @('--install', $build, '--prefix', $stage)

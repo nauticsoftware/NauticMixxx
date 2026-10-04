@@ -1,0 +1,325 @@
+diff --git a/src/soundio/sounddeviceportaudio.cpp b/src/soundio/sounddeviceportaudio.cpp
+--- a/src/soundio/sounddeviceportaudio.cpp
++++ b/src/soundio/sounddeviceportaudio.cpp
+@@ -363,8 +363,13 @@
+ #endif
+ 
+     // Set the finished callback. See makeStreamInactiveAndWait()
+-    m_bFinished = false;
+-    Pa_SetStreamFinishedCallback(pStream, paFinishedCallback);
++    m_hasCallback = pCallback != nullptr;
++    m_streamCompletion.reset();
++    // Blocking streams cannot return paAbort and do not support the finished
++    // callback handshake. Abort them directly after the engine clock stops.
++    if (m_hasCallback) {
++        Pa_SetStreamFinishedCallback(pStream, paFinishedCallback);
++    }
+ 
+     // Tell the callback to return paContinue, once running.
+     m_callbackResult.store(paContinue, std::memory_order_release);
+@@ -421,9 +426,7 @@
+ 
+ void SoundDevicePortAudio::finishedCallback() {
+     // Called by paFinishedCallback
+-    std::unique_lock lock(m_finishedMutex);
+-    m_bFinished = true;
+-    m_finishedCV.notify_one();
++    m_streamCompletion.finish();
+ }
+ 
+ void SoundDevicePortAudio::makeStreamInactiveAndWait() {
+@@ -436,12 +439,12 @@
+ 
+     // We wait until the stream has become inactive, by waiting until the
+     // finishedCallback - as set with Pa_SetStreamFinishedCallback - has
+-    // been called, using m_bFinished and conditional variable m_finishedCV.
++    // been called. The callback only stores an atomic flag, so it can never
++    // block Core Audio while the control thread stops/resets an AudioUnit.
+     // Without this, we can have a deadlock when we call Pa_StopStream
+     // later on.
+     {
+-        std::unique_lock lock(m_finishedMutex);
+-        if (!m_finishedCV.wait_for(lock, std::chrono::seconds(1), [&] { return m_bFinished; })) {
++        if (!m_streamCompletion.waitFor(std::chrono::seconds(1))) {
+             // The timeout should not be reached, because when the process
+             // callback returns paAbort, the stream will finish as soon as possible.
+             // We have it as a last resort in case inactivating the stream stalls.
+@@ -470,11 +473,16 @@
+         } else {
+             // Tell the process callback to return paAbort and wait for the
+             // callback set with Pa_SetStreamFinishedCallback to be called.
+-            makeStreamInactiveAndWait();
++            if (m_hasCallback) {
++                makeStreamInactiveAndWait();
++            }
+ 
+             // We can now safely call Pa_StopStream, which should not block as the
+             // stream has become inactive.
+-            err = Pa_StopStream(pStream);
++            // A blocking secondary stream is no longer fed once the clock
++            // reference has stopped. Discard queued samples instead of waiting
++            // for a drain that requires another callback from that clock.
++            err = m_hasCallback ? Pa_StopStream(pStream) : Pa_AbortStream(pStream);
+             if (err != paNoError) {
+                 qWarning() << "PortAudio: Error while attempting to stop stream:"
+                            << Pa_GetErrorText(err) << m_deviceId;
+diff --git a/src/soundio/sounddeviceportaudio.h b/src/soundio/sounddeviceportaudio.h
+--- a/src/soundio/sounddeviceportaudio.h
++++ b/src/soundio/sounddeviceportaudio.h
+@@ -3,12 +3,12 @@
+ #include <portaudio.h>
+ 
+ #include <QString>
+-#include <condition_variable>
+ #include <memory>
+ 
+ #include "control/pollingcontrolproxy.h"
+ #include "soundio/sounddevice.h"
+ #include "soundio/soundmanagerconfig.h"
++#include "soundio/streamcompletion.h"
+ #include "util/duration.h"
+ #include "util/fifo.h"
+ #include "util/performancetimer.h"
+@@ -91,7 +91,6 @@
+     PerformanceTimer m_clkRefTimer;
+     PaTime m_lastCallbackEntrytoDacSecs;
+     std::atomic<int> m_callbackResult;
+-    std::mutex m_finishedMutex;
+-    std::condition_variable m_finishedCV;
+-    bool m_bFinished;
++    StreamCompletion m_streamCompletion;
++    bool m_hasCallback{false};
+ };
+diff --git a/src/soundio/soundmanager.cpp b/src/soundio/soundmanager.cpp
+--- a/src/soundio/soundmanager.cpp
++++ b/src/soundio/soundmanager.cpp
+@@ -5,6 +5,7 @@
+ #include <QLibrary>
+ #include <QThread>
+ #include <QtGlobal>
++#include <algorithm>
+ #include <cstring> // for memcpy and strcmp
+ 
+ #include "control/controlobject.h"
+@@ -149,6 +150,14 @@
+     //qDebug() << "SoundManager::closeDevices()";
+ 
+     bool closed = false;
++    // Stop the engine callback before closing any secondary stream or freeing
++    // its FIFOs. The clock callback reads/writes every device, including
++    // blocking streams in experimental multi-soundcard mode.
++    if (m_pClockReferenceDevice && m_pClockReferenceDevice->isOpen()) {
++        m_pClockReferenceDevice->close();
++        closed = true;
++    }
++    m_pClockReferenceDevice.clear();
+     for (const auto& pDevice : std::as_const(m_devices)) {
+         if (pDevice->isOpen()) {
+             // NOTE(rryan): As of 2009 (?) it has been safe to close() a SoundDevice
+@@ -328,12 +337,6 @@
+     qDebug() << "SoundManager::setupDevices()";
+     m_pControlObjectSoundStatusCO->set(SOUNDMANAGER_CONNECTING);
+     SoundDeviceStatus status = SoundDeviceStatus::Ok;
+-    // NOTE(rryan): Do not clear m_pClkRefDevice here. If we didn't touch the
+-    // SoundDevice that is the clock reference, then it is safe to leave it as
+-    // it was. Clearing it causes the engine to stop being processed which
+-    // results in a stuttering noise (sometimes a loud buzz noise at low
+-    // latencies) when changing devices.
+-    //m_pClkRefDevice = NULL;
+     m_pErrorDevice.clear();
+     int outputDevicesOpened = 0;
+     int inputDevicesOpened = 0;
+@@ -351,8 +354,7 @@
+     // callback from the logic in SoundDevicePortAudio. They should communicate
+     // via message passing over a request/response FIFO.
+ 
+-    // Instead of clearing m_pClkRefDevice and then assigning it directly,
+-    // compute the new one then atomically hand off below.
++    // Select the clock reference before starting any engine callback.
+     SoundDevicePointer pNewMainClockRef;
+ 
+     m_audioLatencyOverloadCount.set(0);
+@@ -453,6 +455,23 @@
+         }
+     }
+ 
++    if (pNewMainClockRef.isNull() && !toOpen.isEmpty()) {
++        const auto clock = std::find_if(toOpen.cbegin(), toOpen.cend(),
++                [haveOutput](const DeviceMode& mode) {
++                    return !haveOutput || mode.isOutput;
++                });
++        if (clock != toOpen.cend()) {
++            pNewMainClockRef = clock->pDevice;
++        }
++    }
++    // Open/start the engine clock last. Its callback must not access a
++    // secondary device while that device's FIFOs are still being initialized.
++    std::stable_partition(toOpen.begin(), toOpen.end(),
++            [&pNewMainClockRef](const DeviceMode& mode) {
++                return mode.pDevice != pNewMainClockRef;
++            });
++    m_pClockReferenceDevice = pNewMainClockRef;
++
+     for (const auto& mode: toOpen) {
+         SoundDevicePointer pDevice = mode.pDevice;
+         m_pErrorDevice = pDevice;
+diff --git a/src/soundio/soundmanager.h b/src/soundio/soundmanager.h
+--- a/src/soundio/soundmanager.h
++++ b/src/soundio/soundmanager.h
+@@ -132,6 +132,7 @@
+     bool m_paInitialized;
+     mixxx::audio::SampleRate m_jackSampleRate;
+     QList<SoundDevicePointer> m_devices;
++    SoundDevicePointer m_pClockReferenceDevice;
+     QList<mixxx::audio::SampleRate> m_samplerates;
+     QList<CSAMPLE*> m_inputBuffers;
+ 
+diff --git a/src/soundio/streamcompletion.h b/src/soundio/streamcompletion.h
+new file mode 100644
+--- /dev/null
++++ b/src/soundio/streamcompletion.h
+@@ -0,0 +1,34 @@
++#pragma once
++
++#include <atomic>
++#include <chrono>
++#include <thread>
++
++// Core Audio can call the finished callback while holding an AudioUnit lock.
++// Never acquire a mutex in that callback: stopping/resetting the AudioUnit on
++// another thread may already be waiting for it. Only the control thread waits.
++class StreamCompletion {
++  public:
++    void reset() {
++        m_finished.store(false, std::memory_order_release);
++    }
++
++    void finish() noexcept {
++        m_finished.store(true, std::memory_order_release);
++    }
++
++    bool waitFor(std::chrono::milliseconds timeout) const {
++        const auto deadline = std::chrono::steady_clock::now() + timeout;
++        while (!m_finished.load(std::memory_order_acquire)) {
++            if (std::chrono::steady_clock::now() >= deadline) {
++                return false;
++            }
++            std::this_thread::sleep_for(std::chrono::milliseconds(1));
++        }
++        return true;
++    }
++
++  private:
++    static_assert(std::atomic<bool>::is_always_lock_free);
++    std::atomic<bool> m_finished{false};
++};
+diff --git a/src/test/soundreconfiguration_test.cpp b/src/test/soundreconfiguration_test.cpp
+new file mode 100644
+--- /dev/null
++++ b/src/test/soundreconfiguration_test.cpp
+@@ -0,0 +1,94 @@
++#include <gtest/gtest.h>
++
++#include <QElapsedTimer>
++#include <QThread>
++#include <future>
++
++#include "soundio/soundmanager.h"
++#include "soundio/streamcompletion.h"
++#include "test/signalpathtest.h"
++
++TEST(StreamCompletionTest, FinishesBeforeAndDuringWait) {
++    StreamCompletion completion;
++    completion.finish();
++    EXPECT_TRUE(completion.waitFor(std::chrono::milliseconds(0)));
++    completion.reset();
++    auto waiter = std::async(std::launch::async, [&completion] {
++        return completion.waitFor(std::chrono::seconds(1));
++    });
++    completion.finish();
++    EXPECT_TRUE(waiter.get());
++}
++
++TEST(StreamCompletionTest, TimeoutDoesNotPreventLateOrRepeatedCallbacks) {
++    StreamCompletion completion;
++    EXPECT_FALSE(completion.waitFor(std::chrono::milliseconds(5)));
++    auto callback = std::async(std::launch::async, [&completion] {
++        completion.finish();
++        completion.finish();
++    });
++    EXPECT_EQ(std::future_status::ready,
++            callback.wait_for(std::chrono::seconds(1)));
++    callback.get();
++    EXPECT_TRUE(completion.waitFor(std::chrono::milliseconds(0)));
++    completion.reset();
++    EXPECT_FALSE(completion.waitFor(std::chrono::milliseconds(0)));
++}
++
++// Opt-in: opens physical audio hardware and plays silence. Run the executable
++// with an external process timeout so a regression fails instead of hanging CI.
++class SoundReconfigurationHardwareTest : public BaseSignalPathTest {};
++
++TEST_F(SoundReconfigurationHardwareTest, HerculesBoothWithM2Main) {
++    if (!qEnvironmentVariableIsSet("NAUTIC_AUDIO_HARDWARE_TEST")) {
++        GTEST_SKIP() << "Set NAUTIC_AUDIO_HARDWARE_TEST=1 with M2 and Inpulse 500 connected";
++    }
++    SoundManager manager(config(), m_pEngineMixer);
++    SoundDevicePointer mainDevice;
++    SoundDevicePointer hercules;
++    for (const auto& device : manager.getDeviceList("Core Audio", true, false)) {
++        if (device->getDeviceId().name == "M2") {
++            mainDevice = device;
++        } else if (device->getDeviceId().name == "DJControl Inpulse 500") {
++            hercules = device;
++        }
++    }
++    ASSERT_TRUE(mainDevice);
++    ASSERT_TRUE(hercules);
++    const AudioOutput main(AudioPathType::Main, 0,
++            mixxx::audio::ChannelCount::stereo(), 0);
++    const AudioOutput headphones(AudioPathType::Headphones, 2,
++            mixxx::audio::ChannelCount::stereo(), 0);
++    const AudioOutput booth(AudioPathType::Booth, 0,
++            mixxx::audio::ChannelCount::stereo(), 0);
++    const AudioOutput network(AudioPathType::RecordBroadcast, 0,
++            mixxx::audio::ChannelCount::stereo(), 0);
++    for (const auto& output : {main, headphones, booth, network}) {
++        manager.registerOutput(output, m_pEngineMixer);
++    }
++    auto settings = manager.getConfig();
++    settings.setAPI("Core Audio");
++    settings.setAudioBufferSizeIndex(4);
++    settings.clearInputs();
++    for (int rate : {48000, 44100}) {
++        settings.setSampleRate(mixxx::audio::SampleRate(rate));
++        for (int sync : {0, 1, 2}) {
++            settings.setSyncBuffers(sync);
++            for (int repeat = 0; repeat < 4; ++repeat) {
++                settings.clearOutputs();
++                settings.addOutput(mainDevice->getDeviceId(), main);
++                settings.addOutput(hercules->getDeviceId(), headphones);
++                if (repeat % 2) {
++                    settings.addOutput(hercules->getDeviceId(), booth);
++                }
++                QElapsedTimer timer;
++                timer.start();
++                ASSERT_EQ(SoundDeviceStatus::Ok, manager.setConfig(settings))
++                        << manager.getErrorDeviceName().toStdString();
++                EXPECT_LT(timer.elapsed(), 3000)
++                        << "rate=" << rate << " sync=" << sync << " repeat=" << repeat;
++                QThread::msleep(100);
++            }
++        }
++    }
++}
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2141,6 +2141,7 @@
+     src/test/rekordboxdatabase_test.cpp
+     src/test/rekordboxdevice_test.cpp
+     src/test/rx3display_test.cpp
++    src/test/soundreconfiguration_test.cpp
+     src/test/analyserwaveformtest.cpp
+     src/test/analyzersilence_test.cpp
+     src/test/audiotaperpot_test.cpp

@@ -182,3 +182,18 @@ resizes with an unchanged scale factor, widget/control identity, legacy
 letterboxing and invalid/missing cursor width values. The patch also carries
 an existing test sampling-coordinate correction from the working source so
 reconstructed and working tests match.
+
+## 0018 — Audio reconfiguration deadlock
+
+Apply after 0001–0017. Replaces the PortAudio finished callback mutex with a
+lock-free atomic completion signal. Blocking secondary streams skip the callback
+handshake and use Pa_AbortStream. SoundManager stops the clock device first and
+starts it last so its callbacks cannot access secondary streams during teardown
+or FIFO initialization.
+
+StreamCompletionTest covers completion before/during wait, timeout, late/repeated
+callbacks and reset. SoundReconfigurationHardwareTest.HerculesBoothWithM2Main is
+opt-in with NAUTIC_AUDIO_HARDWARE_TEST=1 and requires real M2/Inpulse 500 devices.
+Run it with an external process timeout. It alternates booth 1–2 off/on while
+headphones 3–4 and M2 main remain configured, using all three synchronization
+modes at 44.1 and 48 kHz.

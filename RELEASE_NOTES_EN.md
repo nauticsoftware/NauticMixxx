@@ -1,3 +1,14 @@
+# NauticMixxx 1.5.1 — audio output reconfiguration freeze fix
+
+Fixes freezing when accepting or applying audio changes with M2 main output, DJControl Inpulse 500 channels 3–4 for headphones and channels 1–2 for booth.
+
+- Stream completion uses a mutex-free atomic signal.
+- The engine clock stops before secondary streams close and starts after they are ready.
+- Experimental secondary blocking streams are aborted without waiting for a callback that cannot run on those streams.
+- New profiles retain the English default and all packages retain the NauticMixxx icon.
+
+See TEST_REPORT.md for validation and platform availability. The macOS build is ad-hoc signed and is not Apple-notarized.
+
 # NauticMixxx 1.5.0 — public release
 
 - **English by default:** new app configurations and installation profiles use `en_US`, independently of the OS language. Explicit language choices still apply.

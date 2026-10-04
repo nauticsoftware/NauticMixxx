@@ -47,7 +47,7 @@ cmake --build "$work/native" --target mixxx --parallel "$jobs"
 if [ "$tests" = ON ]; then
   cmake --build "$work/native" --target mixxx-test --parallel "$jobs"
   (cd "$source_tree" && QT_QPA_PLATFORM=offscreen "$work/native/mixxx-test" \
-    --gtest_filter='Rx3*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*' \
+    --gtest_filter='StreamCompletionTest.*:Rx3*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*' \
     --gtest_output="xml:$work/rx3-tests.xml")
 fi
 cmake --install "$work/native"

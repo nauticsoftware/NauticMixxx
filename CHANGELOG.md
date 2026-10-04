@@ -1,5 +1,11 @@
 # Historial de cambios
 
+## 1.5.1 — 2026-10-03
+
+- Corrige el bloqueo de Core Audio al aplicar cambios de salida de cabina con Hercules y M2.
+- Finalización de streams sin mutex; reloj del motor detenido primero e iniciado al final.
+- Pruebas de regresión para callback tardío y cambios repetidos de cabina.
+
 ## 1.5.0 — vista previa pública
 
 - ASSISTANT mantenido 600 ms sale de BROWSE sin cargar pista; pulsación corta abre SOURCE al soltar.
