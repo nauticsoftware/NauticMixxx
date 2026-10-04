@@ -39,6 +39,7 @@ fi
 python3 "$project/packaging/linux/prepare-branding.py" "$source_tree" "$project"
 cmake -S "$source_tree" -B "$work/native" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+  -DNAUTICMIX_VERSION="$(cat "$project/VERSION")" \
   -DCMAKE_INSTALL_PREFIX="$work/stage" -DCMAKE_INSTALL_LIBDIR=lib \
   -DQT6=ON -DQML=OFF -DOPTIMIZE=portable -DENGINEPRIME=OFF -DKEYFINDER=OFF \
   -DBUILD_LOW_MEMORY=ON -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON \
@@ -47,7 +48,7 @@ cmake --build "$work/native" --target mixxx --parallel "$jobs"
 if [ "$tests" = ON ]; then
   cmake --build "$work/native" --target mixxx-test --parallel "$jobs"
   (cd "$source_tree" && QT_QPA_PLATFORM=offscreen "$work/native/mixxx-test" \
-    --gtest_filter='StreamCompletionTest.*:Rx3*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*' \
+    --gtest_filter='StartupUpdateCheckerTest.*:StartupUpdateDialogTest.*:StreamCompletionTest.*:Rx3*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*' \
     --gtest_output="xml:$work/rx3-tests.xml")
 fi
 cmake --install "$work/native"

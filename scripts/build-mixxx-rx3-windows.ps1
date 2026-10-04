@@ -66,7 +66,7 @@ try {
     }
     $source = Join-Path $WorkRoot 'mixxx-2.5.6'
     $patches = @(Get-ChildItem (Join-Path $projectRoot 'patches\00[0-9][0-9]-*.patch') | Sort-Object Name)
-    if ($patches.Count -ne 18) { throw 'One or more of the eighteen NauticMixxx patches is missing.' }
+    if ($patches.Count -ne 19) { throw 'One or more of the nineteen NauticMixxx patches is missing.' }
     $patchState = ($patches | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash }) -join ','
     if (-not (Test-Path $source)) {
         Invoke-Checked -File tar -Arguments @('-xzf', $sourceArchive, '-C', $WorkRoot)
@@ -81,6 +81,7 @@ try {
         throw 'Cached sources do not match these patches. Use another WorkRoot.'
     }
     $windowsIcon = Join-Path $source 'res\images\icons\ic_mixxx.ico'
+    Invoke-Checked -File python -Arguments @((Join-Path $PSScriptRoot 'prepare-app-branding.py'), $source, $projectRoot)
     Invoke-Checked -File python -Arguments @((Join-Path $PSScriptRoot 'build-app-icon-windows.py'), $windowsIcon)
     $resourceFile = Join-Path $source 'src\mixxx.rc'
     $resourceText = [IO.File]::ReadAllText($resourceFile)
@@ -99,6 +100,7 @@ try {
     $stage = Join-Path $WorkRoot ('stage-' + (Get-Date -Format 'yyyyMMdd-HHmmssfff'))
     $env:MIXXX_VCPKG_ROOT = $deps
     Invoke-Checked -File cmake -Arguments @('-S', $source, '-B', $build, '-G', 'Ninja',
+        "-DNAUTICMIX_VERSION=$((Get-Content -LiteralPath (Join-Path $projectRoot 'VERSION') -Raw).Trim())",
         '-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_POLICY_VERSION_MINIMUM=3.5', "-DMIXXX_VCPKG_ROOT=$deps",
         '-DVCPKG_TARGET_TRIPLET=x64-windows-release', '-DQT6=ON', '-DQML=OFF', '-DAU_EFFECTS=OFF',
         '-DBUILD_TESTING=ON', '-DBUILD_BENCH=OFF', '-DOPTIMIZE=portable', '-DDEBUG_ASSERTIONS_FATAL=OFF',
@@ -111,7 +113,7 @@ try {
     Push-Location $build
     try {
         Invoke-Checked -File (Join-Path $build 'mixxx-test.exe') -Arguments @(
-            '--gtest_filter=StreamCompletionTest.*:Rx3*:BeatGridTest.*:BeatMapTest.*:BeatsTest.*:CueTest.*:CueControlTest.*:WPushButtonTest.*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*',
+            '--gtest_filter=StartupUpdateCheckerTest.*:StartupUpdateDialogTest.*:StreamCompletionTest.*:Rx3*:BeatGridTest.*:BeatMapTest.*:BeatsTest.*:CueTest.*:CueControlTest.*:WPushButtonTest.*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*',
             "--gtest_output=xml:$testXml")
     } finally { Pop-Location }
     Invoke-Checked -File cmake -Arguments @('--install', $build, '--prefix', $stage)

@@ -1,5 +1,32 @@
 # Informe de validación — NauticMixxx
 
+## v1.6.0 — aviso de actualización al iniciar
+
+- Compilación nativa macOS arm64 Release de la app y mixxx-test completada.
+- validate-release.sh: auditoría, contratos de instaladores, USB-only, XML y
+  pruebas JavaScript aprobados. Suite nativa: 77 aprobadas, 9 omitidas por
+  fixtures externos opcionales; ninguna fallida.
+- Las 12 pruebas nuevas (9 StartupUpdateCheckerTest y 3 StartupUpdateDialogTest)
+  aprobaron comparación numérica, omisión persistente, los tres botones, petición
+  única/asíncrona, timeout, cancelación, red desconectada, HTTP/redirecciones y
+  respuestas inválidas o demasiado grandes.
+- Los 19 parches aplicaron sobre el tarball oficial Mixxx 2.5.6, cuya SHA-256
+  fue verificada; las fuentes nuevas coinciden con este workspace.
+- Consulta real HTTPS a GitHub aprobada usando OpenSSL y repetida desde un
+  bundle ad hoc con los mismos entitlements de sandbox/red. Devolvió 1.5.1.
+- Candidato aislado: build/test-candidate/1.6.0-update-1. Firma ad hoc verificada
+  con codesign --verify --deep --strict; permiso network.client comprobado.
+- Bundle 1.6.0 y perfil en inglés comprobados. Icono del bundle idéntico al
+  generado desde el PNG obligatorio; icono propio confirmado visualmente en Finder.
+- Arranque real del candidato hasta la interfaz RX3 aprobado; app cerrada al
+  terminar. El acceso al USB se canceló durante esta prueba de arranque.
+- Vista previa del aviso en build/test-candidate/1.6.0-update-1 usa la versión
+  futura simulada 1.7.0; no se publicó ninguna release nueva.
+- Windows x64: candidata de publicación enviada al runner nativo para
+  compilación, suite de regresión e instalación/desinstalación del EXE.
+- Linux: receta actualizada; no se compiló v1.6 en esta sesión. No se hizo
+  una nueva prueba física de audio.
+
 ## v1.5.1 — audio reconfiguration hotfix
 
 - Captured v1.5.0 freezing on Core Audio shutdown: the main thread waited in

@@ -26,7 +26,7 @@ if [ ! -d "$source_tree" ]; then
   tar -xzf "$work/mixxx-2.5.6.tar.gz" -C "$work"
 fi
 if [ -f "$patch_marker" ] && [ "$(cat "$patch_marker")" != "$patch_digest" ]; then
-  printf 'La carpeta fuente no coincide con los dieciocho parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
+  printf 'La carpeta fuente no coincide con los diecinueve parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
   exit 1
 fi
 if [ ! -f "$patch_signature" ]; then
@@ -39,12 +39,15 @@ if [ ! -f "$patch_signature" ]; then
   printf '%s\n' "$patch_digest" > "$patch_marker"
 fi
 if [ ! -f "$patch_marker" ] || [ ! -f "$patch_signature" ] || [ "$(cat "$patch_marker")" != "$patch_digest" ]; then
-  printf 'La carpeta fuente no coincide con los dieciocho parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
+  printf 'La carpeta fuente no coincide con los diecinueve parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
   exit 1
 fi
 deps="$work/buildenv/$deps_name"
+python3 "$project/scripts/prepare-app-branding.py" "$source_tree" "$project"
+"$project/scripts/build-app-icon-macos.sh" "$source_tree/res/osx/application.icns"
 cmake -S "$work/mixxx-2.5.6" -B "$work/build" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+  -DNAUTICMIX_VERSION="$(cat "$project/VERSION")" \
   -DCMAKE_TOOLCHAIN_FILE="$deps/scripts/buildsystems/vcpkg.cmake" \
   -DMIXXX_VCPKG_ROOT="$deps" -DVCPKG_TARGET_TRIPLET=arm64-osx-min1100-release \
   -DVCPKG_HOST_TRIPLET=x64-osx-min1100-release \
@@ -54,7 +57,7 @@ cmake -S "$work/mixxx-2.5.6" -B "$work/build" -G Ninja \
   -DBUILD_TESTING=ON -DBUILD_BENCH=OFF
 cmake --build "$work/build" --target mixxx mixxx-test --parallel "${RX3_BUILD_JOBS:-6}"
 (cd "$work/build" && QT_QPA_PLATFORM=offscreen ./mixxx-test \
-  --gtest_filter='StreamCompletionTest.*:Rx3*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*' \
+  --gtest_filter='StartupUpdateCheckerTest.*:StartupUpdateDialogTest.*:StreamCompletionTest.*:Rx3*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*' \
   --gtest_output=xml:rx3-tests.xml)
 cmake --install "$work/build" --prefix "$work/stage"
 app="$work/stage/NauticMixxx.app"
@@ -71,6 +74,7 @@ cp "$project/THIRD_PARTY_NOTICES.md" "$app/Contents/Resources/licenses/THIRD_PAR
 "$project/scripts/build-app-icon-macos.sh" "$app/Contents/Resources/application.icns"
 # Mixxx also installs a secondary copy under Resources/osx. Keep both copies
 # identical, while CFBundleIconFile resolves the root Resources copy.
+mkdir -p "$app/Contents/Resources/osx"
 cp "$app/Contents/Resources/application.icns" "$app/Contents/Resources/osx/application.icns"
 plutil -replace CFBundleDisplayName -string NauticMixxx "$app/Contents/Info.plist"
 plutil -replace CFBundleName -string NauticMixxx "$app/Contents/Info.plist"

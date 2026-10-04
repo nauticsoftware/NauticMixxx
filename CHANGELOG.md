@@ -1,5 +1,15 @@
 # Historial de cambios
 
+## 1.6.0 — 2026-10-04
+
+- Consulta una vez al iniciar la última release estable pública de NauticMixxx.
+- Aviso en inglés con versión instalada/nueva y Download, Later y Skip this version.
+- Descarga manual desde GitHub; omisión persistente para esa versión.
+- Consulta asíncrona con límite de cinco segundos; sin conexión o ante errores continúa sin avisos.
+- Cancela el aviso si comienza la reproducción o Auto DJ, sin repetir consultas durante la sesión.
+- Compara la versión propia del producto, independientemente del motor Mixxx 2.5.6.
+- Habilita conexiones salientes en el sandbox macOS sin credenciales de Apple.
+
 ## 1.5.1 — 2026-10-03
 
 - Corrige el bloqueo de Core Audio al aplicar cambios de salida de cabina con Hercules y M2.

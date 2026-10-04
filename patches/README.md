@@ -1,5 +1,20 @@
 # NauticMixxx native patches
 
+## 0019 — Startup update notice for v1.6
+
+Apply after 0001–0018. Adds one asynchronous GitHub latest-release request at
+startup with a five-second deadline, strict stable version parsing and no
+retries, redirects or background polling. The English notice offers Download
+(the trusted NauticMixxx release page), Later and Skip this version.
+
+The product version comes from nautic/VERSION in this workspace or the
+NAUTICMIX_VERSION CMake argument in reconstructed source trees. Mixxx's own
+engine version remains unchanged for configuration/database compatibility.
+Playback or Auto DJ cancels the check and dismisses an already open notice.
+Malformed feeds, drafts, prereleases, HTTP/network errors, oversized responses
+and late responses are silently ignored. StartupUpdateCheckerTest covers the
+version policy and real HTTP transport against a local deterministic server.
+
 ## 0017 — English by default
 
 New configurations use `en_US` independently of the operating-system language.

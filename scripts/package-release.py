@@ -46,6 +46,7 @@ PUBLIC_SCRIPT_PATHS = [
     "scripts/smoke-linux-gui.py",
     "scripts/build-app-icon-macos.sh",
     "scripts/build-app-icon-windows.py",
+    "scripts/prepare-app-branding.py",
     "scripts/build-mixxx-rx3-macos.sh",
     "scripts/package-macos-dmg.sh",
     "scripts/package-test-candidate-macos.sh",
@@ -132,8 +133,8 @@ def validate_inputs(app: Path) -> None:
     if skin_version != VERSION:
         raise ValueError(f"La skin declara {skin_version}; se esperaba {VERSION}")
     patches = sorted((ROOT / "patches").glob("00[0-9][0-9]-*.patch"))
-    if len(patches) != 18:
-        raise ValueError("La release requiere exactamente los dieciocho parches 0001–0018")
+    if len(patches) != 19:
+        raise ValueError("La release requiere exactamente los diecinueve parches 0001–0019")
     if not (SOURCE_ROOT / "src/widget/rx3displaystate.h").is_file():
         raise ValueError("Faltan los fuentes correspondientes parcheados de Mixxx")
     if not app.is_dir() or not (app / "Contents/Info.plist").is_file():

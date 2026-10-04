@@ -1,3 +1,21 @@
+# NauticMixxx 1.6.0 — update notice at startup
+
+NauticMixxx checks the latest stable public GitHub release once when the app starts. If a newer version is available, an English notice shows the installed and available versions.
+
+- **Download** opens the official release page for manual installation.
+- **Later** closes the notice for the current session.
+- **Skip this version** remembers that version and only alerts again for a later release.
+- The check runs asynchronously with a five-second limit. Offline, invalid and failed responses stay silent. Playback or Auto DJ cancels the notice; there are no checks during the session.
+- New profiles retain `en_US`, the project icon and all v1.5.1 audio fixes.
+
+Install v1.6 manually to enable notices for future releases. Older versions do not gain this feature automatically. No Apple developer account or Apple credentials are required.
+
+Downloads include the native macOS Apple Silicon app (DMG or ZIP) and the native Windows x64 installer. macOS is ad-hoc signed and not Apple-notarized; Windows is unsigned. Use the documented first-launch steps and verify `SHA256SUMS.txt`. Linux build recipes are included; no v1.6 Linux binary is published here.
+
+See [update behavior](docs/UPDATES-1.6.md), [installation guide](docs/INSTALLATION-EN.md) and `TEST_REPORT.md` for validation and remaining hardware limits.
+
+---
+
 # NauticMixxx 1.5.1 — audio output reconfiguration freeze fix
 
 Fixes freezing when accepting or applying audio changes with M2 main output, DJControl Inpulse 500 channels 3–4 for headphones and channels 1–2 for booth.

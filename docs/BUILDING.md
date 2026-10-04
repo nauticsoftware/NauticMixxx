@@ -12,7 +12,7 @@ Requisitos: Xcode Command Line Tools, CMake, Ninja, Git y unos 8 GB libres.
 ```
 
 El script descarga las entradas verificadas, aplica `patches/0001` a
-`0018`, compila `NauticMixxx.app`, ejecuta las pruebas RX3 y de timing Rekordbox, instala skin y
+`0019`, compila `NauticMixxx.app`, ejecuta las pruebas RX3 y de timing Rekordbox, instala skin y
 mapping dentro del bundle, genera el icono y firma de forma ad hoc.
 
 Variables opcionales:

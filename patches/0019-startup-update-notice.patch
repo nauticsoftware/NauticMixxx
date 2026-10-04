@@ -1,0 +1,705 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1065,6 +1065,7 @@
+   src/mixer/samplerbank.cpp
+   src/mixxxapplication.cpp
+   src/mixxxmainwindow.cpp
++  src/dialog/dlgstartupupdate.cpp
+   src/musicbrainz/chromaprinter.cpp
+   src/musicbrainz/crc.cpp
+   src/musicbrainz/gzip.cpp
+@@ -1078,6 +1079,7 @@
+   src/nativeeventhandlerwin.cpp
+   src/network/jsonwebtask.cpp
+   src/network/networktask.cpp
++  src/network/startupupdatechecker.cpp
+   src/network/webtask.cpp
+   src/preferences/colorpaletteeditor.cpp
+   src/preferences/colorpaletteeditor.cpp
+@@ -2234,6 +2236,7 @@
+     src/test/skincontext_test.cpp
+     src/test/softtakeover_test.cpp
+     src/test/soundproxy_test.cpp
++    src/test/startupupdatechecker_test.cpp
+     src/test/soundsourceproviderregistrytest.cpp
+     src/test/sqliteliketest.cpp
+     src/test/synccontroltest.cpp
+@@ -2355,6 +2358,14 @@
+ get_target_property(MIXXX_BUILD_FLAGS mixxx-lib COMPILE_OPTIONS)
+ 
+ # uses CMAKE_PROJECT_VERSION MIXXX_VERSION_PRERELEASE MIXXX_BUILD_FLAGS
++if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/nautic/VERSION")
++  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS nautic/VERSION)
++  file(READ "${CMAKE_CURRENT_SOURCE_DIR}/nautic/VERSION" NAUTICMIX_VERSION)
++  string(STRIP "${NAUTICMIX_VERSION}" NAUTICMIX_VERSION)
++endif()
++if(NOT NAUTICMIX_VERSION MATCHES "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$")
++  message(FATAL_ERROR "Set NAUTICMIX_VERSION to the NauticMixxx product version (X.Y.Z)")
++endif()
+ configure_file(src/version.h.in src/version.h @ONLY)
+ 
+ if(GIT_COMMIT_DATE AND NOT GIT_COMMIT_DATE MATCHES "^[0-9]*-[0-9]*-[0-9]*T[0-9]*\\:[0-9]*\\:[0-9]*[+-][0-9]*\\:[0-9]*$")
+diff --git a/src/version.h.in b/src/version.h.in
+--- a/src/version.h.in
++++ b/src/version.h.in
+@@ -8,3 +8,5 @@
+ #define MIXXX_VERSION_PATCH @CMAKE_PROJECT_VERSION_PATCH@
+ #define MIXXX_VERSION_SUFFIX "@MIXXX_VERSION_PRERELEASE@"
+ #define MIXXX_BUILD_FLAGS "@MIXXX_BUILD_FLAGS@"
++// Product version is separate from the upstream engine/configuration version.
++#define NAUTICMIX_VERSION "@NAUTICMIX_VERSION@"
+diff --git a/src/mixxxmainwindow.cpp b/src/mixxxmainwindow.cpp
+--- a/src/mixxxmainwindow.cpp
++++ b/src/mixxxmainwindow.cpp
+@@ -27,12 +27,15 @@
+ #include "dialog/dlgabout.h"
+ #include "dialog/dlgdevelopertools.h"
+ #include "dialog/dlgkeywheel.h"
++#include "dialog/dlgstartupupdate.h"
+ #include "moc_mixxxmainwindow.cpp"
+ #include "preferences/dialog/dlgpreferences.h"
+ #ifdef __BROADCAST__
+ #include "broadcast/broadcastmanager.h"
+ #endif
+ #include "control/controlindicatortimer.h"
++#include "control/controlproxy.h"
++#include "network/startupupdatechecker.h"
+ #include "library/library.h"
+ #include "library/library_prefs.h"
+ #ifdef __ENGINEPRIME__
+@@ -53,6 +56,7 @@
+ #include "util/scopedoverridecursor.h"
+ #include "util/timer.h"
+ #include "util/versionstore.h"
++#include "version.h"
+ #include "waveform/guitick.h"
+ #include "waveform/sharedglcontext.h"
+ #include "waveform/visualsmanager.h"
+@@ -450,6 +454,71 @@
+         qDebug("Enabling Auto DJ from CLI flag.");
+         ControlObject::set(ConfigKey("[AutoDJ]", "enabled"), 1.0);
+     }
++    QTimer::singleShot(0, this, &MixxxMainWindow::checkForStartupUpdate);
++}
++
++void MixxxMainWindow::checkForStartupUpdate() {
++    const auto settings = m_pCoreServices->getSettings();
++    if (!settings->getValue<bool>(ConfigKey("[NauticUpdates]", "CheckOnStartup"), true)) {
++        return;
++    }
++    QList<ControlProxy*> playbackControls;
++    for (const auto& family : {
++                 qMakePair(QStringLiteral("num_decks"), QStringLiteral("[Channel%1]")),
++                 qMakePair(QStringLiteral("num_samplers"), QStringLiteral("[Sampler%1]")),
++                 qMakePair(QStringLiteral("num_preview_decks"), QStringLiteral("[PreviewDeck%1]"))}) {
++        const int count = static_cast<int>(ControlObject::get(ConfigKey("[App]", family.first)));
++        for (int i = 1; i <= count; ++i) {
++            playbackControls.append(new ControlProxy(family.second.arg(i), "play", this));
++        }
++    }
++    playbackControls.append(new ControlProxy("[AutoDJ]", "enabled", this));
++    for (const auto* control : playbackControls) {
++        if (control->toBool()) {
++            return;
++        }
++    }
++
++    const QString currentVersion = QStringLiteral(NAUTICMIX_VERSION);
++    auto* checker = new nautic::StartupUpdateChecker(currentVersion,
++            settings->getValueString(ConfigKey("[NauticUpdates]", "SkippedVersion")),
++            [this, settings, currentVersion, playbackControls](const nautic::UpdateRelease& release) {
++                // Never defer this notification into the mixing session.
++                if (!isVisible() || QApplication::activeModalWidget()) {
++                    return;
++                }
++                for (const auto* control : playbackControls) {
++                    if (control->toBool()) {
++                        return;
++                    }
++                }
++                auto* dialog = new DlgStartupUpdate(currentVersion, release,
++                        [](const QUrl& page) { mixxx::DesktopHelper::openUrl(page); },
++                        [settings](const QString& version) {
++                            settings->setValue(ConfigKey("[NauticUpdates]", "SkippedVersion"),
++                                    version);
++                            settings->save();
++                        },
++                        this);
++                dialog->setAttribute(Qt::WA_DeleteOnClose);
++                for (auto* control : playbackControls) {
++                    control->connectValueChanged(dialog, [dialog](double value) {
++                        if (value > 0.0) {
++                            dialog->reject();
++                        }
++                    });
++                }
++                dialog->show();
++            },
++            this);
++    for (auto* control : playbackControls) {
++        control->connectValueChanged(checker, [checker](double value) {
++            if (value > 0.0) {
++                checker->cancel();
++            }
++        });
++    }
++    checker->check();
+ }
+ 
+ MixxxMainWindow::~MixxxMainWindow() {
+diff --git a/src/mixxxmainwindow.h b/src/mixxxmainwindow.h
+--- a/src/mixxxmainwindow.h
++++ b/src/mixxxmainwindow.h
+@@ -103,6 +103,7 @@
+ 
+   private:
+     void initializeWindow();
++    void checkForStartupUpdate();
+     void checkDirectRendering();
+ 
+     /// Load skin to a QWidget that we set as the central widget.
+diff --git a/src/network/startupupdatechecker.cpp b/src/network/startupupdatechecker.cpp
+new file mode 100644
+--- /dev/null
++++ b/src/network/startupupdatechecker.cpp
+@@ -0,0 +1,140 @@
++#include "network/startupupdatechecker.h"
++
++#include <QJsonDocument>
++#include <QJsonObject>
++#include <QNetworkReply>
++#include <QNetworkRequest>
++#include <QRegularExpression>
++#include <QVersionNumber>
++
++namespace nautic {
++namespace {
++constexpr int kMaxResponseBytes = 256 * 1024;
++
++std::optional<QVersionNumber> stableVersion(QString text) {
++    if (text.startsWith(QLatin1Char('v'))) {
++        text.remove(0, 1);
++    }
++    static const QRegularExpression pattern(
++            QStringLiteral("^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"));
++    if (!pattern.match(text).hasMatch()) {
++        return std::nullopt;
++    }
++    const auto version = QVersionNumber::fromString(text);
++    if (version.segmentCount() != 3) {
++        return std::nullopt;
++    }
++    return version;
++}
++} // namespace
++
++StartupUpdateChecker::StartupUpdateChecker(QString currentVersion,
++        QString skippedVersion,
++        AvailableCallback available,
++        QObject* parent,
++        QUrl endpoint,
++        int timeoutMs)
++        : QObject(parent),
++          m_currentVersion(std::move(currentVersion)),
++          m_skippedVersion(std::move(skippedVersion)),
++          m_available(std::move(available)),
++          m_endpoint(std::move(endpoint)),
++          m_network(this),
++          m_deadline(this) {
++    m_deadline.setSingleShot(true);
++    m_deadline.setInterval(qMax(1, timeoutMs));
++    connect(&m_deadline, &QTimer::timeout, this, &StartupUpdateChecker::cancel);
++}
++
++StartupUpdateChecker::~StartupUpdateChecker() {
++    if (m_reply) {
++        disconnect(m_reply, nullptr, this, nullptr);
++        m_reply->abort();
++    }
++}
++
++std::optional<UpdateRelease> StartupUpdateChecker::parseRelease(
++        const QByteArray& json,
++        const QString& currentVersion,
++        const QString& skippedVersion) {
++    if (json.size() > kMaxResponseBytes) {
++        return std::nullopt;
++    }
++    const auto document = QJsonDocument::fromJson(json);
++    if (!document.isObject()) {
++        return std::nullopt;
++    }
++    const auto object = document.object();
++    // Missing or incorrectly typed release flags fail closed.
++    if (!object.value("draft").isBool() || object.value("draft").toBool() ||
++            !object.value("prerelease").isBool() || object.value("prerelease").toBool()) {
++        return std::nullopt;
++    }
++    const QString tag = object.value("tag_name").toString();
++    const auto latest = stableVersion(tag);
++    const auto current = stableVersion(currentVersion);
++    const auto skipped = stableVersion(skippedVersion);
++    if (!latest || !current || *latest <= *current || (skipped && *latest == *skipped)) {
++        return std::nullopt;
++    }
++
++    // Construct the destination ourselves: never open a URL supplied by the feed.
++    const QUrl page(QStringLiteral("https://github.com/nauticsoftware/NauticMixxx/releases/tag/") + tag);
++    return UpdateRelease{latest->toString(), page};
++}
++
++void StartupUpdateChecker::check() {
++    if (m_started || m_cancelled || !stableVersion(m_currentVersion)) {
++        return;
++    }
++    m_started = true;
++    QNetworkRequest request(m_endpoint);
++    request.setRawHeader("Accept", "application/vnd.github+json");
++    request.setRawHeader("User-Agent", (QStringLiteral("NauticMixxx/") + m_currentVersion).toUtf8());
++    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
++            QNetworkRequest::ManualRedirectPolicy);
++    m_deadline.start();
++    m_elapsed.start();
++    m_reply = m_network.get(request);
++    m_reply->setReadBufferSize(kMaxResponseBytes + 1);
++    connect(m_reply, &QIODevice::readyRead, this, [this] {
++        if (!m_reply || m_cancelled) {
++            return;
++        }
++        m_body.append(m_reply->read(kMaxResponseBytes + 1 - m_body.size()));
++        if (m_body.size() > kMaxResponseBytes) {
++            cancel();
++        }
++    });
++    connect(m_reply, &QNetworkReply::finished, this, &StartupUpdateChecker::finish);
++}
++
++void StartupUpdateChecker::cancel() {
++    m_cancelled = true;
++    m_deadline.stop();
++    if (m_reply) {
++        m_reply->abort();
++    }
++}
++
++void StartupUpdateChecker::finish() {
++    m_deadline.stop();
++    if (!m_reply) {
++        return;
++    }
++    auto* reply = m_reply.data();
++    m_reply.clear();
++    reply->deleteLater();
++    if (m_cancelled || m_elapsed.elapsed() >= m_deadline.interval() ||
++            reply->error() != QNetworkReply::NoError ||
++            reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() != 200) {
++        return;
++    }
++    m_body.append(reply->read(kMaxResponseBytes + 1 - m_body.size()));
++    const auto release = parseRelease(m_body, m_currentVersion, m_skippedVersion);
++    if (release && m_available) {
++        m_available(*release);
++    }
++}
++
++} // namespace nautic
+diff --git a/src/network/startupupdatechecker.h b/src/network/startupupdatechecker.h
+new file mode 100644
+--- /dev/null
++++ b/src/network/startupupdatechecker.h
+@@ -0,0 +1,53 @@
++#pragma once
++
++#include <QNetworkAccessManager>
++#include <QElapsedTimer>
++#include <QPointer>
++#include <QTimer>
++#include <QUrl>
++#include <functional>
++#include <optional>
++
++namespace nautic {
++
++struct UpdateRelease {
++    QString version;
++    QUrl downloadPage;
++};
++
++// One asynchronous request, with a hard startup deadline. No retries or polling.
++class StartupUpdateChecker : public QObject {
++  public:
++    using AvailableCallback = std::function<void(const UpdateRelease&)>;
++    StartupUpdateChecker(QString currentVersion,
++            QString skippedVersion,
++            AvailableCallback available,
++            QObject* parent = nullptr,
++            QUrl endpoint = QUrl(QStringLiteral(
++                    "https://api.github.com/repos/nauticsoftware/NauticMixxx/releases/latest")),
++            int timeoutMs = 5000);
++    ~StartupUpdateChecker() override;
++
++    void check();
++    void cancel();
++    static std::optional<UpdateRelease> parseRelease(const QByteArray& json,
++            const QString& currentVersion,
++            const QString& skippedVersion);
++
++  private:
++    void finish();
++
++    const QString m_currentVersion;
++    const QString m_skippedVersion;
++    const AvailableCallback m_available;
++    const QUrl m_endpoint;
++    QNetworkAccessManager m_network;
++    QTimer m_deadline;
++    QElapsedTimer m_elapsed;
++    QPointer<QNetworkReply> m_reply;
++    QByteArray m_body;
++    bool m_started = false;
++    bool m_cancelled = false;
++};
++
++} // namespace nautic
+diff --git a/src/dialog/dlgstartupupdate.cpp b/src/dialog/dlgstartupupdate.cpp
+new file mode 100644
+--- /dev/null
++++ b/src/dialog/dlgstartupupdate.cpp
+@@ -0,0 +1,36 @@
++#include "dialog/dlgstartupupdate.h"
++
++#include <QCoreApplication>
++#include <QPushButton>
++
++DlgStartupUpdate::DlgStartupUpdate(const QString& installedVersion,
++        const nautic::UpdateRelease& release,
++        std::function<void(const QUrl&)> download,
++        std::function<void(const QString&)> skip,
++        QWidget* parent)
++        : QMessageBox(parent) {
++    const auto translate = [](const char* text) {
++        return QCoreApplication::translate("DlgStartupUpdate", text);
++    };
++    setIcon(QMessageBox::NoIcon);
++    setWindowTitle(translate("NauticMixxx update available"));
++    setWindowModality(Qt::NonModal);
++    setTextFormat(Qt::PlainText);
++    setText(translate("A new version of NauticMixxx is available."));
++    setInformativeText(
++            translate("Installed version: %1\nNew version: %2\n\nDownload the update and install it manually.")
++                    .arg(installedVersion, release.version));
++    auto* downloadButton = addButton(translate("Download"), QMessageBox::AcceptRole);
++    auto* laterButton = addButton(translate("Later"), QMessageBox::RejectRole);
++    auto* skipButton = addButton(translate("Skip this version"), QMessageBox::DestructiveRole);
++    setDefaultButton(laterButton);
++    setEscapeButton(laterButton);
++    connect(this, &QMessageBox::buttonClicked, this,
++            [release, downloadButton, skipButton, download, skip](QAbstractButton* button) {
++                if (button == downloadButton && download) {
++                    download(release.downloadPage);
++                } else if (button == skipButton && skip) {
++                    skip(release.version);
++                }
++            });
++}
+diff --git a/src/dialog/dlgstartupupdate.h b/src/dialog/dlgstartupupdate.h
+new file mode 100644
+--- /dev/null
++++ b/src/dialog/dlgstartupupdate.h
+@@ -0,0 +1,15 @@
++#pragma once
++
++#include <QMessageBox>
++#include <functional>
++
++#include "network/startupupdatechecker.h"
++
++class DlgStartupUpdate : public QMessageBox {
++  public:
++    DlgStartupUpdate(const QString& installedVersion,
++            const nautic::UpdateRelease& release,
++            std::function<void(const QUrl&)> download,
++            std::function<void(const QString&)> skip,
++            QWidget* parent = nullptr);
++};
+diff --git a/src/test/startupupdatechecker_test.cpp b/src/test/startupupdatechecker_test.cpp
+new file mode 100644
+--- /dev/null
++++ b/src/test/startupupdatechecker_test.cpp
+@@ -0,0 +1,275 @@
++#include <gtest/gtest.h>
++
++#include <QCoreApplication>
++#include <QEventLoop>
++#include <QJsonDocument>
++#include <QJsonObject>
++#include <QTcpServer>
++#include <QTcpSocket>
++#include <QTimer>
++#include <QPushButton>
++#include <memory>
++
++#include "dialog/dlgstartupupdate.h"
++#include "network/startupupdatechecker.h"
++#include "test/mixxxtest.h"
++
++namespace {
++QByteArray releaseJson(const QString& tag = QStringLiteral("v1.7.0")) {
++    return QJsonDocument(QJsonObject{
++            {"tag_name", tag}, {"draft", false}, {"prerelease", false},
++            {"html_url", "https://untrusted.example/download"}}).toJson();
++}
++
++void runEvents(int milliseconds) {
++    QEventLoop loop;
++    QTimer::singleShot(milliseconds, &loop, &QEventLoop::quit);
++    loop.exec();
++}
++
++// Real local HTTP transport, with no GitHub or internet dependency.
++class ReleaseServer : public QTcpServer {
++  public:
++    QByteArray body = releaseJson();
++    QByteArray status = "200 OK";
++    QByteArray headers;
++    QByteArray lastRequest;
++    int delayMs = 0;
++    int requests = 0;
++
++    ReleaseServer() {
++        connect(this, &QTcpServer::newConnection, this, [this] {
++            while (hasPendingConnections()) {
++                auto* socket = nextPendingConnection();
++                auto request = std::make_shared<QByteArray>();
++                connect(socket, &QTcpSocket::readyRead, this, [this, socket, request] {
++                    request->append(socket->readAll());
++                    if (!request->contains("\r\n\r\n")) {
++                        return;
++                    }
++                    disconnect(socket, &QTcpSocket::readyRead, this, nullptr);
++                    lastRequest = *request;
++                    ++requests;
++                    QTimer::singleShot(delayMs, socket, [this, socket] {
++                        socket->write("HTTP/1.1 " + status + "\r\n" + headers +
++                                "Content-Type: application/json\r\nConnection: close\r\nContent-Length: " +
++                                QByteArray::number(body.size()) + "\r\n\r\n" + body);
++                        socket->disconnectFromHost();
++                    });
++                });
++                connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
++            }
++        });
++    }
++
++    QUrl endpoint() const {
++        return QUrl(QStringLiteral("http://127.0.0.1:%1/latest").arg(serverPort()));
++    }
++};
++} // namespace
++
++TEST(StartupUpdateCheckerTest, ComparesProductVersionsNumericallyAndPinsDownloadPage) {
++    const auto result = nautic::StartupUpdateChecker::parseRelease(
++            releaseJson("v1.10.0"), "1.9.0", "");
++    ASSERT_TRUE(result);
++    EXPECT_EQ(QStringLiteral("1.10.0"), result->version);
++    EXPECT_EQ(QUrl("https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.10.0"),
++            result->downloadPage);
++    EXPECT_TRUE(nautic::StartupUpdateChecker::parseRelease(releaseJson("1.7.0"), "1.6.0", ""));
++}
++
++TEST(StartupUpdateCheckerTest, EqualOlderAndSkippedVersionsAreSilent) {
++    for (const auto& tag : {"v1.6.0", "v1.5.1", "v1.7.0"}) {
++        EXPECT_FALSE(nautic::StartupUpdateChecker::parseRelease(releaseJson(tag), "1.6.0", "1.7.0"));
++    }
++    EXPECT_FALSE(nautic::StartupUpdateChecker::parseRelease(releaseJson(), "1.6.0", "v1.7.0"));
++    EXPECT_TRUE(nautic::StartupUpdateChecker::parseRelease(releaseJson("v1.8.0"), "1.6.0", "1.7.0"));
++}
++
++TEST(StartupUpdateCheckerTest, RejectsDraftsPrereleasesAndInvalidFlags) {
++    for (const auto& flag : {"draft", "prerelease"}) {
++        auto object = QJsonDocument::fromJson(releaseJson()).object();
++        object[flag] = true;
++        EXPECT_FALSE(nautic::StartupUpdateChecker::parseRelease(QJsonDocument(object).toJson(), "1.6.0", ""));
++        object.remove(flag);
++        EXPECT_FALSE(nautic::StartupUpdateChecker::parseRelease(QJsonDocument(object).toJson(), "1.6.0", ""));
++        object[flag] = "false";
++        EXPECT_FALSE(nautic::StartupUpdateChecker::parseRelease(QJsonDocument(object).toJson(), "1.6.0", ""));
++    }
++}
++
++TEST(StartupUpdateCheckerTest, RejectsMalformedOrAmbiguousVersionsAndResponses) {
++    for (const auto& tag : {"v1.7.0-beta.1", "v1.7", "v1.7.0.1", "v01.7.0", "v1.7.0/../../evil",
++                 "v999999999999999999999.7.0", "v1.7.999999999999999999999", "", " v1.7.0"}) {
++        EXPECT_FALSE(nautic::StartupUpdateChecker::parseRelease(releaseJson(tag), "1.6.0", "")) << tag;
++    }
++    for (const auto& json : {"not json", "[]", "{}", "null"}) {
++        EXPECT_FALSE(nautic::StartupUpdateChecker::parseRelease(json, "1.6.0", ""));
++    }
++    EXPECT_FALSE(nautic::StartupUpdateChecker::parseRelease(releaseJson(), "2.5.6", ""));
++    EXPECT_FALSE(nautic::StartupUpdateChecker::parseRelease(releaseJson(), "1.6.0-beta.1", ""));
++    EXPECT_FALSE(nautic::StartupUpdateChecker::parseRelease(QByteArray(262145, ' '), "1.6.0", ""));
++}
++
++TEST(StartupUpdateCheckerTest, AsynchronousRequestRunsOnlyOnceWithoutCredentials) {
++    ReleaseServer server;
++    ASSERT_TRUE(server.listen(QHostAddress::LocalHost));
++    QEventLoop loop;
++    int notifications = 0;
++    nautic::StartupUpdateChecker checker("1.6.0", "",
++            [&](const nautic::UpdateRelease&) { ++notifications; loop.quit(); },
++            nullptr, server.endpoint(), 1000);
++    QTimer::singleShot(1500, &loop, &QEventLoop::quit);
++    checker.check();
++    checker.check();
++    EXPECT_EQ(0, notifications); // check() never blocks for the network.
++    loop.exec();
++    EXPECT_EQ(1, notifications);
++    checker.check();
++    runEvents(50);
++    EXPECT_EQ(1, server.requests);
++    EXPECT_TRUE(server.lastRequest.contains("User-Agent: NauticMixxx/1.6.0"));
++    EXPECT_FALSE(server.lastRequest.toLower().contains("authorization:"));
++}
++
++TEST(StartupUpdateCheckerTest, DeadlineDiscardsLateResponsesAndNeverRetries) {
++    ReleaseServer server;
++    server.delayMs = 200;
++    ASSERT_TRUE(server.listen(QHostAddress::LocalHost));
++    int notifications = 0;
++    nautic::StartupUpdateChecker checker("1.6.0", "",
++            [&](const nautic::UpdateRelease&) { ++notifications; },
++            nullptr, server.endpoint(), 40);
++    checker.check();
++    runEvents(350);
++    checker.check();
++    runEvents(50);
++    EXPECT_EQ(0, notifications);
++    EXPECT_EQ(1, server.requests);
++}
++
++TEST(StartupUpdateCheckerTest, CancellationDiscardsResponseEvenIfPlaybackStopsAgain) {
++    ReleaseServer server;
++    server.delayMs = 150;
++    ASSERT_TRUE(server.listen(QHostAddress::LocalHost));
++    int notifications = 0;
++    nautic::StartupUpdateChecker checker("1.6.0", "",
++            [&](const nautic::UpdateRelease&) { ++notifications; },
++            nullptr, server.endpoint(), 1000);
++    checker.check();
++    QTimer::singleShot(30, &checker, &nautic::StartupUpdateChecker::cancel);
++    runEvents(250);
++    checker.check();
++    runEvents(50);
++    EXPECT_EQ(0, notifications);
++    EXPECT_EQ(1, server.requests);
++}
++
++TEST(StartupUpdateCheckerTest, ErrorsRedirectsAndOversizedResponsesAreSilent) {
++    for (const auto& status : {"403 Forbidden", "404 Not Found", "429 Too Many Requests",
++                 "500 Internal Server Error", "302 Found", "200 OK"}) {
++        ReleaseServer server;
++        server.status = status;
++        if (server.status.startsWith("302")) {
++            server.headers = "Location: https://untrusted.example/redirect\r\n";
++        } else if (server.status.startsWith("200")) {
++            server.body = QByteArray(300000, ' ');
++        }
++        ASSERT_TRUE(server.listen(QHostAddress::LocalHost));
++        int notifications = 0;
++        nautic::StartupUpdateChecker checker("1.6.0", "",
++                [&](const nautic::UpdateRelease&) { ++notifications; },
++                nullptr, server.endpoint(), 100);
++        checker.check();
++        runEvents(200);
++        EXPECT_EQ(0, notifications) << status;
++        EXPECT_EQ(1, server.requests) << status;
++    }
++}
++
++TEST(StartupUpdateCheckerTest, ClosedConnectionAndShutdownAreSafe) {
++    ReleaseServer server;
++    ASSERT_TRUE(server.listen(QHostAddress::LocalHost));
++    const auto endpoint = server.endpoint();
++    server.close();
++    int notifications = 0;
++    nautic::StartupUpdateChecker checker("1.6.0", "",
++            [&](const nautic::UpdateRelease&) { ++notifications; }, nullptr, endpoint, 100);
++    checker.check();
++    runEvents(150);
++    EXPECT_EQ(0, notifications);
++
++    ASSERT_TRUE(server.listen(QHostAddress::LocalHost));
++    server.delayMs = 100;
++    {
++        nautic::StartupUpdateChecker pending("1.6.0", "",
++                [&](const nautic::UpdateRelease&) { ++notifications; }, nullptr, server.endpoint(), 500);
++        pending.check();
++        runEvents(20);
++    }
++    runEvents(150);
++    EXPECT_EQ(0, notifications);
++}
++
++class StartupUpdateDialogTest : public MixxxTest {};
++
++TEST_F(StartupUpdateDialogTest, SkipPersistsAcrossProfileRestartAndAllowsNextVersion) {
++    int downloads = 0;
++    const nautic::UpdateRelease release{"1.7.0", QUrl("https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.7.0")};
++    DlgStartupUpdate dialog("1.6.0", release,
++            [&](const QUrl&) { ++downloads; },
++            [this](const QString& version) {
++                config()->setValue(ConfigKey("[NauticUpdates]", "SkippedVersion"), version);
++                config()->save();
++            });
++    dialog.show();
++    for (auto* button : dialog.buttons()) {
++        if (dialog.buttonRole(button) == QMessageBox::DestructiveRole) {
++            button->click();
++        }
++    }
++    EXPECT_EQ(0, downloads);
++    EXPECT_FALSE(dialog.isVisible());
++    saveAndReloadConfig();
++    const auto skipped = config()->getValueString(ConfigKey("[NauticUpdates]", "SkippedVersion"));
++    EXPECT_EQ(QStringLiteral("1.7.0"), skipped);
++    EXPECT_FALSE(nautic::StartupUpdateChecker::parseRelease(releaseJson(), "1.6.0", skipped));
++    EXPECT_TRUE(nautic::StartupUpdateChecker::parseRelease(releaseJson("v1.8.0"), "1.6.0", skipped));
++}
++
++TEST_F(StartupUpdateDialogTest, LaterAndWindowCloseLeaveVersionEligible) {
++    const nautic::UpdateRelease release{"1.7.0", QUrl("https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.7.0")};
++    int actions = 0;
++    DlgStartupUpdate dialog("1.6.0", release,
++            [&](const QUrl&) { ++actions; }, [&](const QString&) { ++actions; });
++    dialog.show();
++    EXPECT_EQ(Qt::NonModal, dialog.windowModality());
++    EXPECT_EQ(QStringLiteral("Later"), dialog.defaultButton()->text());
++    for (auto* button : dialog.buttons()) {
++        if (dialog.buttonRole(button) == QMessageBox::RejectRole) {
++            button->click();
++        }
++    }
++    EXPECT_FALSE(dialog.isVisible());
++    dialog.show();
++    dialog.close();
++    EXPECT_EQ(0, actions);
++}
++
++TEST_F(StartupUpdateDialogTest, DownloadUsesTheReleasePageWithoutSkipping) {
++    const nautic::UpdateRelease release{"1.7.0", QUrl("https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.7.0")};
++    QUrl destination;
++    int skipped = 0;
++    DlgStartupUpdate dialog("1.6.0", release,
++            [&](const QUrl& page) { destination = page; },
++            [&](const QString&) { ++skipped; });
++    dialog.show();
++    for (auto* button : dialog.buttons()) {
++        if (dialog.buttonRole(button) == QMessageBox::AcceptRole) {
++            button->click();
++        }
++    }
++    EXPECT_EQ(release.downloadPage, destination);
++    EXPECT_EQ(0, skipped);
++    EXPECT_FALSE(dialog.isVisible());
++}
