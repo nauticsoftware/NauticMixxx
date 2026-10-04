@@ -1,5 +1,6 @@
 # NauticMixxx 1.8.0 — browser playback and deck display
 
+- Validation: 103 native tests passed on macOS and 133 on Windows; actual EXE installation/uninstallation verified.
 - Browser rows use bright green while playing and darker green after 60 seconds of actual playback in the session. Seek distance does not count.
 - PLAY replaces the note during playback; H marks lossless files, including ALAC detection in M4A. Sidebar category icons are drawn as vectors.
 - Compact DECK/number spacing and growing, blinking vector waves only during PLAY. The 800 ms cycle is approximate; no exact Pioneer cadence is claimed.

@@ -16,7 +16,17 @@
 - The badge cadence is approximate (200 ms per stage / 800 ms per cycle); no
   physical Pioneer cadence calibration is claimed. The first-install microphone
   permission crash sequence has not been reproduced after the lifetime fix.
-- Windows native CI and public bundle validation are being prepared for this release.
+- Windows x64: 133 native tests passed, 0 failed, 5 optional fixtures skipped.
+  Native NSIS EXE install/uninstall, version, English profile and controller
+  payload verification passed on windows-2022. All 24 patch hashes match.
+  [Windows CI evidence](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37242655612).
+- Public source CI passed for implementation commit 7502d22899ffb7b8fdd23d7be25e798bacb02b1b.
+  [Source CI evidence](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37242655094).
+- macOS ZIP/DMG: extracted and mounted apps pass strict signature, version,
+  English profile and canonical icon checks. Finder displays the own icon.
+  No isolated test profile is included. DMG integrity verification passed.
+- Windows installer input validation reads UTF-8 explicitly on Windows.
+  Target-machine Windows audio/controller/USB hardware validation is pending.
 
 
 ## v1.7.0 — waveforms and overview divisions

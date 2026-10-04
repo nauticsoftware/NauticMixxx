@@ -1,5 +1,6 @@
 # NauticMixxx 1.8.0 — reproducción del navegador y display de decks
 
+- Validación: 103 pruebas nativas en macOS y 133 en Windows; instalador EXE probado con instalación/desinstalación.
 - BROWSER: verde brillante durante PLAY y más oscuro tras 60 segundos de reproducción real en la sesión; los saltos no suman tiempo.
 - PLAY reemplaza la nota; H solo para lossless, incluyendo detección de ALAC en M4A. Iconos vectoriales de categorías.
 - DECK/número más próximos y ondas de menor a mayor con parpadeo solo durante PLAY; ciclo aproximado de 800 ms, no medido en hardware Pioneer.
