@@ -25,7 +25,7 @@ assert not windows_macro_identifiers('// near and far\nconst char *s = "near far
 for patch in sorted((ROOT / 'patches').glob('00[0-9][0-9]-*.patch')):
     additions = {}
     target = None
-    for line in patch.read_text().splitlines():
+    for line in patch.read_text(encoding='utf-8').splitlines():
         if line.startswith('+++ b/'):
             target = line[6:]
         elif line.startswith('+') and target and Path(target).suffix in {'.cpp', '.h', '.hpp', '.cc'}:
@@ -34,7 +34,7 @@ for patch in sorted((ROOT / 'patches').glob('00[0-9][0-9]-*.patch')):
         hits = windows_macro_identifiers('\n'.join(lines))
         assert not hits, f'{patch.name}: {target}: Windows macro identifiers {hits}; use explicit names'
 
-script = (ROOT / 'packaging/windows/NauticMixxx.nsi').read_text()
+script = (ROOT / 'packaging/windows/NauticMixxx.nsi').read_text(encoding='utf-8')
 for required in ('Name "NauticMixxx"', 'RequestExecutionLevel user',
                  'NauticMixxx.exe', 'Uninstall-NauticMixxx.exe',
                  'WriteRegStr HKCU', 'CreateShortcut', 'Icon "${ICON}"',
@@ -42,12 +42,12 @@ for required in ('Name "NauticMixxx"', 'RequestExecutionLevel user',
     assert required in script, required
 assert r'${PAYLOAD}\controllers\Pioneer_DDJ_FLX4_RX3\*' in script
 assert r'${PAYLOAD}\controllers\Pioneer_Roland_RX3\*' in script
-assert 'Locale en_US' in (ROOT / 'profile/XDJ_RX3_Mixxx.profile.cfg').read_text()
+assert 'Locale en_US' in (ROOT / 'profile/XDJ_RX3_Mixxx.profile.cfg').read_text(encoding='utf-8')
 assert '.bat' not in script.lower()
-build = (ROOT / 'scripts/build-mixxx-rx3-windows.ps1').read_text()
+build = (ROOT / 'scripts/build-mixxx-rx3-windows.ps1').read_text(encoding='utf-8')
 assert 'NauticMixxx.exe' in build and 'NauticMixxx.ico' in build
 assert 'build-app-icon-windows.py' in build
-icon = (ROOT / 'scripts/build-app-icon-windows.py').read_text()
+icon = (ROOT / 'scripts/build-app-icon-windows.py').read_text(encoding='utf-8')
 assert 'branding/iCon-macOS-Dark-1024x1024@1x.png' in icon
 
 spec = importlib.util.spec_from_file_location('windows_package', ROOT / 'scripts/package-rx3-windows-native.py')
