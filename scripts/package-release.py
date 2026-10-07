@@ -252,6 +252,7 @@ def create_source_archive(output: Path) -> None:
         for path in [
             "VERSION",
             "README.md",
+            "LICENSE",
             "LICENSE.md",
             "THIRD_PARTY_NOTICES.md",
             "TRADEMARKS.md",
@@ -297,6 +298,7 @@ def create_github_source_zip(output: Path) -> None:
         "CHANGELOG.md",
         "DRIVER-HERCULES.cmd",
         "EMPEZAR-COMPILACION.txt",
+        "LICENSE",
         "LICENSE.md",
         "branding/NauticMixxx.png",
         "branding/NauticMixxx2.png",
