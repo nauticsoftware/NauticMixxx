@@ -55,10 +55,11 @@ A free native build recipe is available for 64-bit Linux. Raspberry Pi 4 with
 controller testing is pending. Read the [Linux / Raspberry Pi guide](docs/LINUX-RASPBERRY-PI.md)
 for dependencies, memory settings, troubleshooting and free GitHub Actions builds.
 
-Native builds, RX3 tests and virtual GUI startup passed on
+The Linux recipe was validated with version 1.5.0: native builds, RX3 tests and virtual GUI startup passed on
 [Ubuntu 24.04 x86_64 and ARM64](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37158960601)
 and [Debian 12 ARM64](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37159816188).
 The Bookworm build uses Debian's userland; it still needs physical Pi testing.
+No native Linux 1.9.0 package is provided.
 
 ```sh
 ./scripts/install-linux-build-deps.sh
