@@ -1,5 +1,22 @@
 # Historial de cambios
 
+## 1.9.0 — 2026-10-07 (development)
+
+- Continuous one-pixel gray USB browse divider, without left-list scrollbar gaps; preserves navigation through overflowing lists.
+
+- Active deck follows user interaction independently of MASTER, with white selection outlines.
+- Two-second PERFORMANCE BROWSER hold activates GRID; the encoder shifts the selected grid, with red full-height downbeats and per-deck GRID tools.
+- Centered pad mode dividers, directional BEAT JUMP corner tabs and bold numeric displays except HOT CUE pads.
+- Compact STATUS / BEAT FX and MASTER geometry, spaced TEMPO label and green 6% range chip.
+- Both fixed deck wave pairs blink together; macOS RX3 opens as a frameless 1280×800 window.
+
+- Immediate USB category previews, stable USB slot labels, RX3 category ordering, and two browse columns.
+- Distinct category and content focus for controller and touch navigation.
+- Touch search keyboard, empty-query handling and compact results with INFO.
+- Artist/album/history previews, RELATED KEY placeholder, and deck-based harmonic/tempo matching.
+- Temporary read-only USB folder playback for unexported files.
+- Twelve complete track rows and sidebar height fitting; lower deck badge position.
+
 ## 1.8.0 — 2026-10-04
 
 - DECK: texto y número compactos, ondas vectoriales animadas solo durante PLAY;

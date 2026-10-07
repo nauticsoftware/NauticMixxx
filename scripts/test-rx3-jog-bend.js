@@ -20,7 +20,10 @@ const sandbox = {
     components: {Deck: function() {}, JogWheelBasic: Component},
     engine: {
         getValue: (group, control) => values.get(key(group, control)) ?? 0,
-        setValue: (group, control, value) => writes.push({group, control, value}),
+        setValue: (group, control, value) => {
+            if (group === "[RX3Controller]" && control === "active_deck") { values.set(key(group, control), value); return; }
+            writes.push({group, control, value});
+        },
         isScratching: deck => scratches.has(deck),
         scratchEnable: deck => scratches.add(deck),
         scratchDisable: deck => scratches.delete(deck),
@@ -106,19 +109,15 @@ for (const deck of [1, 2, 3, 4]) {
     assert.deepEqual(writes.at(-1), {group, control: "jog", value: 16},
         "paused searching retains its own response");
 
-    // Grid and loop editing take priority and receive the unscaled MIDI value.
-    const adjustGrid = mapper.rx3AdjustBeatGrid;
+    // GRID jogs select the deck; only BROWSER edits the grid.
     const adjustLoop = mapper.rx3AdjustLoopPoint;
     writes.length = 0;
-    mapper.rx3AdjustBeatGrid = (data, delta) => {
-        assert.equal(data, deckData);
-        assert.equal(delta, 4);
-        return true;
-    };
+    values.set(key("[RX3Controller]", "grid_mode"), 1);
     jog.inputWheel(0, 0x09, 4, 0xB1, group);
     shiftedJog.inputWheel(0, 0x09, 4, 0xB4, group);
     assert.equal(writes.length, 0);
-    mapper.rx3AdjustBeatGrid = () => false;
+    if (deck <= 2) assert.equal(values.get(key("[RX3Controller]", "active_deck")), deck);
+    values.set(key("[RX3Controller]", "grid_mode"), 0);
     mapper.rx3AdjustLoopPoint = (data, delta, resolution) => {
         assert.equal(data, deckData);
         assert.equal(delta, -4);
@@ -127,7 +126,6 @@ for (const deck of [1, 2, 3, 4]) {
     };
     jog.inputWheel(0, 0x09, 124, 0xB1, group);
     assert.equal(writes.length, 0);
-    mapper.rx3AdjustBeatGrid = adjustGrid;
     mapper.rx3AdjustLoopPoint = adjustLoop;
 
     const fastSeek = mapper.rx3FastSeek;

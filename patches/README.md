@@ -260,3 +260,21 @@ compact fixed layout. Red/orange waves grow through three vector stages and
 then disappear. Animation runs only with a loaded playing track and resets on
 pause/unload. The approximate cadence is 200 ms per stage (800 ms per cycle),
 independent of BPM; Pioneer does not document the exact animation period.
+
+
+## 0025 — USB browser navigation and touch search
+
+Version 1.9 development adds immediate category previews, a fixed RX3 category
+order, stable logical USB slots, paired browse columns, controller focus
+handoff, and a touch search keyboard. Expanded track views fit exactly twelve
+rows. USB folder playback uses temporary tracks with a dedicated policy that
+allows analysis but blocks persistence, importing and metadata writes. MATCHING
+uses NauticMixxx harmonic/tempo suggestions; RELATED KEY remains a placeholder.
+The deck badge is moved down slightly. Native tests cover geometry, matching,
+category order, keyboard input, and USB folder confinement/policy.
+
+- `0026-performance-grid-and-selected-deck.patch`: user-selected deck independent
+  of playback MASTER, selected GRID downbeat lines and tools, paired badge blink,
+  directional beat-jump rendering and a frameless 1280×800 macOS RX3 window.
+
+- `0027-browser-continuous-column-divider.patch`: removes reserved left-list scrollbar gaps and paints one full-height gray divider between USB browse columns, including header and blank rows. Overflow remains navigable.

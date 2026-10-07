@@ -1,5 +1,83 @@
 # Informe de validación — NauticMixxx
 
+## v1.9.0 — public release validation
+
+- Full local release validation passed: public-input audit, XML, ten controller
+  JavaScript suites, controller presets, Windows installer/skin contracts and
+  USB-only policy. Native release filter: 110 passed, 0 failed, 11 optional
+  external fixture/render tests skipped. The preceding expanded control/GRID
+  regression filter passed 163 tests, and the final browser filter passed 43.
+- Local investigation evidence under docs/research and graph caches are
+  excluded from all public source payloads; the corresponding native source,
+  27 patches, installation guides and current release notes remain included.
+- Clean production macOS bundle has no isolated test profile and uses an
+  ad-hoc signature; Apple notarization is not provided.
+- Native Windows 1.9 build and installer CI validation are pending.
+- Physical controller and touchscreen tests remain pending.
+
+## v1.9.0 — continuous browser divider follow-up
+
+- The paired USB browse columns use one full-height gray divider, including
+  the header. Left list/tree scrollbars no longer reserve a black gap.
+- Native RX3 and table-state checks: 43 passed, 0 failed; one optional
+  performance render skipped. Browser renders cover normal and overflowing
+  facets. Regression assertions verify every divider pixel, adjacency to the
+  right column, full-width left viewport and last-row scrolling.
+- Windows installer contracts and patch 0027 application checks passed.
+  Native packaging now requires 27 patches.
+- Candidate 1.9.0-browser-divider-1 passes strict signature and canonical icon
+  byte checks; the actual bundle displays the NauticMixxx icon in Finder.
+- Target-machine controller/touchscreen verification remains pending.
+
+## v1.9.0 — performance GRID follow-up
+
+- Native macOS arm64 Release build completed: 163 tests passed, 0 failed,
+  5 optional external fixture tests skipped across RX3, controls, browser, USB
+  runtime/audio/waveform, table-state and track-policy suites.
+- Selection tests distinguish real input from owner feedback and repeated
+  values. GRID tests verify selected-track actions, CUE snap, half-beat shifts,
+  session reset, per-deck panels and red/white marker geometry.
+- Ten controller JavaScript suites passed, including exact 2000 ms entry,
+  selected-deck encoder routing, short-press exit and rotation cancellation.
+  USB-only checks, Windows installer contracts and skin XML parsing passed.
+- Qt renders verify centered dividers, mirrored BEAT JUMP corners, fixed
+  mirrored deck waves and compact BPM/MASTER geometry.
+- Patch 0026 applies cleanly to the saved pre-change source; native packaging
+  now requires 26 patches.
+- Public-input audit remains blocked by pre-existing local paths in unrelated
+  research graph caches. Those research files are not part of the test app.
+- Candidate 1.9.0-performance-1 passes strict ad-hoc signature and canonical
+  icon byte checks; Finder shows the NauticMixxx icon. It reaches the app event
+  loop, but AXError.cannotComplete prevents full live-window visual inspection.
+- Physical controller, touchscreen and target-machine audio checks remain
+  pending; no native Windows or Linux build is claimed for this follow-up.
+
+## v1.9.0 — USB browser development
+
+- Native macOS arm64 Release build completed. Browser, runtime catalog, USB
+  audio, waveform import, table-state and track-policy tests: 77 passed,
+  0 failed, 5 optional external fixture tests skipped.
+- Native widget checks cover immediate source presentation, two browse columns,
+  controller/touch focus, keyboard input, twelve complete rows at multiple
+  heights, and category buttons without a scrollbar. Startup checks include a
+  track table whose first model has not yet been assigned.
+- USB folder tests reject missing/outside paths and symlink escapes. Temporary
+  tracks permit playback and analysis but refuse persistence/import/export.
+  Matching tests cover missing metadata, reference exclusion and tempo order.
+- Controller browser/exit JavaScript checks, USB-only policy and Windows
+  installer contracts passed. This is not a native Windows v1.9 build.
+- Patch 0025 applies cleanly to the verified v1.8 source baseline; 25 patches
+  are now required by native packaging scripts.
+- Candidate 1.9.0-browser-2 passes strict ad-hoc signature and canonical icon
+  byte checks; the own icon is verified visually in Finder. It loads the RX3
+  skin and reaches the app event loop. Accessibility inspection timed out,
+  so real-USB visual navigation has not been validated. Candidate 1 was
+  superseded after a null-model startup crash, covered by the regression test.
+- RELATED KEY is a visible placeholder. MATCHING computes compatible keys and
+  a six-percent BPM window; saved Rekordbox matching pairs are not imported.
+- Real controller, touchscreen, multiple-device slot order, Windows and Linux
+  hardware validation remains pending.
+
 ## v1.8.0 — browser playback and deck display
 
 - macOS ARM64 Release: 103 native tests passed, 0 failed, 10 optional external

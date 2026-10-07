@@ -1,7 +1,7 @@
 <!DOCTYPE template>
 <Template>
   <TrackWidgetGroup>
-    <ObjectName>RX3LibraryDeck</ObjectName>
+    <ObjectName>RX3LibraryDeck</ObjectName><Rx3Deck><Variable name="channel"/></Rx3Deck><Connection><ConfigKey>[RX3Display],active<Variable name="channel"/></ConfigKey><BindProperty>highlight</BindProperty></Connection>
     <Group>[Channel<Variable name="channel"/>]</Group>
     <Layout>vertical</Layout>
     <Children>

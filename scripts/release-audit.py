@@ -55,6 +55,9 @@ def files_under(paths: list[Path]):
                 path
                 for path in base.rglob("*")
                 if path.is_file() and path.name != ".DS_Store" and "__pycache__" not in path.parts
+                # Local research and graph caches are excluded from public payloads.
+                and "graphify-out" not in path.parts
+                and not path.is_relative_to(ROOT / "docs/research")
             )
 
 
@@ -82,6 +85,14 @@ def audit(paths: list[Path]) -> list[str]:
 
 def validate_metadata() -> list[str]:
     errors: list[str] = []
+    notes = ROOT / "RELEASE_NOTES.md"
+    if not notes.is_file():
+        errors.append("missing English release notes: RELEASE_NOTES.md")
+    elif not notes.read_text(encoding="utf-8").startswith(f"# NauticMixxx {VERSION} "):
+        errors.append("RELEASE_NOTES.md must begin with the current NauticMixxx version")
+    for alternate in ROOT.glob("RELEASE_NOTES*.md"):
+        if alternate != notes:
+            errors.append(f"release notes must use a single English RELEASE_NOTES.md: {alternate.name}")
     if (ROOT / "packaging/DMG_PROJECT").exists():
         errors.append("la carpeta antigua de proyecto DMG debe eliminarse")
     skin = ET.parse(ROOT / "skins/XDJ_RX3_Mixxx/skin.xml")
@@ -89,8 +100,8 @@ def validate_metadata() -> list[str]:
         errors.append("el título de la skin no es NauticMixxx")
     if skin.findtext("manifest/version") != VERSION:
         errors.append("la versión de la skin no coincide con VERSION")
-    if len(list((ROOT / "patches").glob("00[0-9][0-9]-*.patch"))) != 24:
-        errors.append("deben existir exactamente veinticuatro parches numerados")
+    if len(list((ROOT / "patches").glob("00[0-9][0-9]-*.patch"))) != 27:
+        errors.append("deben existir exactamente veintisiete parches numerados")
     required = [
         ROOT / "branding/iCon.icon/icon.json",
         ROOT / "branding/NauticMixxx.png",

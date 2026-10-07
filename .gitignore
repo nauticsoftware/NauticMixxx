@@ -38,3 +38,6 @@ notarytool-profile.*
 
 # Retired DMG project folder. The canonical icon is under branding/.
 /packaging/DMG_PROJECT/
+
+# Local investigation evidence is excluded from public release sources.
+/docs/research/

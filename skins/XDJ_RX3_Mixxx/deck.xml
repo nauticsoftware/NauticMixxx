@@ -1,6 +1,6 @@
 <Template>
   <TrackWidgetGroup>
-    <ObjectName>Deck</ObjectName>
+    <ObjectName>Deck</ObjectName><Rx3Deck><Variable name="channel"/></Rx3Deck><Connection><ConfigKey>[RX3Display],active<Variable name="channel"/></ConfigKey><BindProperty>highlight</BindProperty></Connection>
     <Group>[Channel<Variable name="channel"/>]</Group>
     <Layout>vertical</Layout>
     <SizePolicy>i,me</SizePolicy>
@@ -127,7 +127,7 @@
                     <Children>
                       <WidgetGroup><ObjectName>DeckTempoRow</ObjectName><Layout>horizontal</Layout><Size>0me,22f</Size><Children>
                         <Label><ObjectName>DeckTempoCaption</ObjectName><Text>TEMPO</Text></Label>
-                        <WidgetGroup><ObjectName>RateRangeBadge</ObjectName><Layout>horizontal</Layout><Size>50f,20f</Size><Children><RateRange><ObjectName>RateDisplay</ObjectName><TooltipId>rate_range_display</TooltipId><Channel><Variable name="channel"/></Channel><Display>range</Display></RateRange><Label><ObjectName>RateRangeSuffix</ObjectName><Text>%</Text><Size>12f,0me</Size></Label></Children></WidgetGroup>
+                        <WidgetGroup><ObjectName>RateRangeBadge</ObjectName><Connection><ConfigKey>[Channel<Variable name="channel"/>],rateRange</ConfigKey><BindProperty>range</BindProperty></Connection><Layout>horizontal</Layout><Size>50f,20f</Size><Children><RateRange><ObjectName>RateDisplay</ObjectName><TooltipId>rate_range_display</TooltipId><Channel><Variable name="channel"/></Channel><Display>range</Display></RateRange><Label><ObjectName>RateRangeSuffix</ObjectName><Text>%</Text><Size>12f,0me</Size></Label></Children></WidgetGroup>
                       </Children></WidgetGroup>
                       <WidgetGroup><ObjectName>DeckTempoPercentRow</ObjectName><Layout>horizontal</Layout><Size>0me,0me</Size><Children>
                         <NumberRate><ObjectName>DeckTempoPercent</ObjectName><TooltipId>rate_display</TooltipId><Channel><Variable name="channel"/></Channel><NumberOfDigits>2</NumberOfDigits></NumberRate>

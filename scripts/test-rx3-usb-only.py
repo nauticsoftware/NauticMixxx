@@ -77,7 +77,7 @@ def main() -> int:
         errors,
     )
     require(
-        'QString source="INSERT REKORDBOX USB";' in browser,
+        'new QTreeWidgetItem(m_sources,{"NO DEVICE"})' in browser,
         "SOURCE no muestra el estado de espera de USB Rekordbox",
         errors,
     )
@@ -88,7 +88,8 @@ def main() -> int:
     )
     require(
         'const auto menu=currentCatalog->browseMenu();' in browser
-        and 'for(const auto& category : menu.categories)' in browser,
+        and 'auto categories=menu.categories;' in browser
+        and 'for(const auto& category : categories)' in browser,
         "las categorías no se leen del menú del USB Rekordbox",
         errors,
     )

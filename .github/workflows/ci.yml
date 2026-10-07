@@ -33,6 +33,7 @@ jobs:
           node scripts/test-flx4-browser.js
           python3 scripts/test-flx4-preset.py
           node scripts/test-rx3-jog-bend.js
+          node scripts/test-rx3-performance-grid.js
           node scripts/test-rx3-browser-exit.js
           node scripts/test-pioneer-roland-browser.js
           python3 scripts/test-pioneer-roland-presets.py

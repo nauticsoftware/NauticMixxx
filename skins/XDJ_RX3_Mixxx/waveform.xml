@@ -1,6 +1,6 @@
 <Template>
   <WidgetGroup>
-    <ObjectName>Waveform_Channel<Variable name="channel"/></ObjectName>
+    <ObjectName>Waveform_Channel<Variable name="channel"/></ObjectName><Rx3Deck><Variable name="channel"/></Rx3Deck>
     <Connection>
       <ConfigKey>[Pioneered],show_wf<Variable name="channel"/></ConfigKey>
       <BindProperty>visible</BindProperty>
@@ -9,7 +9,7 @@
     <Size>0me,50me</Size>
     <Children>
       <WidgetGroup>
-        <ObjectName>WaveformInfo</ObjectName>
+        <ObjectName>WaveformInfo</ObjectName><Rx3Deck><Variable name="channel"/></Rx3Deck><Connection><ConfigKey>[RX3Display],active<Variable name="channel"/></ConfigKey><BindProperty>highlight</BindProperty></Connection>
         <Layout>vertical</Layout>
         <Size>176f,0me</Size>
         <Children>

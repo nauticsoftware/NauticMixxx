@@ -1,0 +1,84 @@
+diff --git a/src/widget/wrx3browser.h b/src/widget/wrx3browser.h
+--- a/src/widget/wrx3browser.h
++++ b/src/widget/wrx3browser.h
+@@ -109,7 +109,7 @@
+         layout->addWidget(header);
+         m_pages = new QStackedWidget(this); layout->addWidget(m_pages, 1);
+         auto* browse = new QWidget(m_pages); auto* b = new QHBoxLayout(browse);
+-        b->setContentsMargins(0,0,0,0); b->setSpacing(2);
++        b->setContentsMargins(0,0,0,0); b->setSpacing(0);
+         m_categories = new QListWidget(browse); m_categories->setObjectName("RX3BrowserCategories");
+         m_categories->setItemDelegate(new Rx3CategoryDelegate(m_categories));
+         m_categories->setFrameShape(QFrame::NoFrame);
+@@ -120,18 +120,30 @@
+         m_searchRail->setFrameShape(QFrame::NoFrame);m_searchRail->setItemDelegate(new Rx3CategoryDelegate(m_searchRail));
+         m_searchRail->setProperty("categoryFocus",false);new QListWidgetItem("\nSEARCH",m_searchRail);
+         m_searchRail->setCurrentRow(0);m_searchRail->hide();b->addWidget(m_searchRail);
++        b->addSpacing(2);
+         connect(m_searchRail,&QListWidget::itemClicked,this,[this]{m_keyboard->show();m_search->setFocus();});
+         m_sidebar->setParent(browse); m_sidebar->setObjectName("RX3BrowserFolders");
+         m_sidebar->setFrameShape(QFrame::NoFrame);
+         m_sidebar->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
++        m_sidebar->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+         m_sidebar->setHeaderHidden(true); m_sidebar->setAlternatingRowColors(true);
+         m_leftColumn=new QWidget(browse);
+-        auto* leftLayout=new QVBoxLayout(m_leftColumn);
++        auto* columnLayout=new QHBoxLayout(m_leftColumn);
++        columnLayout->setContentsMargins(0,0,0,0);columnLayout->setSpacing(0);
++        auto* leftRows=new QWidget(m_leftColumn);
++        columnLayout->addWidget(leftRows,1);
++        auto* divider=new QWidget(m_leftColumn);
++        divider->setObjectName("RX3BrowseColumnDivider");
++        divider->setFixedWidth(1);divider->setStyleSheet("background:#777777;");
++        columnLayout->addWidget(divider);
++        auto* leftLayout=new QVBoxLayout(leftRows);
+         leftLayout->setContentsMargins(0,0,0,0);leftLayout->setSpacing(0);
+         m_leftHeader=new QLabel("FOLDER",m_leftColumn);m_leftHeader->setObjectName("RX3BrowseColumnHeader");
+         leftLayout->addWidget(m_leftHeader);leftLayout->addWidget(m_sidebar,1);
+         b->addWidget(m_leftColumn,1);
+         m_facets=new QListWidget(m_leftColumn);m_facets->setObjectName("RX3BrowserFacets");
++        m_facets->setFrameShape(QFrame::NoFrame);
++        m_facets->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+         m_facets->setAlternatingRowColors(true);m_facets->hide();leftLayout->addWidget(m_facets,1);
+         m_facets->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+         connect(m_facets,&QListWidget::currentRowChanged,this,[this]{updateFacetPreview();});
+diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
+--- a/src/test/rx3display_test.cpp
++++ b/src/test/rx3display_test.cpp
+@@ -869,6 +869,10 @@
+         browser.m_categories->setCurrentRow(4);browser.setPreview("TRACK",{"Track A","Track B"});
+         browser.m_focus=WRx3Browser::NavigationTarget::Categories;browser.updateNavigationHighlight();
+     }
++    static void overflowFacets(WRx3Browser& browser) {
++        for(int i=0;i<20;++i) browser.m_facets->addItem(QString("Additional row %1").arg(i));
++        browser.fitBrowseRows();
++    }
+     static void enterColumn(WRx3Browser& browser) {
+         browser.m_focus=WRx3Browser::NavigationTarget::Facets;browser.updateNavigationHighlight();
+     }
+@@ -907,6 +911,25 @@
+         EXPECT_EQ(QString("Track A"),preview->item(0,0)->text());
+         EXPECT_EQ(0,categories->verticalScrollBar()->maximum());
+         EXPECT_TRUE(categories->property("categoryFocus").toBool());capture("category-controller");
++        auto* facets=browser.findChild<QListWidget*>("RX3BrowserFacets");
++        auto* divider=browser.findChild<QWidget*>("RX3BrowseColumnDivider");
++        ASSERT_TRUE(facets);ASSERT_TRUE(divider);
++        EXPECT_EQ(QFrame::NoFrame,facets->frameShape());
++        EXPECT_EQ(facets->width(),facets->viewport()->width());
++        EXPECT_EQ(1,divider->width());
++        EXPECT_EQ(divider->mapTo(&browser,QPoint(divider->width(),0)).x(),
++                preview->mapTo(&browser,QPoint(0,0)).x());
++        const auto dividerImage=divider->grab().toImage();
++        for(int y=0;y<dividerImage.height();++y) EXPECT_EQ(QColor("#777777"),dividerImage.pixelColor(0,y));
++        // Overflow must stay navigable without reserving a black scrollbar strip.
++        Rx3BrowserTestAccess::overflowFacets(browser);QCoreApplication::processEvents();
++        EXPECT_GT(facets->verticalScrollBar()->maximum(),0);
++        EXPECT_EQ(facets->width(),facets->viewport()->width());
++        facets->setCurrentRow(facets->count()-1);facets->scrollToItem(facets->currentItem());
++        QCoreApplication::processEvents();
++        EXPECT_TRUE(facets->viewport()->rect().intersects(facets->visualItemRect(facets->currentItem())));
++        capture("category-overflow");
++        facets->setCurrentRow(0);facets->scrollToTop();
+         Rx3BrowserTestAccess::enterColumn(browser);
+         EXPECT_FALSE(categories->property("categoryFocus").toBool());capture("category-touch");
+         auto* keyboard=browser.findChild<QWidget*>("RX3SearchKeyboard");

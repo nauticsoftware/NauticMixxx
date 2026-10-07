@@ -26,7 +26,7 @@ if [ ! -d "$source_tree" ]; then
   tar -xzf "$work/mixxx-2.5.6.tar.gz" -C "$work"
 fi
 if [ -f "$patch_marker" ] && [ "$(cat "$patch_marker")" != "$patch_digest" ]; then
-  printf 'La carpeta fuente no coincide con los veinticuatro parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
+  printf 'La carpeta fuente no coincide con los veintisiete parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
   exit 1
 fi
 if [ ! -f "$patch_signature" ]; then
@@ -39,7 +39,7 @@ if [ ! -f "$patch_signature" ]; then
   printf '%s\n' "$patch_digest" > "$patch_marker"
 fi
 if [ ! -f "$patch_marker" ] || [ ! -f "$patch_signature" ] || [ "$(cat "$patch_marker")" != "$patch_digest" ]; then
-  printf 'La carpeta fuente no coincide con los veinticuatro parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
+  printf 'La carpeta fuente no coincide con los veintisiete parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
   exit 1
 fi
 deps="$work/buildenv/$deps_name"

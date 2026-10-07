@@ -48,6 +48,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Controller or installer input test failed' }
           node scripts/test-pioneer-roland-browser.js
           if ($LASTEXITCODE -ne 0) { throw 'Controller or installer input test failed' }
+          node scripts/test-rx3-performance-grid.js
           node scripts/test-rx3-browser-exit.js
           if ($LASTEXITCODE -ne 0) { throw 'Controller or installer input test failed' }
           node scripts/test-rx3-jog-bend.js

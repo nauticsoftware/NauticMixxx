@@ -3076,12 +3076,12 @@ WEffectSelector#RX3BeatFxSelector {
 
 /* Native RX3 browser: reference table, category rail and SOURCE page. */
 #RX3NativeBrowser, #RX3BrowserTracks, #RX3BrowserCategories, #RX3BrowserFolders { background: #000; color: #fff; border: 0; }
-#RX3BrowserHeader { background: #191919; border-top: 2px solid #008baa; }
+#RX3BrowserHeader { background: #191919; border: 0; }
 #RX3BrowserHeader QLabel { font-family: "Arial Narrow"; font-size: 21px; color: #fff; background: transparent; }
 #RX3BrowserHeader QPushButton { color: #ddd; background: #202020; border: 0; padding: 8px; font-size: 14px; }
 #RX3BrowserHeader QLineEdit { background: #303030; border: 1px solid #008bea; color: #fff; font-size: 18px; }
 #RX3BrowserCategories { font-family: "Arial"; font-size: 12px; outline: 0; }
-#RX3BrowserCategories::item { background: #202020; color: #fff; border-bottom: 1px solid #080808; padding: 4px; }
+#RX3BrowserCategories::item { background: #202020; color: #fff; border: 0; padding: 0; }
 #RX3BrowserCategories::item:selected { background: #006f88; border-left: 4px solid #fff; }
 #RX3BrowserFolders { alternate-background-color: #262626; font-family: "Arial Narrow"; font-size: 20px; outline: 0; }
 #RX3BrowserFolders::item { height: 43px; padding: 0 7px; }
@@ -3105,10 +3105,10 @@ WEffectSelector#RX3BeatFxSelector {
 
 #WaveformInfoUsbIcon { image: url(skin:/icons/rx3-usb.svg); min-height: 22px; max-height: 22px; }
 #WaveformInfo_Key { text-transform: none; }
-#RX3NativeBrowser #RX3BrowserCategories { min-width: 96px; }
+#RX3BrowseColumnHeader { background: #303030; color: #b7b7b7; font-family: "Arial"; font-size: 15px; padding-left: 10px; }
 
 #RX3BrowserFacets { background: #000; color: #fff; font-size: 20px; border: 0; }
-#RX3BrowserFacets::item { background: #202020; padding: 0 8px; border-bottom: 1px solid #000; }
+#RX3BrowserFacets::item { padding: 0 8px; border: 0; }
 #RX3BrowserFacets::item:selected { background: #008bea; }
 
 #RX3TrackInfo { background: #202020; color: #fff; font-size: 17px; padding: 14px; }
@@ -3133,3 +3133,52 @@ WEffectSelector#RX3BeatFxSelector {
 
 /* v1.8: one painted badge keeps DECK, numeral and animated waves aligned. */
 #DeckNumBadge1, #DeckNumBadge2 { margin: 0; padding: 0; border: 0; min-height: 52px; max-height: 52px; background: #181818; }
+
+/* 1.9: touch search and paired USB browse columns. */
+#RX3SearchKeyboard { background: #202020; }
+#RX3SearchKeyboard QPushButton { color: #fff; background: #303030; border: 1px solid #aaa; font-size: 24px; }
+#RX3SearchKeyboard QPushButton:pressed { background: #008bea; }
+#RX3BrowserFacets { alternate-background-color: #262626; }
+#RX3SourceInfo { background: #202020; padding: 0; }
+
+#RX3BrowserBreadcrumb { font-family: "Arial Narrow"; font-size: 21px; color: #fff; background: transparent; text-align: left; padding: 0; }
+
+#RX3SourceInfoPanel { background: #202020; }
+#RX3SourceSettings { color: #fff; background: transparent; border: 1px solid #aaa; font-size: 20px; min-height: 46px; }
+#RX3SourceSettings:disabled { color: #777; border-color: #555; }
+#RX3SourceSettings:pressed { background: #008bea; }
+
+/* v1.9 performance refinements: selected deck, GRID, pads and readouts. */
+#RX3ModeTitle { border: 0; padding: 0; margin: 0; font-size: 10px; font-weight: bold; qproperty-alignment: 'AlignCenter'; }
+#RX3JumpPad { background: #252525; border: 0; padding: 0; margin: 0; color: #fff; font-size: 13px; font-weight: bold; }
+#RX3JumpPad:pressed { background: #008bea; }
+#RX3GridTools { background: #000; qproperty-layoutSpacing: 5; }
+#RX3GridTool { background: #252525; border: 0; padding: 2px; font-size: 11px; font-weight: bold; color: #eee; }
+#RX3GridTool:pressed { background: #008bea; }
+#RX3GridTool[highlight="1"] { background: #000; color: #bbb; }
+#Deck, #RX3LibraryDeck { border: 1px solid #555; }
+#Deck[highlight="1"], #RX3LibraryDeck[highlight="1"] { border: 1px solid #eee; }
+#WaveformInfo { border: 1px solid transparent; }
+#WaveformInfo[highlight="1"] { border: 1px solid #eee; }
+#RX3ZoomControls #GridButton[highlight="1"] { color: #88beff; background: #173d78; border: 1px solid #88beff; }
+#RX3StatusTabs { min-height: 40px; max-height: 40px; border: 2px solid #777; padding: 0; margin: 0; }
+#RX3StatusTabs #RX3StatusTab { min-height: 36px; max-height: 36px; padding: 0; margin: 0; font-size: 16px; }
+#DeckHeaderBpm { min-width: 88px; max-width: 88px; }
+#DeckHeaderBpmTitleRow { min-height: 14px; max-height: 14px; }
+#DeckHeaderBpmTitle { min-width: 28px; max-width: 28px; font-size: 10px; }
+#BpmMaster { min-width: 0; font-size: 10px; font-weight: bold; }
+#DeckTempoPanel { min-width: 114px; max-width: 114px; padding: 8px 6px 0 0; }
+#DeckTempoRow { qproperty-layoutSpacing: 8; }
+#DeckTempoCaption { min-width: 36px; }
+#RateRangeBadge { background: #f84418; }
+#RateRangeBadge[range="0.06"] { background: #18fc00; }
+#RateDisplay, #RateRangeSuffix { background: transparent; color: #000; }
+#DeckTrackTime, #DeckTrackTimeMini, #DeckTempoPercent, #BPMPercent,
+#DeckHeaderBpmValue, #RateDisplay, #RateRangeSuffix, #TrackNoValue,
+#TrackNoQuantizeValue, #RX3LibraryDeckTime, #RX3LibraryDeckBpm1, #RX3LibraryDeckBpm2,
+#WaveformInfo_Bars, #WaveformInfoJump, #RX3BeatFxBpm, #RX3BeatFxMilliseconds,
+#RX3BeatFxBeat, #RX3ModePad, #RX3BeatLengthButton, #TopStatusClock { font-weight: bold; }
+#RX3StatusHotcuePad { font-weight: normal; }
+
+WNumber, WNumberPos, WNumberBpm, WNumberRate, WRateRange, WTime { font-weight: bold; }
+#RX3LoopButton, #WaveformInfoDeckTitle, #RX3LibraryDeckNumber { font-weight: bold; }

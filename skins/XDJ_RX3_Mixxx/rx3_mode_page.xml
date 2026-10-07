@@ -5,7 +5,7 @@
     <Layout>vertical</Layout>
     <Children>
       <Label>
-        <ObjectName>RX3ModeTitle</ObjectName>
+        <ObjectName>RX3ModeTitle</ObjectName><Rx3ModeTitle>true</Rx3ModeTitle>
         <Text><Variable name="title"/></Text>
         <Size>0me,16f</Size>
       </Label>

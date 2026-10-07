@@ -1,0 +1,564 @@
+diff --git a/src/control/control.cpp b/src/control/control.cpp
+--- a/src/control/control.cpp
++++ b/src/control/control.cpp
+@@ -274,6 +274,9 @@
+ }
+ 
+ void ControlDoublePrivate::set(double value, QObject* pSender) {
++    if (pSender != m_pCreatorCO.loadAcquire()) {
++        emit inputReceived(value);
++    }
+     // If the behavior says to ignore the set, ignore it.
+     QSharedPointer<ControlNumericBehavior> pBehavior = m_pBehavior;
+     if (!pBehavior.isNull() && !pBehavior->setFilter(&value)) {
+diff --git a/src/control/control.h b/src/control/control.h
+--- a/src/control/control.h
++++ b/src/control/control.h
+@@ -157,6 +157,9 @@
+     }
+ 
+   signals:
++    // External input, including repeated requests which do not change a value.
++    // Owner confirmations and transport feedback do not emit this signal.
++    void inputReceived(double value);
+     // Emitted when the ControlDoublePrivate value changes. pSender is a
+     // pointer to the setter of the value (potentially NULL).
+     void valueChanged(double value, QObject* pSender);
+diff --git a/src/controllers/scripting/legacy/controllerscriptinterfacelegacy.cpp b/src/controllers/scripting/legacy/controllerscriptinterfacelegacy.cpp
+--- a/src/controllers/scripting/legacy/controllerscriptinterfacelegacy.cpp
++++ b/src/controllers/scripting/legacy/controllerscriptinterfacelegacy.cpp
+@@ -661,6 +661,8 @@
+         double alpha,
+         double beta,
+         bool ramp) {
++    const ConfigKey selectedDeck("[RX3Controller]","active_deck");
++    if(deck>=1 && deck<=2 && ControlObject::exists(selectedDeck)) ControlObject::set(selectedDeck,deck);
+     // If we're already scratching this deck, override that with this request
+     if (static_cast<bool>(m_dx[deck])) {
+         //qCDebug(m_logger) << "Already scratching deck" << deck << ". Overriding.";
+@@ -731,6 +733,9 @@
+ }
+ 
+ void ControllerScriptInterfaceLegacy::scratchTick(int deck, int interval) {
++    const ConfigKey selectedDeck("[RX3Controller]","active_deck");
++    if(deck>=1 && deck<=2 && ControlObject::exists(selectedDeck)) ControlObject::set(selectedDeck,deck);
++
+     m_lastMovement[deck] = mixxx::Time::elapsed();
+     m_intervalAccumulator[deck] += interval;
+ }
+diff --git a/src/mixxxmainwindow.cpp b/src/mixxxmainwindow.cpp
+--- a/src/mixxxmainwindow.cpp
++++ b/src/mixxxmainwindow.cpp
+@@ -213,8 +213,12 @@
+             ConfigKey("[Config]", "StartInFullscreen"));
+     const bool rx3Skin = pConfig->getValueString(ConfigKey("[Config]", "ResizableSkin")) == "XDJ_RX3_Mixxx";
+     const ConfigKey rx3LastFullscreen("[RX3Window]", "LastFullscreen");
++#ifdef __APPLE__
++    const bool rx3Fullscreen = false;
++#else
+     const bool rx3Fullscreen = pConfig->getValueString(rx3LastFullscreen).isEmpty()
+             ? (isFullScreen() || fullscreenPref) : pConfig->getValue<bool>(rx3LastFullscreen);
++#endif
+     if ((CmdlineArgs::Instance().getStartInFullscreen() || (rx3Skin ? rx3Fullscreen : fullscreenPref)) &&
+             // could be we're fullscreen already after setGeomtery(previousGeometry)
+             !isFullScreen()) {
+@@ -417,7 +421,12 @@
+         QTimer::singleShot(0,this,[this]{
+             if (!isFullScreen() && m_pCentralWidget) {
+                 const QSize chrome = size() - m_pCentralWidget->size();
++                #ifdef __APPLE__
++                Q_UNUSED(chrome);
++                setFixedSize(1280,800);
++#else
+                 resize(QSize(1280,800) + chrome);
++#endif
+                 qInfo() << "RX3 windowed canvas:" << m_pCentralWidget->size();
+             }
+         });
+@@ -632,6 +641,11 @@
+     // start if we did shut down while in fullscreen mode and with
+     // [Config],StartInFullscreen = 1
+     // (slotViewFullScreen(true) in  initialize() is a no-op then)
++#ifdef __APPLE__
++    const bool rx3Window=m_pCoreServices->getSettings()->getValueString(
++            ConfigKey("[Config]","ResizableSkin"))=="XDJ_RX3_Mixxx";
++    setWindowFlag(Qt::FramelessWindowHint,rx3Window);
++#endif
+     restoreGeometry(QByteArray::fromBase64(
+             m_pCoreServices->getSettings()
+                     ->getValueString(ConfigKey("[MainWindow]", "geometry"))
+@@ -641,6 +655,9 @@
+                     ->getValueString(ConfigKey("[MainWindow]", "state"))
+                     .toUtf8()));
+ 
++#ifdef __APPLE__
++    if(rx3Window) {setWindowState(Qt::WindowNoState);setFixedSize(1280,800);}
++#endif
+     setWindowIcon(QIcon(MIXXX_ICON_PATH));
+     slotUpdateWindowTitle(TrackPointer());
+ }
+diff --git a/src/skin/legacy/legacyskinparser.cpp b/src/skin/legacy/legacyskinparser.cpp
+--- a/src/skin/legacy/legacyskinparser.cpp
++++ b/src/skin/legacy/legacyskinparser.cpp
+@@ -61,6 +61,7 @@
+ #include "widget/wnumberpos.h"
+ #include "widget/wreferencescaler.h"
+ #include "widget/rx3displaystate.h"
++#include "widget/wrx3performancewidgets.h"
+ #include "widget/wnumberrate.h"
+ #include "widget/woverview.h"
+ #include "widget/wpixmapstore.h"
+@@ -563,7 +564,11 @@
+     } else if (nodeName == "SliderComposed") {
+         result = wrapWidget(parseStandardWidget<WSliderComposed>(node));
+     } else if (nodeName == "PushButton") {
+-        result = wrapWidget(parseStandardWidget<WPushButton>(node));
++        result = wrapWidget(m_pContext->selectBool(node,"Rx3JumpPad",false)
++                        ? parseStandardWidget<WRx3JumpPad>(node)
++                        : m_pContext->selectBool(node,"Rx3GridButton",false)
++                                ? parseStandardWidget<WRx3GridButton>(node)
++                                : parseStandardWidget<WPushButton>(node));
+     } else if (nodeName == "EffectPushButton") {
+         result = wrapWidget(parseEffectPushButton(node));
+     } else if (nodeName == "HotcueButton") {
+@@ -602,7 +607,9 @@
+     } else if (nodeName == "Label") {
+         result = wrapWidget(m_pContext->selectBool(node, "Rx3DeckBadge", false)
+                         ? parseLabelWidget<WRx3DeckBadge>(node)
+-                        : parseLabelWidget<WLabel>(node));
++                        : m_pContext->selectBool(node,"Rx3ModeTitle",false)
++                                ? parseLabelWidget<WRx3ModeTitle>(node)
++                                : parseLabelWidget<WLabel>(node));
+     } else if (nodeName == "Knob") {
+         result = wrapWidget(parseStandardWidget<WKnob>(node));
+     } else if (nodeName == "KnobComposed") {
+@@ -2286,6 +2293,8 @@
+                                          bool allowConnections) {
+     setupBaseWidget(node, pBaseWidget);
+     setupWidget(node, pBaseWidget->toQWidget());
++    const int rx3Deck=m_pContext->selectString(node,"Rx3Deck").toInt();
++    if(rx3Deck>0) pBaseWidget->toQWidget()->setProperty("rx3Deck",rx3Deck);
+     // NOTE(rryan): setupConnections should come after setupBaseWidget and
+     // setupWidget since a BindProperty connection to the display parameter can
+     // cause the widget to be polished (i.e. style computed) before it is
+diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
+--- a/src/test/rx3display_test.cpp
++++ b/src/test/rx3display_test.cpp
+@@ -724,11 +724,11 @@
+ }
+ 
+ #include "widget/wrx3deckbadge.h"
+-TEST(Rx3DeckBadge, WavesGrowThenBlinkOffOnAnExplicitEightHundredMillisecondCycle) {
++TEST(Rx3DeckBadge, BothFixedWavePairsBlinkOnAnEightHundredMillisecondCycle) {
+     EXPECT_EQ(1,rx3::deckWaveStage(true,0));
+     EXPECT_EQ(1,rx3::deckWaveStage(true,199));
+-    EXPECT_EQ(2,rx3::deckWaveStage(true,200));
+-    EXPECT_EQ(3,rx3::deckWaveStage(true,400));
++    EXPECT_EQ(1,rx3::deckWaveStage(true,200));
++    EXPECT_EQ(0,rx3::deckWaveStage(true,400));
+     EXPECT_EQ(0,rx3::deckWaveStage(true,600));
+     EXPECT_EQ(1,rx3::deckWaveStage(true,800));
+     EXPECT_EQ(0,rx3::deckWaveStage(false,400));
+@@ -753,7 +753,8 @@
+             QPainter painter(&image);rx3::drawDeckBadge(&painter,QRectF(0,0,92,52),deck,stage);painter.end();
+             const int pixels=deckWavePixels(image);
+             if(stage==0) EXPECT_EQ(0,pixels);
+-            else EXPECT_GT(pixels,previous);
++            else if(stage==1) EXPECT_GT(pixels,previous);
++            else EXPECT_EQ(pixels,previous);
+             previous=pixels;
+             int wordBottom=-1,numberTop=52*dpr;
+             for(int y=0;y<52*dpr;++y) for(int x=36*dpr;x<56*dpr;++x) {
+@@ -932,3 +933,74 @@
+     }
+     PlayerInfo::destroy();
+ }
++
++#include "widget/wrx3performancewidgets.h"
++TEST_F(Rx3ReferenceScaleTest, UserInputSelectsDeckButEngineFeedbackDoesNot) {
++    ControlObject pitch1(ConfigKey("[Channel1]","rate"));
++    ControlObject pitch2(ConfigKey("[Channel2]","rate"));
++    ControlObject quantize2(ConfigKey("[Channel2]","quantize"));
++    Rx3PerformanceState state;
++    EXPECT_EQ(1,state.activeDeck());
++    pitch2.set(0.02);QCoreApplication::processEvents();
++    EXPECT_EQ(1,state.activeDeck()); // The owning engine control is feedback.
++    ControlObject::set(ConfigKey("[Channel2]","quantize"),1);QCoreApplication::processEvents();
++    EXPECT_EQ(2,state.activeDeck());
++    ControlObject::set(ConfigKey("[Channel1]","rate"),0);QCoreApplication::processEvents();
++    EXPECT_EQ(1,state.activeDeck()); // Same-value physical input still selects.
++    pitch2.set(0.03);QCoreApplication::processEvents();EXPECT_EQ(1,state.activeDeck());
++    QWidget deck;deck.setProperty("rx3Deck",2);
++    QMouseEvent press(QEvent::MouseButtonPress,QPointF(1,1),QPointF(1,1),Qt::LeftButton,Qt::LeftButton,Qt::NoModifier);QCoreApplication::sendEvent(&deck,&press);
++    EXPECT_EQ(2,state.activeDeck());
++    EXPECT_EQ(0,ControlObject::get(ConfigKey("[RX3Display]","active1")));
++    EXPECT_EQ(1,ControlObject::get(ConfigKey("[RX3Display]","active2")));
++}
++TEST_F(Rx3ReferenceScaleTest, GridToolsOnlyEditSelectedTrackAndResetEntrySnapshot) {
++    PlayerInfo::create();
++    {
++        const auto first=Track::newTemporary();const auto second=Track::newTemporary();
++        for(const auto& track : {first,second}) {
++            track->setAudioProperties(mixxx::audio::ChannelCount(2),mixxx::audio::SampleRate(48000),mixxx::audio::Bitrate(1411),mixxx::Duration::fromSeconds(20));
++            ASSERT_TRUE(track->trySetBeats(mixxx::Beats::fromBeatPositions(mixxx::audio::SampleRate(48000),{mixxx::audio::FramePos(0),mixxx::audio::FramePos(24000),mixxx::audio::FramePos(48000),mixxx::audio::FramePos(72000)})));
++            track->setMainCuePosition(mixxx::audio::FramePos(1000));
++        }
++        PlayerInfo::instance().setTrackInfo("[Channel1]",first);
++        PlayerInfo::instance().setTrackInfo("[Channel2]",second);
++        ControlObject position1(ConfigKey("[Channel1]","playposition"));
++        ControlObject position2(ConfigKey("[Channel2]","playposition"));
++        Rx3PerformanceState state;
++        const auto original1=first->getBeats();const auto original2=second->getBeats();
++        ControlObject::set(ConfigKey("[RX3Controller]","grid_mode"),1);QCoreApplication::processEvents();
++        EXPECT_TRUE(mixxx::beatgrid::editingDeck("[Channel1]"));
++        EXPECT_FALSE(mixxx::beatgrid::editingDeck("[Channel2]"));
++        auto action=[](const QString& key){ControlObject::set(ConfigKey("[RX3Controller]",key),1);ControlObject::set(ConfigKey("[RX3Controller]",key),0);QCoreApplication::processEvents();};
++        action("grid_snap_cue");EXPECT_NE(original1,first->getBeats());EXPECT_EQ(original2,second->getBeats());
++        EXPECT_EQ(mixxx::audio::FramePos(1000),first->getBeats()->findClosestBeat(mixxx::audio::FramePos(1000)));
++        action("grid_reset");EXPECT_EQ(original1,first->getBeats());
++        state.selectDeck(2);EXPECT_EQ(1,ControlObject::get(ConfigKey("[RX3Display]","gridpanel2")));
++        EXPECT_EQ(0,ControlObject::get(ConfigKey("[RX3Display]","gridpanel1")));
++        action("grid_later_half");EXPECT_NE(original2,second->getBeats());EXPECT_EQ(original1,first->getBeats());
++        action("grid_earlier_half");
++        EXPECT_EQ(original2->findClosestBeat(mixxx::audio::FramePos(24000)),second->getBeats()->findClosestBeat(mixxx::audio::FramePos(24000)));
++        action("grid_reset");EXPECT_EQ(original2,second->getBeats());
++        ControlObject::set(ConfigKey("[RX3Controller]","grid_mode"),0);QCoreApplication::processEvents();
++        EXPECT_FALSE(mixxx::beatgrid::editingDeck("[Channel2]"));
++        const auto red=mixxx::beatgrid::displayTicks(200,1,10,true,true);
++        EXPECT_EQ(0,red.topStart);EXPECT_EQ(200,red.topEnd);
++        const auto white=mixxx::beatgrid::displayTicks(200,1,10,false,true);
++        EXPECT_EQ(4,white.topStart);EXPECT_EQ(14,white.topEnd);
++    }
++    PlayerInfo::destroy();
++}
++TEST_F(Rx3ReferenceScaleTest, RenderPerformanceTitlesAndJumpCorners) {
++    const QString output=qEnvironmentVariable("NAUTIC_PERFORMANCE_QA_DIR");
++    if(output.isEmpty()) GTEST_SKIP()<<"Render artifact directory is optional";
++    SkinContext context(config(),QString());
++    QWidget panel;QVBoxLayout layout(&panel);layout.setContentsMargins(0,0,0,0);
++    auto* title=new WRx3ModeTitle(&panel);title->setText("BEAT JUMP");title->setFixedHeight(16);title->setAlignment(Qt::AlignCenter);layout.addWidget(title);
++    for(bool reverse : {true,false}) {
++        QDomDocument doc;ASSERT_TRUE(doc.setContent(QString("<PushButton><Reverse>%1</Reverse><NumberStates>1</NumberStates><State><Number>0</Number><Text>1</Text></State></PushButton>").arg(reverse?"true":"false")));
++        auto* pad=new WRx3JumpPad(&panel);pad->setup(doc.documentElement(),context);pad->setFixedHeight(22);layout.addWidget(pad);
++    }
++    panel.setStyleSheet("QWidget{background:#000;color:#fff;font-family:Arial;font-weight:bold;} WPushButton{background:#252525;font-size:13px;border:0;}");panel.resize(300,70);panel.show();QCoreApplication::processEvents();
++    ASSERT_TRUE(panel.grab().save(QDir(output).filePath("beat-jump.png")));
++}
+diff --git a/src/waveform/beatgridmarkers.h b/src/waveform/beatgridmarkers.h
+--- a/src/waveform/beatgridmarkers.h
++++ b/src/waveform/beatgridmarkers.h
+@@ -4,6 +4,7 @@
+ #include <atomic>
+ #include <cmath>
+ 
++#include "control/controlobject.h"
+ #include "track/cue.h"
+ #include "track/track.h"
+ #include "waveform/rekordboxwaveform.h"
+@@ -30,6 +31,15 @@
+             std::min(breadth, 4.f * scale + tick),
+             bottomStart,
+             std::min(breadth, bottomStart + tick + extension)};
++}
++
++inline bool editingDeck(const QString& group) {
++    return ControlObject::exists(ConfigKey("[RX3Controller]","grid_mode")) &&
++            ControlObject::get(ConfigKey("[RX3Controller]","grid_mode"))>0 &&
++            group==QString("[Channel%1]").arg(qRound(ControlObject::get(ConfigKey("[RX3Controller]","active_deck"))));
++}
++inline EdgeTicks displayTicks(float breadth,float scale,float length,bool downbeat,bool editing) {
++    return downbeat && editing ? EdgeTicks{0,breadth,0,0} : edgeTicks(breadth,scale,length,downbeat);
+ }
+ 
+ // The exported beat grid can begin during silence. Prefer the decoded audio
+diff --git a/src/waveform/renderers/allshader/waveformrenderbeat.cpp b/src/waveform/renderers/allshader/waveformrenderbeat.cpp
+--- a/src/waveform/renderers/allshader/waveformrenderbeat.cpp
++++ b/src/waveform/renderers/allshader/waveformrenderbeat.cpp
+@@ -126,8 +126,9 @@
+         const float pixel = 1.f / devicePixelRatio;
+         const float x2 = x1 + pixel;
+         const bool bar = ((beatIndex % 4) + 4) % 4 == 0;
+-        const auto ticks = mixxx::beatgrid::edgeTicks(
+-                usableBreadth, scaleFactor(), m_tickLength, bar);
++        const auto ticks = mixxx::beatgrid::displayTicks(
++                usableBreadth, scaleFactor(), m_tickLength, bar,
++                mixxx::beatgrid::editingDeck(m_waveformRenderer->getGroup()));
+         VertexData& vertices = bar ? m_downbeatVertices : m_vertices;
+         vertices.addRectangle(x1, ticks.topStart, x2, ticks.topEnd);
+         vertices.addRectangle(x1, ticks.bottomStart, x2, ticks.bottomEnd);
+diff --git a/src/waveform/renderers/waveformrenderbeat.cpp b/src/waveform/renderers/waveformrenderbeat.cpp
+--- a/src/waveform/renderers/waveformrenderbeat.cpp
++++ b/src/waveform/renderers/waveformrenderbeat.cpp
+@@ -115,8 +115,9 @@
+         xBeatPoint = qRound(xBeatPoint * devicePixelRatio) / devicePixelRatio;
+ 
+         const bool isDownbeat = ((beatIndex % 4) + 4) % 4 == 0;
+-        const auto geometry = mixxx::beatgrid::edgeTicks(
+-                rendererBreadth, scaleFactor(), m_tickLength, isDownbeat);
++        const auto geometry = mixxx::beatgrid::displayTicks(
++                rendererBreadth, scaleFactor(), m_tickLength, isDownbeat,
++                mixxx::beatgrid::editingDeck(m_waveformRenderer->getGroup()));
+         QVector<QLineF>& ticks = isDownbeat ? m_downbeats : m_beats;
+         int& tickCount = isDownbeat ? downbeatCount : beatCount;
+ 
+diff --git a/src/widget/rx3displaystate.h b/src/widget/rx3displaystate.h
+--- a/src/widget/rx3displaystate.h
++++ b/src/widget/rx3displaystate.h
+@@ -5,12 +5,14 @@
+ #include <memory>
+ #include "control/controlobject.h"
+ #include "control/controlproxy.h"
++#include "widget/rx3performancestate.h"
+ 
+-// Presentation state only. Never writes to transport, sync, tempo or mapping controls.
++// Playback MASTER presentation and independent user-selected performance deck.
+ class Rx3DisplayState : public QObject {
+   public:
+     explicit Rx3DisplayState(QObject* parent = nullptr)
+             : QObject(parent) {
++        new Rx3PerformanceState(this);
+         // These controls are part of the RX3 presentation contract. Create
+         // them here when the skin has not declared them yet, so controller
+         // mappings can use the same contract independently of parse order.
+diff --git a/src/widget/wrx3deckbadge.h b/src/widget/wrx3deckbadge.h
+--- a/src/widget/wrx3deckbadge.h
++++ b/src/widget/wrx3deckbadge.h
+@@ -12,10 +12,10 @@
+ 
+ namespace rx3 {
+ // Pioneer documents the waves, but not their cadence. Keep the approximation
+-// explicit and independent of BPM: three growing stages and one blank stage.
+-inline constexpr int kDeckWaveStageMs = 200;
++// explicit and independent of BPM: both fixed wave pairs blink together.
++inline constexpr int kDeckWaveStageMs = 400;
+ inline int deckWaveStage(bool playing, qint64 elapsedMs) {
+-    return playing ? (qMax(qint64(0), elapsedMs) / kDeckWaveStageMs + 1) % 4 : 0;
++    return playing ? 1 - (qMax(qint64(0), elapsedMs) / kDeckWaveStageMs) % 2 : 0;
+ }
+ inline void drawDeckBadge(QPainter* painter, const QRectF& rect, int deck, int stage) {
+     painter->save();
+@@ -30,11 +30,12 @@
+     painter->setPen(Qt::white);
+     painter->drawText(QRectF(0, 1, 92, 14), Qt::AlignCenter, QStringLiteral("DECK"));
+     font.setPixelSize(26);
++    font.setBold(true);
+     painter->setFont(font);
+     painter->drawText(QRectF(0, 13, 92, 31), Qt::AlignCenter, QString::number(deck));
+     painter->setPen(QPen(QColor("#F84418"), 1.4, Qt::SolidLine, Qt::RoundCap));
+     painter->setBrush(Qt::NoBrush);
+-    for (int wave = 0; wave < qBound(0, stage, 3); ++wave) {
++    for (int wave = 0; wave < (stage > 0 ? 2 : 0); ++wave) {
+         for (int side : {-1, 1}) {
+             const qreal x = 46 + side * (12 + wave * 4);
+             const qreal bulge = x + side * 4;
+diff --git a/src/widget/rx3performancestate.h b/src/widget/rx3performancestate.h
+new file mode 100644
+--- /dev/null
++++ b/src/widget/rx3performancestate.h
+@@ -0,0 +1,133 @@
++#pragma once
++
++#include <QApplication>
++#include <QEvent>
++#include <QWidget>
++#include <array>
++#include <memory>
++#include <vector>
++
++#include "control/controlobject.h"
++#include "control/controlproxy.h"
++#include "mixer/playerinfo.h"
++#include "track/beats.h"
++#include "track/track.h"
++
++// User interaction selection is independent of playback MASTER. Engine feedback
++// never takes selection away from the deck the performer last touched.
++class Rx3PerformanceState : public QObject {
++  public:
++    explicit Rx3PerformanceState(QObject* parent=nullptr) : QObject(parent) {
++        ensure("[RX3Controller]","active_deck",1);
++        ensure("[RX3Controller]","grid_mode",0);
++        for(int deck=1;deck<=2;++deck) {
++            ensure("[RX3Display]",QString("active%1").arg(deck),deck==1);
++            ensure("[RX3Display]",QString("gridpanel%1").arg(deck),0);
++            ensure("[RX3Display]",QString("gridshift%1").arg(deck),1);
++        }
++        for(const auto& action : {"grid_snap_cue","grid_shift","grid_earlier_half","grid_later_half","grid_reset"}) {
++            ensure("[RX3Controller]",action,0);
++            auto* input=new ControlProxy("[RX3Controller]",action,this);
++            input->connectValueChanged(this,[this,action](double value){if(value>0) applyAction(action);});
++        }
++        auto* active=new ControlProxy("[RX3Controller]","active_deck",this);
++        active->connectValueChanged(this,[this](double value){selectDeck(qRound(value));});
++        auto* grid=new ControlProxy("[RX3Controller]","grid_mode",this);
++        grid->connectValueChanged(this,[this](double value){
++            const bool entering=value>0 && !m_grid;
++            m_grid=value>0;
++            if(entering) {
++                m_originalTrack={};m_originalBeats={};captureGrid();
++                ControlObject::set(ConfigKey("[RX3SidePanel]","current"),0);
++            }
++            refresh();
++        });
++        for(const auto& control:ControlDoublePrivate::getAllInstances()) {
++            const auto key=control->getKey();
++            // Scratch filter timers and readouts are feedback, not fresh input.
++            if(key.item.startsWith("scratch2") || key.item.startsWith("visual_") ||
++                    key.item=="track_loaded" || key.item=="duration") continue;
++            for(int deck=1;deck<=2;++deck) {
++                if(key.group.contains(QString("[Channel%1]").arg(deck)) ||
++                        key.group==QString("[RX3PadModeDeck%1]").arg(deck)) {
++                    connect(control.data(),&ControlDoublePrivate::inputReceived,this,
++                            [this,deck]{selectDeck(deck);});
++                }
++            }
++        }
++        qApp->installEventFilter(this);
++        selectDeck(qRound(active->get()));
++    }
++    int activeDeck() const {return m_active;}
++    void selectDeck(int deck) {
++        if(deck<1 || deck>2) return;
++        m_active=deck;
++        if(ControlObject::get(ConfigKey("[RX3Controller]","active_deck"))!=deck)
++            ControlObject::set(ConfigKey("[RX3Controller]","active_deck"),deck);
++        if(m_grid) captureGrid();
++        refresh();
++    }
++  protected:
++    bool eventFilter(QObject* object,QEvent* event) override {
++        if(event->type()==QEvent::MouseButtonPress || event->type()==QEvent::TouchBegin || event->type()==QEvent::KeyPress) {
++            for(auto* widget=qobject_cast<QWidget*>(object);widget;widget=widget->parentWidget()) {
++                const int deck=widget->property("rx3Deck").toInt();
++                if(deck>0) {selectDeck(deck);break;}
++            }
++        }
++        return false;
++    }
++  private:
++    void ensure(const QString& group,const QString& item,double initial) {
++        if(!ControlObject::exists(ConfigKey(group,item))) m_owners.push_back(
++                std::make_unique<ControlObject>(ConfigKey(group,item),false,false,false,initial));
++    }
++    QString group() const {return QString("[Channel%1]").arg(m_active);}
++    void refresh() {
++        for(int deck=1;deck<=2;++deck) {
++            ControlObject::set(ConfigKey("[RX3Display]",QString("active%1").arg(deck)),deck==m_active);
++            ControlObject::set(ConfigKey("[RX3Display]",QString("gridpanel%1").arg(deck)),m_grid && deck==m_active);
++        }
++    }
++    void captureGrid() {
++        const auto track=PlayerInfo::instance().getTrackInfo(group());
++        const auto index=m_active-1;
++        if(track!=m_originalTrack[index]) {
++            m_originalTrack[index]=track;
++            m_originalBeats[index]=track?track->getBeats():mixxx::BeatsPointer();
++        }
++    }
++    void applyAction(const QString& action) {
++        if(!m_grid) return;
++        captureGrid();
++        const auto track=m_originalTrack[m_active-1];
++        if(!track || !track->getBeats()) return;
++        const auto beats=track->getBeats();
++        if(action=="grid_reset") {
++            if(m_originalBeats[m_active-1]) track->trySetBeats(m_originalBeats[m_active-1]);
++            return;
++        }
++        if(action=="grid_shift") return; // Encoder continuously translates the selected grid.
++        mixxx::audio::FrameDiff_t offset=0;
++        if(action=="grid_snap_cue") {
++            const auto cue=track->getMainCuePosition();
++            if(!cue.isValid()) return;
++            const auto closest=beats->findClosestBeat(cue);
++            if(!closest.isValid()) return;
++            offset=cue-closest;
++        } else {
++            const auto position=mixxx::audio::FramePos(
++                    ControlObject::get(ConfigKey(group(),"playposition"))*track->getDuration()*track->getSampleRate().value());
++            const double bpm=beats->getBpmAroundPosition(position,4).value();
++            if(bpm<=0) return;
++            offset=track->getSampleRate().value()*30.0/bpm*(action=="grid_earlier_half"?-1:1);
++        }
++        const auto translated=beats->tryTranslate(offset);
++        if(translated) track->trySetBeats(*translated);
++    }
++    std::vector<std::unique_ptr<ControlObject>> m_owners;
++    std::array<TrackPointer,2> m_originalTrack;
++    std::array<mixxx::BeatsPointer,2> m_originalBeats;
++    int m_active=1;
++    bool m_grid=false;
++};
+diff --git a/src/widget/wrx3performancewidgets.h b/src/widget/wrx3performancewidgets.h
+new file mode 100644
+--- /dev/null
++++ b/src/widget/wrx3performancewidgets.h
+@@ -0,0 +1,68 @@
++#pragma once
++
++#include <QPainter>
++#include <QPolygonF>
++#include <QMouseEvent>
++#include "control/controlobject.h"
++#include "widget/wlabel.h"
++#include "widget/wpushbutton.h"
++
++class WRx3ModeTitle : public WLabel {
++  public:
++    using WLabel::WLabel;
++  protected:
++    void paintEvent(QPaintEvent* event) override {
++        WLabel::paintEvent(event);
++        QPainter painter(this);
++        painter.setPen(QColor("#272727"));
++        const qreal gap=fontMetrics().horizontalAdvance(text())/2.0+12;
++        const qreal middle=width()/2.0;
++        painter.drawLine(QPointF(0,height()/2.0),QPointF(middle-gap,height()/2.0));
++        painter.drawLine(QPointF(middle+gap,height()/2.0),QPointF(width(),height()/2.0));
++    }
++};
++
++class WRx3JumpPad : public WPushButton {
++  public:
++    using WPushButton::WPushButton;
++    void setup(const QDomNode& node,const SkinContext& context) override {
++        m_reverse=context.selectBool(node,"Reverse",false);
++        WPushButton::setup(node,context);
++        for(auto& label:m_text) if(label=="0.5") label="1/2";
++    }
++  protected:
++    void paintEvent(QPaintEvent* event) override {
++        WPushButton::paintEvent(event);
++        QPainter painter(this);painter.setRenderHint(QPainter::Antialiasing);
++        painter.setPen(QPen(QColor("#999999"),1));painter.setBrush(Qt::NoBrush);
++        painter.drawRect(QRectF(rect()).adjusted(0.5,0.5,-0.5,-0.5));
++        if(m_reverse) {painter.translate(width(),0);painter.scale(-1,1);}
++        const qreal h=qMin(10.0,height()*0.6);
++        painter.setPen(Qt::NoPen);painter.setBrush(QColor("#999999"));
++        painter.drawPolygon(QPolygonF{QPointF(0,0),QPointF(24,0),QPointF(18,h),QPointF(0,h)});
++        painter.setBrush(QColor("#252525"));
++        for(int i=0;i<2;++i) {
++            const qreal x=5+i*7;
++            painter.drawPolygon(QPolygonF{QPointF(x,2),QPointF(x+4,5),QPointF(x,8)});
++        }
++    }
++  private:
++    bool m_reverse=false;
++};
++
++class WRx3GridButton : public WPushButton {
++  public:
++    using WPushButton::WPushButton;
++  protected:
++    void mousePressEvent(QMouseEvent* event) override {
++        if(event->button()==Qt::LeftButton) {
++            const ConfigKey key("[RX3Controller]","grid_mode");
++            ControlObject::set(key,ControlObject::get(key)>0?0:1);
++            event->accept();
++        } else WPushButton::mousePressEvent(event);
++    }
++    void mouseReleaseEvent(QMouseEvent* event) override {
++        if(event->button()==Qt::LeftButton) {event->accept();update();}
++        else WPushButton::mouseReleaseEvent(event);
++    }
++};

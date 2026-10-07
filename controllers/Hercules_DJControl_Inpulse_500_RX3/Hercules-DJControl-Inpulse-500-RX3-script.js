@@ -93,7 +93,8 @@ DJCi500.rx3AssistantHoldTimer = null;
 DJCi500.rx3AssistantHoldConsumed = false;
 DJCi500.rx3AssistantCanExit = false;
 DJCi500.rx3AssistantExitHoldMs = 600;
-DJCi500.rx3GridTicksPerStep = 4;
+DJCi500.rx3GridTicksPerStep = 1;
+DJCi500.rx3BrowserGridHoldMs = 2000;
 DJCi500.rx3GridRemainders = {};
 
 DJCi500.rx3CancelBrowserTimer = function() {
@@ -126,9 +127,15 @@ DJCi500.rx3SetGridMode = function(enabled) {
 
 DJCi500.rx3BrowserLongPress = function() {
     DJCi500.rx3BrowserHoldTimer = null;
+    if (Math.round(engine.getValue("[Tab]", "current")) !== 0) return;
     if (!DJCi500.rx3BrowserPressed || DJCi500.rx3BrowserMovedWhilePressed || DJCi500.rx3BrowserHoldConsumed) return;
     DJCi500.rx3BrowserHoldConsumed = true;
     DJCi500.rx3SetGridMode(!DJCi500.rx3GridActive());
+};
+
+DJCi500.rx3SelectDeck = function(deckData) {
+    const deck = script.deckFromGroup(deckData.currentDeck);
+    if (deck === 1 || deck === 2) engine.setValue("[RX3Controller]", "active_deck", deck);
 };
 
 DJCi500.rx3AdjustBeatGrid = function(deckData, ticks) {
@@ -1035,7 +1042,8 @@ DJCi500.Deck = function(deckNumbers, midiChannel) {
         inputWheel: function(_channel, _control, value, _status, _group) {
             const deck = script.deckFromGroup(deckData.currentDeck);
             value = this.inValueScale(value);
-            if (DJCi500.rx3AdjustBeatGrid(deckData, value)) return;
+            DJCi500.rx3SelectDeck(deckData);
+            if (DJCi500.rx3GridActive()) return;
             if (DJCi500.rx3AdjustLoopPoint(deckData, value, this.wheelResolution)) {
                 return;
             }
@@ -1052,6 +1060,7 @@ DJCi500.Deck = function(deckNumbers, midiChannel) {
         },
         inputTouch: function(_channel, _control, value, _status, _group) {
             const deck = script.deckFromGroup(deckData.currentDeck);
+            DJCi500.rx3SelectDeck(deckData);
             if (DJCi500.rx3GridActive() || deckData.loopAdjustMode !== null) {
                 if (engine.isScratching(deck)) {
                     engine.scratchDisable(deck);
@@ -1084,7 +1093,8 @@ DJCi500.Deck = function(deckNumbers, midiChannel) {
         group: `[Channel${midiChannel}]`,
         inputWheel: function(_channel, _control, value, _status, _group) {
             const tickDelta = this.inValueScale(value);
-            if (DJCi500.rx3AdjustBeatGrid(deckData, tickDelta)) return;
+            DJCi500.rx3SelectDeck(deckData);
+            if (DJCi500.rx3GridActive()) return;
             DJCi500.rx3FastSeek(deckData.currentDeck, tickDelta, this.wheelResolution);
         },
         inputTouch: function(_channel, _control, _value, _status, _group) {
@@ -1749,7 +1759,7 @@ DJCi500.rx3BrowserPush = function(_channel, _control, value, _status, _group) {
         DJCi500.rx3BrowserMovedWhilePressed = false;
         DJCi500.rx3BrowserHoldConsumed = false;
         DJCi500.rx3BrowserPressedAt = Date.now();
-        DJCi500.rx3BrowserHoldTimer = engine.beginTimer(2000, DJCi500.rx3BrowserLongPress, true);
+        DJCi500.rx3BrowserHoldTimer = engine.beginTimer(DJCi500.rx3BrowserGridHoldMs, DJCi500.rx3BrowserLongPress, true);
         return;
     }
 
@@ -1757,7 +1767,7 @@ DJCi500.rx3BrowserPush = function(_channel, _control, value, _status, _group) {
         return;
     }
     DJCi500.rx3CancelBrowserTimer();
-    if (Date.now() - DJCi500.rx3BrowserPressedAt >= 2000) DJCi500.rx3BrowserLongPress();
+    if (Date.now() - DJCi500.rx3BrowserPressedAt >= DJCi500.rx3BrowserGridHoldMs) DJCi500.rx3BrowserLongPress();
     DJCi500.rx3BrowserPressed = false;
     DJCi500.rx3BrowserIgnoreUntil = Date.now() + 350;
 
@@ -1855,7 +1865,12 @@ DJCi500.moveLibrary = function(channel, control, value, _status, _group) {
         DJCi500.rx3BrowserMovedWhilePressed = true;
         DJCi500.rx3CancelBrowserTimer();
     }
-    if (DJCi500.rx3GridActive()) return;
+    if (DJCi500.rx3GridActive()) {
+        const deck = Math.round(engine.getValue("[RX3Controller]", "active_deck")) === 2 ? 2 : 1;
+        const ticks = value > 0x3F ? value - 128 : value;
+        DJCi500.rx3AdjustBeatGrid({currentDeck: `[Channel${deck}]`}, ticks);
+        return;
+    }
 
     if (!browseIsOpen) {
         // The encoder sends values below 0x40 clockwise and above 0x3f

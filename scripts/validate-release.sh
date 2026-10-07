@@ -30,6 +30,7 @@ node scripts/test-rx3-sound-color-fx.js
 node scripts/test-rx3-transport-controls.js
 node scripts/test-rx3-jog-bend.js
 node scripts/test-rx3-browser-exit.js
+node scripts/test-rx3-performance-grid.js
 node scripts/test-flx6-browser.js
 node scripts/test-flx4-browser.js
 python3 scripts/test-flx4-preset.py

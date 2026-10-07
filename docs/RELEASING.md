@@ -5,6 +5,11 @@ en la raíz del workspace. Compilar o empaquetar dentro de `dev/` no publica una
 versión. La promoción requiere una orden explícita del mantenedor para actualizar
 la versión vigente.
 
+Las notas de versión se escriben exclusivamente en inglés en un único archivo
+`RELEASE_NOTES.md`, con el contenido de la versión vigente. No generar
+traducciones ni archivos alternativos por idioma. `CHANGELOG.md` conserva el
+historial. El empaquetador incluye únicamente `RELEASE_NOTES.md`.
+
 ## 1. Validar y generar candidatos
 
 Desde `dev/nautic/`:
@@ -52,14 +57,13 @@ posteriores incluyen el ejecutable y los parches del motor.
 
 Tras una solicitud explícita, copia los artefactos aprobados a
 `../../../release/<versión>/`, verifica de nuevo manifiesto y checksums e informa
-qué archivos y plataforma se actualizaron. No reemplaces la versión anterior
-antes de preservar un punto de restauración.
+qué archivos y plataforma se actualizaron. Al limpiar versiones obsoletas,
+conserva los paquetes, fuentes y evidencia de la versión vigente, además de
+las dependencias y carpetas de compilación que todavía utiliza.
 
 Para GitHub, crea el tag y el Release de la versión validada, adjunta los
 artefactos aprobados y describe las pruebas físicas pendientes. Nunca incluyas
 certificados, claves, perfiles personales, bases SQLite, música ni logs.
 
-La release local 1.0.0 existente tiene cuatro paquetes y `SHA256SUMS.txt`;
-`NauticMixxx-1.0.0-skin.zip` y `release-manifest.json`, que se mencionaban en
-documentación anterior, no están en ese directorio. No se deben anunciar como
-archivos disponibles hasta generarlos y promoverlos.
+La release local vigente está en `../../../release/1.9.0/`. Los paquetes de
+versiones locales anteriores fueron eliminados para liberar espacio.

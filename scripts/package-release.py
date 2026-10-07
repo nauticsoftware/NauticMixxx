@@ -65,6 +65,7 @@ PUBLIC_SCRIPT_PATHS = [
     "scripts/test-rx3-transport-controls.js",
     "scripts/test-rx3-jog-bend.js",
     "scripts/test-rx3-browser-exit.js",
+    "scripts/test-rx3-performance-grid.js",
     "scripts/test-rx3-usb-only.py",
     "scripts/test-flx6-browser.js",
     "scripts/test-flx4-browser.js",
@@ -96,8 +97,9 @@ def sha256(path: Path) -> str:
 
 
 def ignored(path: Path) -> bool:
-    blocked = {".git", ".DS_Store", "__pycache__", "compile_flags.txt", "nautic"}
-    return any(part in blocked for part in path.parts) or path.suffix in {".pyc", ".log"}
+    blocked = {".git", ".DS_Store", "__pycache__", "compile_flags.txt", "nautic", "graphify-out"}
+    research = any(a == "docs" and b == "research" for a, b in zip(path.parts, path.parts[1:]))
+    return research or any(part in blocked for part in path.parts) or path.suffix in {".pyc", ".log"}
 
 
 def copy_tree(source: Path, target: Path) -> None:
@@ -133,8 +135,8 @@ def validate_inputs(app: Path) -> None:
     if skin_version != VERSION:
         raise ValueError(f"La skin declara {skin_version}; se esperaba {VERSION}")
     patches = sorted((ROOT / "patches").glob("00[0-9][0-9]-*.patch"))
-    if len(patches) != 24:
-        raise ValueError("La release requiere exactamente los veinticuatro parches 0001–0024")
+    if len(patches) != 27:
+        raise ValueError("La release requiere exactamente los veintisiete parches 0001–0027")
     if not (SOURCE_ROOT / "src/widget/rx3displaystate.h").is_file():
         raise ValueError("Faltan los fuentes correspondientes parcheados de Mixxx")
     if not app.is_dir() or not (app / "Contents/Info.plist").is_file():
@@ -256,7 +258,6 @@ def create_source_archive(output: Path) -> None:
             "CHANGELOG.md",
             "CONTRIBUTING.md",
             "RELEASE_NOTES.md",
-            "RELEASE_NOTES_EN.md",
             "TEST_REPORT.md",
             "BUILD-WINDOWS.cmd",
             "DRIVER-HERCULES.cmd",
@@ -303,7 +304,6 @@ def create_github_source_zip(output: Path) -> None:
         "branding/NauticMixxx_Performance.png",
         "README.md",
         "RELEASE_NOTES.md",
-        "RELEASE_NOTES_EN.md",
         "SECURITY.md",
         "TEST_REPORT.md",
         "THIRD_PARTY_NOTICES.md",
@@ -456,7 +456,6 @@ def main() -> None:
     if windows_skin:
         shutil.copy2(windows_skin, output / windows_skin.name)
     shutil.copy2(ROOT / "RELEASE_NOTES.md", output / "RELEASE_NOTES.md")
-    shutil.copy2(ROOT / "RELEASE_NOTES_EN.md", output / "RELEASE_NOTES_EN.md")
     shutil.copy2(ROOT / "TEST_REPORT.md", output / "TEST_REPORT.md")
     create_sbom(output / f"{PRODUCT}-{VERSION}.spdx.json")
     installer = output / "install-nauticmixxx-macos.sh"
