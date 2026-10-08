@@ -17,12 +17,15 @@
   reference faces. Raw six-percent range highlights green; higher ranges restore red.
 - Live app inspection verified fullscreen expansion to 2560×1440 and return to
   the frameless 1280×800 window. The STATUS inset is visible on all four sides.
-  Finder displays the project icon on the final preview 4; generated application
+  Finder displays the project icon on the final preview 6; generated application
   and embedded Updater.app icon bytes match the canonical icon. The final DMG
   passes checksum, version, profile exclusion and strict nested-signature checks.
 - ZOOM/GRID live inspection verifies mutually exclusive cyan/gray states. STATUS
   pad pages use the same 70 px height, 16 px title and upper button baseline;
-  GRID uses a 40 px row with 4 px black gaps. The Hercules pad-load regression
+  GRID uses a 40 px row with 4 px black gaps. Native Qt geometry checks at
+  1280×800 and 2560×1440 verify equal page heights, title and upper-button
+  baselines and scaled gaps across HOT CUE, LOOP, JUMP and GRID templates.
+  The Hercules pad-load regression
   runs the real upstream component library for both decks, SHIFT LED banks,
   assigned/empty/saved-loop cues, mode isolation and deck reassignment.
 - Public-input audit, XML, controller JavaScript suites, controller preset tests,
@@ -38,7 +41,7 @@
 - Silent /UPDATE preserves user mixxx.cfg and effects.xml byte for byte. Fresh
   installs default to English and USB-only operation. Uninstall preserves profiles.
 - [Initial updater build and installer evidence](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37712144630).
-- [Final native build and installer evidence](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37714289047).
+- [Final native build and installer evidence](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37718252107).
 
 ## Scope and limitations
 

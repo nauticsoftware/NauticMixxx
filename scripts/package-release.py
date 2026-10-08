@@ -69,6 +69,7 @@ PUBLIC_SCRIPT_PATHS = [
     "scripts/test-rx3-jog-bend.js",
     "scripts/test-rx3-browser-exit.js",
     "scripts/test-rx3-performance-grid.js",
+    "scripts/test-rx3-pad-feedback.js",
     "scripts/test-rx3-usb-only.py",
     "scripts/test-flx6-browser.js",
     "scripts/test-flx4-browser.js",
