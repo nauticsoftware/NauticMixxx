@@ -8,5 +8,8 @@
 - Corrects the black inset around the active STATUS / BEAT FX button.
 - Uses #18FC00 only for the 6% pitch range and #F84418 for higher ranges. The badge follows the raw range value, including changes made in preferences.
 - Uses #BF3413 for A HOT CUE and #F87020 for MASTER. Performance readout typography follows the supplied reference.
+- Selected-deck focus stays on the last user interaction while both decks play. Engine rate, position, metering and synchronization feedback cannot steal GRID selection.
+- Mouse wheel and trackpad gestures over either main waveform adjust the same zoom on both decks, including with modifier keys, without changing playback, pitch or GRID.
+- QUANTIZE text and its active value use the A.HOT CUE accent (#BF3413).
 - Fullscreen releases the windowed size limit so the skin fills the display; returning to windowed mode restores 1280×800 on macOS.
 - Version 1.9.0 remains the stable public fallback. Version 1.9.1 is being prepared and is not yet published. Installing 1.9.1 from 1.9.0 requires one final manual installation before integrated updates become available.

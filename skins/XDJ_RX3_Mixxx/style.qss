@@ -3193,3 +3193,11 @@ WNumber, WNumberPos, WNumberBpm, WNumberRate, WRateRange, WTime { font-weight: n
 #DeckHeaderBpmValue[highlight="1"] { color: #F87020; }
 
 #TrackNoQuantize[highlight="1"], #TrackNoQuantizeValue[highlight="1"] { color: #BF3413; }
+
+/* Thin numeric faces match the supplied deck reference, including rich readouts. */
+#DeckTrackTime, #DeckTrackTimeMini, #DeckTempoPercent, #BPMPercent,
+#DeckHeaderBpmValue, #RateDisplay, #RateRangeSuffix,
+#RX3LibraryDeckTime, #RX3LibraryDeckBpm1, #RX3LibraryDeckBpm2 {
+  font-family: "Helvetica Neue", "Segoe UI", "Arial";
+  font-weight: 300;
+}

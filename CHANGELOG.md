@@ -7,6 +7,9 @@
 - STATUS inset, exact accent colors and reference readout typography.
 - Fullscreen scaling while retaining the 1280×800 windowed canvas.
 
+- Keep selected-deck focus stable during playback and restrict waveform wheel input to shared zoom.
+- Match thin numeric deck readouts and the QUANTIZE/A.HOT CUE accent.
+
 ## 1.9.0 — 2026-10-07 (development)
 
 - Continuous one-pixel gray USB browse divider, without left-list scrollbar gaps; preserves navigation through overflowing lists.
