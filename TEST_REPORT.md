@@ -1,45 +1,48 @@
-# NauticMixxx 1.9.0 validation report
+# NauticMixxx 1.9.1 validation report
 
 ## macOS arm64
 
-- Production Release bundle: 110 native tests passed, 0 failed, 11 optional
-  external fixture/render tests skipped. Public-input audit, XML, ten controller
-  JavaScript suites, controller presets, Windows installer/skin contracts and
-  USB-only policy passed.
-- Expanded control/GRID regression suite: 163 passed, 0 failed, 5 optional
-  fixtures skipped. Final browser/table-state suite: 43 passed, 0 failed,
-  1 optional performance render skipped. These overlapping suites are not additive.
-- Native checks cover selected-deck input versus engine feedback, GRID actions,
-  marker geometry, USB track policy, full-width facets, continuous divider pixels,
-  adjacent columns and last-row scrolling. Qt renders cover normal and overflowing
-  browser facets, centered pad dividers, BEAT JUMP corners and deck/BPM badges.
-- Controller tests verify the exact 2000 ms GRID hold, encoder routing, short-press
-  exit, rotation cancellation, transport controls, loops and browser navigation.
-- Production ZIP-extracted and DMG-mounted bundles pass strict signature, version,
-  canonical icon and isolated-test-profile exclusion checks. Finder displays the
-  project icon. DMG integrity verification passed. Signing is ad hoc;
-  Apple notarization is not provided.
+- Current native Release build: 139 native tests passed, 0 failed, 12 optional
+  external audio/USB/render fixtures skipped. These tests cover updater state,
+  Ed25519 verification, selected-deck stability with both decks generating engine
+  feedback, wheel-only shared zoom, GRID routing, thin numeric fonts, browser state
+  and USB capability policy.
+- Real sandboxed, ad-hoc signed Sparkle installation probes passed both immediate
+  install/relaunch and background install on quit, from 1.9.0 to 1.9.1, with a
+  signed local feed and signed payload. Both preserved the profile sentinel.
+  The background probe was manually relaunched after installation, as intended.
+- Native renders verify loaded REMAIN, pitch and BPM values using the thin
+  reference faces. Raw six-percent range highlights green; higher ranges restore red.
+- Live app inspection verified fullscreen expansion to 2560×1440 and return to
+  the frameless 1280×800 window. The STATUS inset is visible on all four sides.
+  Finder displays the project icon; generated bundle icon bytes match the canonical icon.
+- Public-input audit, XML, controller JavaScript suites, controller preset tests,
+  Windows installer/skin contracts and USB-only policy passed.
 
 ## Windows x64
 
-- Native Release build on windows-2022: 140 tests passed, 0 failed,
-  6 optional fixtures skipped. All 27 source patch hashes match the
-  release inputs. Application/installer identity and canonical icon validation passed.
-- The actual NSIS EXE passed silent installation and uninstallation, English profile,
-  USB-only settings, skin/controller/effects payload and user-profile preservation checks.
-- [Windows build and installer evidence](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37702640895).
+- Initial 1.9.1 native updater build and actual NSIS install/upgrade/uninstall passed:
+  150 native tests passed, 0 failed, 6 optional fixtures skipped.
+  The helper builds with NauticMixxx metadata and the project icon.
+- Silent /UPDATE preserves user mixxx.cfg and effects.xml byte for byte. Fresh
+  installs default to English and USB-only operation. Uninstall preserves profiles.
+- [Initial updater build and installer evidence](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37712144630).
+- A final build including the later wheel, selected-deck and thin-font corrections
+  is in progress. No final Windows artifact is claimed until that run passes.
 
-## Public source and limitations
+## Scope and limitations
 
-- [Source validation evidence](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37702624002)
-  covers implementation/packaging commit a4df3c531588a7c6331fd0334d92c07eb6ebb478.
-- Public payloads exclude local research, graph caches, profiles, music and logs.
-  Corresponding native sources, 27 patches, licenses and current release notes are included.
-- Physical controller, touchscreen and target-machine audio/USB validation remains
-  pending. Live macOS accessibility inspection returned AXError.cannotComplete;
-  automated native widget checks and renders passed.
-- RELATED KEY is a visible placeholder. MATCHING computes compatible keys and a
-  six-percent BPM window; saved Rekordbox matching pairs are not imported.
-- GRID Reset restores the entry snapshot for the track in that session. Temporary
-  USB grid changes are not exported. Deck wave cadence is approximate, not a
-  measured Pioneer hardware cadence. No native Linux 1.9 build is claimed.
+- Version 1.9.0 remains the public stable fallback. Version 1.9.1 is prepared on a
+  separate branch; it is not published as a release. Source inputs contain 28
+  reproducible native patches, current English release notes and third-party licenses.
+- Release signing keys stay in macOS Keychain. Public packages contain only the
+  verification key. No paid update service, Developer ID or Windows certificate is used.
+  macOS signing is ad hoc and is not notarized.
+- Windows manifest/artifact checks and installer upgrade are tested separately;
+  a live Windows update against a future GitHub release still needs a target-machine check.
+- Physical controller, touchscreen and target-machine audio/USB checks remain pending.
+  Optional METRONOME/real USB fixtures and the Hercules audio hardware fixture are unavailable.
+- RELATED KEY remains a visible placeholder. GRID Reset restores the entry snapshot;
+  temporary grid changes are not exported to USB. Playback-wave cadence is approximate.
+- A manual installation is needed once when upgrading from 1.9.0 to acquire the updater.
+  Linux retains the existing manual download fallback.
