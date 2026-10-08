@@ -3191,3 +3191,5 @@ WNumber, WNumberPos, WNumberBpm, WNumberRate, WRateRange, WTime { font-weight: n
 #BpmMaster[highlight="1"] { background: #F87020; color: #000; }
 #DeckHeaderBpm[highlight="1"] { border-color: #F87020; }
 #DeckHeaderBpmValue[highlight="1"] { color: #F87020; }
+
+#TrackNoQuantize[highlight="1"], #TrackNoQuantizeValue[highlight="1"] { color: #BF3413; }

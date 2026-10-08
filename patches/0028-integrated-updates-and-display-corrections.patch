@@ -1259,7 +1259,7 @@ diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
  TEST_F(Rx3ReferenceScaleTest, GridToolsOnlyEditSelectedTrackAndResetEntrySnapshot) {
      PlayerInfo::create();
      {
-@@ -1027,3 +1061,18 @@
+@@ -1027,3 +1061,99 @@
      panel.setStyleSheet("QWidget{background:#000;color:#fff;font-family:Arial;font-weight:bold;} WPushButton{background:#252525;font-size:13px;border:0;}");panel.resize(300,70);panel.show();QCoreApplication::processEvents();
      ASSERT_TRUE(panel.grab().save(QDir(output).filePath("beat-jump.png")));
  }
@@ -1277,6 +1277,87 @@ diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
 +    range.set(0.06);
 +    QCoreApplication::processEvents();
 +    EXPECT_EQ(1, badge.getHighlight());
++}
++
++TEST_F(Rx3ReferenceScaleTest, ReferenceReadoutTypographyRemainsNormalWhenScaled) {
++    QFile css(QDir(config()->getResourcePath()).filePath("../nautic/skins/XDJ_RX3_Mixxx/style.qss"));
++    if (!css.exists()) css.setFileName(QDir(config()->getResourcePath()).filePath("skins/XDJ_RX3_Mixxx/style.qss"));
++    ASSERT_TRUE(css.open(QIODevice::ReadOnly));
++    auto* canvas = new QWidget;
++    canvas->setStyleSheet(QString::fromUtf8(css.readAll()));
++    auto* layout = new QVBoxLayout(canvas);
++    std::vector<WLabel*> labels;
++    for (const auto& name : {"DeckTempoPercent", "BPMPercent", "DeckCueLabel", "RateDisplay",
++                 "RateRangeSuffix", "DeckHeaderBpmValue", "BpmMaster"}) {
++        auto* label = new WLabel(canvas);
++        label->setObjectName(name);
++        label->setText("126.0");
++        layout->addWidget(label);
++        labels.push_back(label);
++    }
++    WReferenceScaler viewport(canvas, QSize(1280,800), nullptr, true);
++    viewport.show();
++    for (const QSize size : {QSize(1280,800), QSize(2560,1440), QSize(1280,800)}) {
++        viewport.resize(size);
++        QCoreApplication::processEvents();
++        for (const auto* label : labels) {
++            EXPECT_EQ(QFont::Normal, label->font().weight()) << label->objectName().toStdString();
++        }
++    }
++}
++
++#include <QWheelEvent>
++#include "widget/wwaveformviewer.h"
++TEST_F(Rx3ReferenceScaleTest, WheelOnlyZoomsBothDecksAndKeepsGridSelection) {
++    std::vector<std::unique_ptr<ControlObject>> controls;
++    for (int deck = 1; deck <= 2; ++deck) {
++        for (const auto& item : {"waveform_zoom", "scratch_position_enable", "scratch_position",
++                     "wheel", "play", "passthrough", "rate", "beats_translate_curpos"}) {
++            controls.push_back(std::make_unique<ControlObject>(
++                    ConfigKey(QString("[Channel%1]").arg(deck), item)));
++        }
++    }
++    ControlObject::set(ConfigKey("[Channel1]", "waveform_zoom"), 5);
++    ControlObject::set(ConfigKey("[Channel2]", "waveform_zoom"), 3);
++    ControlObject::set(ConfigKey("[Channel1]", "rate"), 0.02);
++    Rx3PerformanceState selection;
++    selection.selectDeck(2);
++    ControlObject::set(ConfigKey("[RX3Controller]", "grid_mode"), 1);
++    WWaveformViewer first("[Channel1]", config()), second("[Channel2]", config());
++    QDomDocument node;
++    ASSERT_TRUE(node.setContent(QString("<Visual><Rx3SharedWheelZoom>true</Rx3SharedWheelZoom></Visual>")));
++    SkinContext context(config(), QString());
++    first.setup(node.documentElement(), context);
++    second.setup(node.documentElement(), context);
++    auto scroll = [&](QWidget* target, QPoint angle, QPoint pixels, Qt::KeyboardModifiers modifiers) {
++        QWheelEvent wheel(QPointF(10,10), QPointF(10,10), pixels, angle,
++                Qt::NoButton, modifiers, Qt::NoScrollPhase, false);
++        QCoreApplication::sendEvent(target, &wheel);
++        EXPECT_TRUE(wheel.isAccepted());
++        QCoreApplication::processEvents();
++        EXPECT_EQ(ControlObject::get(ConfigKey("[Channel1]", "waveform_zoom")),
++                ControlObject::get(ConfigKey("[Channel2]", "waveform_zoom")));
++        EXPECT_EQ(2, selection.activeDeck());
++        EXPECT_DOUBLE_EQ(0.02, ControlObject::get(ConfigKey("[Channel1]", "rate")));
++        for (int deck = 1; deck <= 2; ++deck) {
++            for (const auto& item : {"scratch_position_enable", "scratch_position", "wheel", "beats_translate_curpos"}) {
++                EXPECT_EQ(0, ControlObject::get(ConfigKey(QString("[Channel%1]").arg(deck), item)));
++            }
++        }
++    };
++    scroll(&first, QPoint(0,120), {}, Qt::NoModifier);
++    EXPECT_EQ(4, ControlObject::get(ConfigKey("[Channel1]", "waveform_zoom")));
++    scroll(&second, QPoint(0,-120), {}, Qt::ControlModifier | Qt::ShiftModifier);
++    EXPECT_EQ(5, ControlObject::get(ConfigKey("[Channel1]", "waveform_zoom")));
++    scroll(&first, {}, QPoint(0,2), Qt::AltModifier);
++    EXPECT_EQ(4, ControlObject::get(ConfigKey("[Channel1]", "waveform_zoom")));
++    scroll(&second, QPoint(120,0), {}, Qt::NoModifier);
++    EXPECT_EQ(4, ControlObject::get(ConfigKey("[Channel1]", "waveform_zoom")));
++    for (int repeat = 0; repeat < 15; ++repeat) scroll(&first, QPoint(0,120), {}, Qt::NoModifier);
++    EXPECT_EQ(1, ControlObject::get(ConfigKey("[Channel1]", "waveform_zoom")));
++    for (int repeat = 0; repeat < 15; ++repeat) scroll(&second, QPoint(0,-120), {}, Qt::NoModifier);
++    EXPECT_EQ(10, ControlObject::get(ConfigKey("[Channel1]", "waveform_zoom")));
++    ControlObject::set(ConfigKey("[RX3Controller]", "grid_mode"), 0);
 +}
 diff --git a/src/widget/rx3performancestate.h b/src/widget/rx3performancestate.h
 --- a/src/widget/rx3performancestate.h
@@ -1324,12 +1405,24 @@ diff --git a/src/widget/rx3performancestate.h b/src/widget/rx3performancestate.h
 +                "hotcue_[0-9]+_(activate|set|clear|goto|gotoandplay|gotoandstop)|"
 +                "loop_in|loop_out|loop_move|loop_double|loop_halve|loop_scale|"
 +                "loop_enabled|reloop_toggle|reloop_exit|reloop_andstop|"
-+                "waveform_zoom|waveform_zoom_up|waveform_zoom_down)$"));
++                "reloop_andplay)$"));
 +        return actions.match(item).hasMatch();
 +    }
      void ensure(const QString& group,const QString& item,double initial) {
          if(!ControlObject::exists(ConfigKey(group,item))) m_owners.push_back(
                  std::make_unique<ControlObject>(ConfigKey(group,item),false,false,false,initial));
+diff --git a/src/widget/wrx3deckbadge.h b/src/widget/wrx3deckbadge.h
+--- a/src/widget/wrx3deckbadge.h
++++ b/src/widget/wrx3deckbadge.h
+@@ -30,7 +30,7 @@
+     painter->setPen(Qt::white);
+     painter->drawText(QRectF(0, 1, 92, 14), Qt::AlignCenter, QStringLiteral("DECK"));
+     font.setPixelSize(26);
+-    font.setBold(true);
++    font.setBold(false);
+     painter->setFont(font);
+     painter->drawText(QRectF(0, 13, 92, 31), Qt::AlignCenter, QString::number(deck));
+     painter->setPen(QPen(QColor("#F84418"), 1.4, Qt::SolidLine, Qt::RoundCap));
 diff --git a/src/widget/wrx3performancewidgets.h b/src/widget/wrx3performancewidgets.h
 --- a/src/widget/wrx3performancewidgets.h
 +++ b/src/widget/wrx3performancewidgets.h
@@ -1359,3 +1452,49 @@ diff --git a/src/widget/wrx3performancewidgets.h b/src/widget/wrx3performancewid
  
  class WRx3ModeTitle : public WLabel {
    public:
+diff --git a/src/widget/wwaveformviewer.cpp b/src/widget/wwaveformviewer.cpp
+--- a/src/widget/wwaveformviewer.cpp
++++ b/src/widget/wwaveformviewer.cpp
+@@ -48,6 +48,7 @@
+ }
+ 
+ void WWaveformViewer::setup(const QDomNode& node, const SkinContext& context) {
++    m_rx3SharedWheelZoom = context.selectBool(node, "Rx3SharedWheelZoom", false);
+     if (m_waveformWidget) {
+         m_waveformWidget->setup(node, context);
+         if (m_referenceScale > 0) m_waveformWidget->setReferenceScale(m_referenceScale);
+@@ -194,6 +195,23 @@
+ }
+ 
+ void WWaveformViewer::wheelEvent(QWheelEvent* event) {
++    if (m_rx3SharedWheelZoom) {
++        // Wheel gestures have one function on the RX3: shared waveform zoom.
++        // Consume modifiers/horizontal gestures too, without forwarding them
++        // to another widget or touching playback, pitch or the selected grid.
++        const int delta = event->angleDelta().y() != 0 ? event->angleDelta().y()
++                                                     : event->pixelDelta().y();
++        if (delta != 0) {
++            const auto reference = ControlObject::get(ConfigKey("[Channel1]", "waveform_zoom"));
++            const double zoom = qBound(WaveformWidgetRenderer::s_waveformMinZoom,
++                    reference + (delta > 0 ? -1.0 : 1.0),
++                    WaveformWidgetRenderer::s_waveformMaxZoom);
++            ControlObject::set(ConfigKey("[Channel1]", "waveform_zoom"), zoom);
++            ControlObject::set(ConfigKey("[Channel2]", "waveform_zoom"), zoom);
++        }
++        event->accept();
++        return;
++    }
+     if (m_waveformWidget) {
+         if (event->angleDelta().y() > 0) {
+             onZoomChange(m_waveformWidget->getZoomFactor() / 1.05);
+diff --git a/src/widget/wwaveformviewer.h b/src/widget/wwaveformviewer.h
+--- a/src/widget/wwaveformviewer.h
++++ b/src/widget/wwaveformviewer.h
+@@ -83,6 +83,7 @@
+ 
+     WaveformWidgetAbstract* m_waveformWidget;
+     double m_referenceScale = 0;
++    bool m_rx3SharedWheelZoom = false;
+ 
+     int m_dimBrightThreshold;
+ 

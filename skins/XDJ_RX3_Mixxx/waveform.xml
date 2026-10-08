@@ -116,7 +116,7 @@
           <ConfigKey>[Channel<Variable name="channel"/>],track_loaded</ConfigKey>
           <BindProperty>visible</BindProperty>
         </Connection>
-        <DisableSeek>true</DisableSeek><ShowPreroll>false</ShowPreroll><ShowUntilNextMark>false</ShowUntilNextMark>
+        <Rx3SharedWheelZoom>true</Rx3SharedWheelZoom><DisableSeek>true</DisableSeek><ShowPreroll>false</ShowPreroll><ShowUntilNextMark>false</ShowUntilNextMark>
         <BgColor>#000</BgColor>
         <!-- RX3 beat grid: white edge ticks and slightly longer red downbeats.
              All ticks begin at the first audible part of the track. -->
