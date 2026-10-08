@@ -18,7 +18,21 @@ def configure(app, sdk, identity='-'):
         raise ValueError('Verified Sparkle SDK is required')
     framework = app / 'Contents/Frameworks/Sparkle.framework'
     subprocess.run(['ditto', str(source), str(framework)], check=True)
-    info = app / 'Contents/Info.plist'
+    # The bundled installer app must carry the project icon as well.
+    project_icon = app / 'Contents/Resources/application.icns'
+    if not project_icon.is_file():
+        raise ValueError('The NauticMixxx application icon is required')
+    installer = framework / 'Versions/B/Updater.app/Contents'
+    installer_resources = installer / 'Resources'
+    installer_resources.mkdir(exist_ok=True)
+    (installer_resources / 'application.icns').write_bytes(project_icon.read_bytes())
+    installer_info = installer / 'Info.plist'
+    with installer_info.open('rb') as handle:
+        installer_data = plistlib.load(handle)
+    installer_data['CFBundleIconFile'] = 'application.icns'
+    with installer_info.open('wb') as handle:
+        plistlib.dump(installer_data, handle)
+    info = app / 'Contents/Info.plist' 
     with info.open('rb') as handle:
         data = plistlib.load(handle)
     data.update(SUFeedURL=FEED_URL, SUPublicEDKey=PUBLIC_KEY,

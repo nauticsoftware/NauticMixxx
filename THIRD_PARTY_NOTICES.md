@@ -61,3 +61,4 @@ la generación de los presets, incluida la reconstrucción del XML SX3.
 - License: permissive Sparkle license (including bundled component notices).
 - Used for macOS signed updates and sandbox-aware installation. No subscription or paid license is required.
 - Full license: `vendor/licenses/Sparkle-2.10.0.txt`, also included in the macOS bundle.
+- The bundled Updater.app uses the NauticMixxx project icon; the application and framework are signed locally.
