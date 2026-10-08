@@ -20,6 +20,11 @@
   Finder displays the project icon on the final preview 4; generated application
   and embedded Updater.app icon bytes match the canonical icon. The final DMG
   passes checksum, version, profile exclusion and strict nested-signature checks.
+- ZOOM/GRID live inspection verifies mutually exclusive cyan/gray states. STATUS
+  pad pages use the same 70 px height, 16 px title and upper button baseline;
+  GRID uses a 40 px row with 4 px black gaps. The Hercules pad-load regression
+  runs the real upstream component library for both decks, SHIFT LED banks,
+  assigned/empty/saved-loop cues, mode isolation and deck reassignment.
 - Public-input audit, XML, controller JavaScript suites, controller preset tests,
   Windows installer/skin contracts and USB-only policy passed.
 

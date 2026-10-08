@@ -2,7 +2,8 @@
 
 ## 1.9.1 — In preparation
 
-- Fix mutually exclusive ZOOM/GRID highlights and add 4 px black gaps between GRID tools.
+- Fix mutually exclusive ZOOM/GRID highlights, add 4 px black gaps between GRID tools, and align STATUS pad-page titles and buttons.
+- Refresh Hercules Inpulse 500 pad feedback after loading or unloading tracks, including restored Rekordbox hot cues.
 
 - Integrated signed updates with immediate installation or installation on quit.
 - Optional background downloads, playback safeguards and profile-preserving Windows upgrades.

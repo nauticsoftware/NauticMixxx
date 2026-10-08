@@ -6,7 +6,8 @@
 - Integrated Windows upgrades preserve the existing profile and effects configuration. New profiles continue to start in English.
 - Updates use GitHub Releases and a project signing key; no paid update service, Apple Developer ID or paid certificate is required. Builds remain ad-hoc signed on macOS, so operating-system origin warnings can still appear.
 - Corrects the black inset around the active STATUS / BEAT FX button.
-- GRID turns ZOOM gray; leaving GRID restores the cyan ZOOM outline. GRID tools have separate buttons with four-pixel black gaps.
+- GRID turns ZOOM gray; leaving GRID restores the cyan ZOOM outline. GRID tools have separate buttons with four-pixel black gaps. STATUS pad pages share the same title and upper button baseline, including GRID.
+- Hercules Inpulse 500 refreshes all pad LEDs after track loading or unloading, including restored Rekordbox hot cues, without changing cue data or the active pad mode.
 - Uses #18FC00 only for the 6% pitch range and #F84418 for higher ranges. The badge follows the raw range value, including changes made in preferences.
 - Uses #BF3413 for A HOT CUE and #F87020 for MASTER. Performance readout typography follows the supplied reference.
 - Selected-deck focus stays on the last user interaction while both decks play. Engine rate, position, metering and synchronization feedback cannot steal GRID selection.

@@ -3197,3 +3197,13 @@ WNumber, WNumberPos, WNumberBpm, WNumberRate, WRateRange, WTime { font-weight: n
 #RX3ZoomControls #GridButton { color: #888; background: #08090a; border: 1px solid transparent; }
 #RX3ZoomControls #GridButton[displayValue="1"] { color: #0098f6; border-color: #0098f6; }
 #RX3GridToolRow { background: #000; qproperty-layoutSpacing: 4; }
+
+/* Keep every STATUS pad page on the same title and button baselines. */
+#RX3ModePage, #RX3GridTools {
+  min-height: 70px; max-height: 70px;
+  padding: 0; margin: 0; border: 0;
+  qproperty-layoutSpacing: 0;
+  qproperty-layoutAlignment: 'AlignTop';
+}
+#RX3GridTool { padding: 0; margin: 0; }
+#RX3ModeRowGap { min-height: 4px; max-height: 4px; }

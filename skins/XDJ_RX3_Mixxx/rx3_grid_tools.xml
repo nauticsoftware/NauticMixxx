@@ -3,6 +3,7 @@
   <WidgetGroup>
     <ObjectName>RX3GridTools</ObjectName>
     <Layout>vertical</Layout>
+    <Size>0me,70f</Size>
     <Children>
       <Label>
         <ObjectName>RX3ModeTitle</ObjectName>
@@ -13,10 +14,11 @@
       <WidgetGroup>
         <ObjectName>RX3GridToolRow</ObjectName>
         <Layout>horizontal</Layout>
+        <Size>0me,40f</Size>
         <Children>
           <PushButton>
             <ObjectName>RX3GridTool</ObjectName>
-            <Size>0me,36f</Size>
+            <Size>0me,40f</Size>
             <NumberStates>1</NumberStates>
             <State>
               <Number>0</Number>
@@ -29,7 +31,7 @@
           </PushButton>
           <PushButton>
             <ObjectName>RX3GridTool</ObjectName>
-            <Size>0me,36f</Size>
+            <Size>0me,40f</Size>
             <NumberStates>1</NumberStates>
             <State>
               <Number>0</Number>
@@ -47,7 +49,7 @@
           </PushButton>
           <PushButton>
             <ObjectName>RX3GridTool</ObjectName>
-            <Size>0me,36f</Size>
+            <Size>0me,40f</Size>
             <NumberStates>1</NumberStates>
             <State>
               <Number>0</Number>
@@ -60,7 +62,7 @@
           </PushButton>
           <PushButton>
             <ObjectName>RX3GridTool</ObjectName>
-            <Size>0me,36f</Size>
+            <Size>0me,40f</Size>
             <NumberStates>1</NumberStates>
             <State>
               <Number>0</Number>
@@ -73,7 +75,7 @@
           </PushButton>
           <PushButton>
             <ObjectName>RX3GridTool</ObjectName>
-            <Size>0me,36f</Size>
+            <Size>0me,40f</Size>
             <NumberStates>1</NumberStates>
             <State>
               <Number>0</Number>

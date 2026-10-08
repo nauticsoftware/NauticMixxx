@@ -1532,6 +1532,23 @@ DJCi500.Deck = function(deckNumbers, midiChannel) {
         },
     });
 
+    // Imported/restored cues can be populated around track_loaded while the
+    // MIDI output is still opening. Re-read all eight slots after that load
+    // has settled, even when the status values did not change.
+    this.padLoadRefreshTimer = 0;
+    this.padTrackLoaded = new components.Component({
+        outKey: "track_loaded",
+        output: function() {
+            if (deckData.padLoadRefreshTimer) {
+                engine.stopTimer(deckData.padLoadRefreshTimer);
+            }
+            deckData.padLoadRefreshTimer = engine.beginTimer(250, function() {
+                deckData.padLoadRefreshTimer = 0;
+                DJCi500.rx3RefreshPadLeds(deckData);
+            }, true);
+        },
+    });
+
     // As per Mixxx wiki, set the group properties
     this.reconnectComponents(function(c) {
         if (c.group === undefined) {
@@ -2230,6 +2247,12 @@ DJCi500.shutdown = function() {
     DJCi500.rx3CancelBrowserTimer();
     DJCi500.rx3BrowserPressed = false;
     DJCi500.rx3SetGridMode(false);
+    [DJCi500.deckA, DJCi500.deckB].forEach(function(deckData) {
+        if (deckData && deckData.padLoadRefreshTimer) {
+            engine.stopTimer(deckData.padLoadRefreshTimer);
+            deckData.padLoadRefreshTimer = 0;
+        }
+    });
     // Cleanup
     if (DJCi500.tempoTimer) {
         engine.stopTimer(DJCi500.tempoTimer);
