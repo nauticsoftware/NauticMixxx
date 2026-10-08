@@ -1,5 +1,14 @@
 # NauticMixxx native patches
 
+## 0028 — Integrated updates and display corrections for v1.9.1
+
+Adds a signed macOS Sparkle adapter, Qt update choices/status, Windows signed
+manifest and payload verification, and a helper that waits for process shutdown
+before installation. Immediate restarts are blocked by playback and Auto DJ.
+The raw 6% range badge and fullscreen window constraints are corrected.
+Sparkle must be fetched using the pinned SDK script; release keys remain outside
+the source tree. The test probe is never installed or packaged.
+
 ## 0020 — Waveform ecosystem and overview divisions for v1.7
 
 Unifies BLUE/RGB/3Band rendering across Performance, Browser and track previews.

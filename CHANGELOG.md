@@ -1,5 +1,12 @@
 # Historial de cambios
 
+## 1.9.1 — In preparation
+
+- Integrated signed updates with immediate installation or installation on quit.
+- Optional background downloads, playback safeguards and profile-preserving Windows upgrades.
+- STATUS inset, exact accent colors and reference readout typography.
+- Fullscreen scaling while retaining the 1280×800 windowed canvas.
+
 ## 1.9.0 — 2026-10-07 (development)
 
 - Continuous one-pixel gray USB browse divider, without left-list scrollbar gaps; preserves navigation through overflowing lists.

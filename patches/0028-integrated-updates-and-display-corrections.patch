@@ -1,0 +1,1269 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2372,6 +2372,32 @@
+ endif()
+ configure_file(src/version.h.in src/version.h @ONLY)
+ 
++# Signed, free integrated updates. macOS uses Sparkle's sandbox-aware installer;
++# Windows uses the signed NSIS payload and a separate wait-for-exit helper.
++find_package(OpenSSL 1.1.1 REQUIRED)
++target_sources(mixxx-lib PRIVATE src/network/integratedupdater.cpp src/network/updatepayload.cpp)
++target_link_libraries(mixxx-lib PRIVATE OpenSSL::Crypto)
++if(APPLE)
++  set(NAUTIC_SPARKLE_FRAMEWORK "" CACHE PATH "Verified Sparkle.framework from the pinned SDK")
++  if(NOT EXISTS "${NAUTIC_SPARKLE_FRAMEWORK}/Headers/Sparkle.h")
++    message(FATAL_ERROR "Set NAUTIC_SPARKLE_FRAMEWORK to the verified Sparkle SDK framework")
++  endif()
++  get_filename_component(NAUTIC_SPARKLE_DIRECTORY "${NAUTIC_SPARKLE_FRAMEWORK}" DIRECTORY)
++  target_sources(mixxx-lib PRIVATE src/network/integratedupdater_mac.mm)
++  target_compile_options(mixxx-lib PRIVATE "-F${NAUTIC_SPARKLE_DIRECTORY}")
++  target_link_libraries(mixxx-lib PRIVATE "${NAUTIC_SPARKLE_FRAMEWORK}")
++  set_property(TARGET mixxx APPEND PROPERTY BUILD_RPATH "${NAUTIC_SPARKLE_DIRECTORY}")
++  if(BUILD_TESTING)
++    set_property(TARGET mixxx-test APPEND PROPERTY BUILD_RPATH "${NAUTIC_SPARKLE_DIRECTORY}")
++  endif()
++elseif(WIN32)
++  target_sources(mixxx-lib PRIVATE src/network/integratedupdater_win.cpp)
++endif()
++if(BUILD_TESTING)
++  target_sources(mixxx-test PRIVATE src/test/integratedupdater_test.cpp)
++  target_link_libraries(mixxx-test PRIVATE OpenSSL::Crypto)
++endif()
++
+ if(GIT_COMMIT_DATE AND NOT GIT_COMMIT_DATE MATCHES "^[0-9]*-[0-9]*-[0-9]*T[0-9]*\\:[0-9]*\\:[0-9]*[+-][0-9]*\\:[0-9]*$")
+   message(FATAL_ERROR "GIT_COMMIT_DATE requires strict ISO 8601 format %Y-%m-%dT%H:%M:%SZ")
+ endif()
+@@ -2886,6 +2912,25 @@
+ foreach(COMPONENT ${QT_COMPONENTS})
+   target_link_libraries(mixxx-lib PUBLIC Qt${QT_VERSION_MAJOR}::${COMPONENT})
+ endforeach()
++if(APPLE AND BUILD_TESTING)
++  add_executable(nautic-update-probe src/test/integratedupdater_probe.mm
++    src/network/integratedupdater.cpp src/network/integratedupdater_mac.mm src/network/startupupdatechecker.cpp)
++  set_target_properties(nautic-update-probe PROPERTIES AUTOMOC ON)
++  target_include_directories(nautic-update-probe PRIVATE src)
++  target_compile_options(nautic-update-probe PRIVATE -fobjc-arc "-F${NAUTIC_SPARKLE_DIRECTORY}")
++  target_link_libraries(nautic-update-probe PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network
++    "${NAUTIC_SPARKLE_FRAMEWORK}")
++  set_property(TARGET nautic-update-probe APPEND PROPERTY BUILD_RPATH "${NAUTIC_SPARKLE_DIRECTORY}")
++endif()
++if(WIN32)
++  string(REPLACE "." "," NAUTIC_UPDATE_FILEVERSION "${NAUTICMIX_VERSION}")
++  configure_file(src/network/updatehelper.rc.in src/network/updatehelper.rc @ONLY)
++  add_executable(NauticUpdateHelper WIN32 src/network/updatehelper_win.cpp src/network/updatepayload.cpp
++    "${CMAKE_CURRENT_BINARY_DIR}/src/network/updatehelper.rc")
++  target_include_directories(NauticUpdateHelper PRIVATE src)
++  target_link_libraries(NauticUpdateHelper PRIVATE Qt${QT_VERSION_MAJOR}::Core OpenSSL::Crypto)
++  install(TARGETS NauticUpdateHelper RUNTIME DESTINATION "${MIXXX_INSTALL_BINDIR}")
++endif()
+ if(QT_EXTRA_COMPONENTS)
+   foreach(COMPONENT ${QT_EXTRA_COMPONENTS})
+     target_link_libraries(mixxx-lib PUBLIC Qt${QT_VERSION_MAJOR}::${COMPONENT})
+@@ -4131,6 +4176,7 @@
+     foreach(PREFIX ${CMAKE_PREFIX_PATH})
+       list(APPEND BUNDLE_DIRS "${PREFIX}/lib")
+     endforeach()
++    list(APPEND BUNDLE_DIRS "${NAUTIC_SPARKLE_DIRECTORY}")
+     set(
+       APPLE_CODESIGN_ENTITLEMENTS
+       "${CMAKE_CURRENT_SOURCE_DIR}/packaging/macos/Mixxx.entitlements"
+diff --git a/src/dialog/dlgstartupupdate.cpp b/src/dialog/dlgstartupupdate.cpp
+--- a/src/dialog/dlgstartupupdate.cpp
++++ b/src/dialog/dlgstartupupdate.cpp
+@@ -2,6 +2,10 @@
+ 
+ #include <QCoreApplication>
+ #include <QPushButton>
++#include <QCheckBox>
++#include <QLabel>
++#include <QProgressBar>
++#include <QVBoxLayout>
+ 
+ DlgStartupUpdate::DlgStartupUpdate(const QString& installedVersion,
+         const nautic::UpdateRelease& release,
+@@ -34,3 +38,79 @@
+                 }
+             });
+ }
++
++DlgStartupUpdate::DlgStartupUpdate(const QString& installedVersion,
++        const nautic::UpdateRelease& release,
++        std::function<void(nautic::IntegratedUpdater::Mode, bool)> download,
++        std::function<void(const QString&)> skip, QWidget* parent)
++        : QMessageBox(parent) {
++    setWindowTitle(tr("NauticMixxx update available"));
++    setWindowModality(Qt::NonModal);
++    setTextFormat(Qt::PlainText);
++    setText(tr("A new version of NauticMixxx is available."));
++    setInformativeText(tr("Installed version: %1\nNew version: %2\n\n"
++                         "Your library and settings will be preserved.\n"
++                         "Installation waits until playback stops and the app closes.")
++                              .arg(installedVersion, release.version));
++    auto* install = addButton(tr("Download and Install"), QMessageBox::AcceptRole);
++    auto* background = addButton(tr("Download in Background"), QMessageBox::ActionRole);
++    auto* later = addButton(tr("Later"), QMessageBox::RejectRole);
++    auto* skipButton = addButton(tr("Skip this version"), QMessageBox::DestructiveRole);
++    auto* automatic = new QCheckBox(tr("Automatically download future updates"), this);
++    setCheckBox(automatic); // Explicit opt-in; never enabled by default.
++    setDefaultButton(later);
++    setEscapeButton(later);
++    connect(this, &QMessageBox::buttonClicked, this,
++            [=](QAbstractButton* button) {
++                if (button == install || button == background) {
++                    download(button == install ? nautic::IntegratedUpdater::Mode::InstallNow
++                                               : nautic::IntegratedUpdater::Mode::InstallOnQuit,
++                            automatic->isChecked());
++                } else if (button == skipButton && skip) {
++                    skip(release.version);
++                }
++            });
++}
++
++void showIntegratedUpdateProgress(nautic::IntegratedUpdater* updater, QWidget* parent) {
++    auto* dialog = new QDialog(parent);
++    dialog->setAttribute(Qt::WA_DeleteOnClose);
++    dialog->setWindowTitle(QObject::tr("NauticMixxx update"));
++    auto* layout = new QVBoxLayout(dialog);
++    auto* text = new QLabel(QObject::tr("Preparing the update…"), dialog);
++    text->setWordWrap(true);
++    text->setTextFormat(Qt::PlainText);
++    layout->addWidget(text);
++    auto* progress = new QProgressBar(dialog);
++    progress->setRange(0, 0);
++    layout->addWidget(progress);
++    auto* install = new QPushButton(QObject::tr("Install and Restart"), dialog);
++    install->setEnabled(false);
++    layout->addWidget(install);
++    auto* close = new QPushButton(QObject::tr("Continue Using NauticMixxx"), dialog);
++    layout->addWidget(close);
++    QObject::connect(close, &QPushButton::clicked, dialog, &QDialog::close);
++    QObject::connect(install, &QPushButton::clicked, updater, &nautic::IntegratedUpdater::installNow);
++    const auto updateUi = [=](nautic::IntegratedUpdater::State state, const QString& message) {
++                text->setText(message);
++                const bool ready = state == nautic::IntegratedUpdater::State::Ready;
++                install->setEnabled(ready);
++                if (ready || state == nautic::IntegratedUpdater::State::Failed) {
++                    progress->setRange(0, 100);
++                    progress->setValue(ready ? 100 : 0);
++                }
++            };
++    QObject::connect(updater, &nautic::IntegratedUpdater::changed, dialog, updateUi);
++    updateUi(updater->state(), updater->message().isEmpty()
++                    ? QObject::tr("No update is prepared. NauticMixxx checks for updates at startup.")
++                    : updater->message());
++    QObject::connect(updater, &nautic::IntegratedUpdater::downloadProgress, dialog,
++            [=](qint64 received, qint64 total) {
++                if (total > 0) {
++                    progress->setRange(0, 100);
++                    progress->setValue(static_cast<int>(100.0 * received / total));
++                }
++            });
++    dialog->resize(440, 180);
++    dialog->show();
++}
+diff --git a/src/dialog/dlgstartupupdate.h b/src/dialog/dlgstartupupdate.h
+--- a/src/dialog/dlgstartupupdate.h
++++ b/src/dialog/dlgstartupupdate.h
+@@ -4,6 +4,7 @@
+ #include <functional>
+ 
+ #include "network/startupupdatechecker.h"
++#include "network/integratedupdater.h"
+ 
+ class DlgStartupUpdate : public QMessageBox {
+   public:
+@@ -12,4 +13,11 @@
+             std::function<void(const QUrl&)> download,
+             std::function<void(const QString&)> skip,
+             QWidget* parent = nullptr);
++    DlgStartupUpdate(const QString& installedVersion,
++            const nautic::UpdateRelease& release,
++            std::function<void(nautic::IntegratedUpdater::Mode, bool)> download,
++            std::function<void(const QString&)> skip,
++            QWidget* parent);
+ };
++
++void showIntegratedUpdateProgress(nautic::IntegratedUpdater* updater, QWidget* parent);
+diff --git a/src/mixxxmainwindow.cpp b/src/mixxxmainwindow.cpp
+--- a/src/mixxxmainwindow.cpp
++++ b/src/mixxxmainwindow.cpp
+@@ -6,6 +6,7 @@
+ #include <QFileDialog>
+ #include <QOpenGLContext>
+ #include <QUrl>
++#include <QMenu>
+ 
+ #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+ #include <QGLFormat>
+@@ -468,6 +469,22 @@
+ 
+ void MixxxMainWindow::checkForStartupUpdate() {
+     const auto settings = m_pCoreServices->getSettings();
++    auto busy = [] {
++        for (const auto& family : {
++                     qMakePair(QStringLiteral("num_decks"), QStringLiteral("[Channel%1]")),
++                     qMakePair(QStringLiteral("num_samplers"), QStringLiteral("[Sampler%1]")),
++                     qMakePair(QStringLiteral("num_preview_decks"), QStringLiteral("[PreviewDeck%1]"))}) {
++            const int count = static_cast<int>(ControlObject::get(ConfigKey("[App]", family.first)));
++            for (int i = 1; i <= count; ++i) {
++                if (ControlObject::toBool(ConfigKey(family.second.arg(i), "play"))) return true;
++            }
++        }
++        return ControlObject::toBool(ConfigKey("[AutoDJ]", "enabled"));
++    };
++    if (!m_integratedUpdater) {
++        m_integratedUpdater = nautic::createIntegratedUpdater(QStringLiteral(NAUTICMIX_VERSION),
++                settings->getSettingsPath(), busy, [this] { close(); }, this);
++    }
+     if (!settings->getValue<bool>(ConfigKey("[NauticUpdates]", "CheckOnStartup"), true)) {
+         return;
+     }
+@@ -501,14 +518,28 @@
+                         return;
+                     }
+                 }
+-                auto* dialog = new DlgStartupUpdate(currentVersion, release,
+-                        [](const QUrl& page) { mixxx::DesktopHelper::openUrl(page); },
+-                        [settings](const QString& version) {
++                const auto skip = [settings](const QString& version) {
+                             settings->setValue(ConfigKey("[NauticUpdates]", "SkippedVersion"),
+                                     version);
+                             settings->save();
+-                        },
+-                        this);
++                        };
++                DlgStartupUpdate* dialog = nullptr;
++                if (m_integratedUpdater) {
++                    if (settings->getValue<bool>(ConfigKey("[NauticUpdates]", "AutomaticallyDownload"), false)) {
++                        m_integratedUpdater->begin(release.version, nautic::IntegratedUpdater::Mode::InstallOnQuit);
++                        return;
++                    }
++                    dialog = new DlgStartupUpdate(currentVersion, release,
++                            [this, settings, release](nautic::IntegratedUpdater::Mode mode, bool automatic) {
++                                settings->setValue(ConfigKey("[NauticUpdates]", "AutomaticallyDownload"), automatic);
++                                settings->save();
++                                showIntegratedUpdateProgress(m_integratedUpdater, this);
++                                m_integratedUpdater->begin(release.version, mode);
++                            }, skip, this);
++                } else {
++                    dialog = new DlgStartupUpdate(currentVersion, release,
++                            [](const QUrl& page) { mixxx::DesktopHelper::openUrl(page); }, skip, this);
++                }
+                 dialog->setAttribute(Qt::WA_DeleteOnClose);
+                 for (auto* control : playbackControls) {
+                     control->connectValueChanged(dialog, [dialog](double value) {
+@@ -891,6 +922,22 @@
+         m_pMenuBar->setStyleSheet(m_pCentralWidget->styleSheet());
+     }
+     setMenuBar(m_pMenuBar);
++    auto* updates = m_pMenuBar->addMenu(tr("Updates"));
++    const auto settings = m_pCoreServices->getSettings();
++    auto* automatic = updates->addAction(tr("Automatically Download Future Updates"));
++    automatic->setCheckable(true);
++    automatic->setChecked(settings->getValue<bool>(ConfigKey("[NauticUpdates]", "AutomaticallyDownload"), false));
++    connect(automatic, &QAction::toggled, this, [settings](bool enabled) {
++        settings->setValue(ConfigKey("[NauticUpdates]", "AutomaticallyDownload"), enabled);
++        settings->save();
++    });
++    connect(updates, &QMenu::aboutToShow, this, [settings, automatic] {
++        automatic->setChecked(settings->getValue<bool>(ConfigKey("[NauticUpdates]", "AutomaticallyDownload"), false));
++    });
++    auto* status = updates->addAction(tr("Update Status…"));
++    connect(status, &QAction::triggered, this, [this] {
++        if (m_integratedUpdater) showIntegratedUpdateProgress(m_integratedUpdater, this);
++    });
+ }
+ 
+ void MixxxMainWindow::connectMenuBar() {
+@@ -1177,9 +1224,22 @@
+     // Just switch the window state here. eventFilter() will catch the
+     // QWindowStateChangeEvent and inform the menu bar that fullscreen changed.
+     if (toggle) {
++        // The RX3 window is fixed at 1280x800 only in windowed mode. Keeping
++        // that maximum in fullscreen prevents the reference scaler resizing.
++        if (m_pCoreServices->getSettings()->getValueString(
++                    ConfigKey("[Config]", "ResizableSkin")) == "XDJ_RX3_Mixxx") {
++            setMinimumSize(640, 400);
++            setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
++        }
+         showFullScreen();
+     } else {
+         showNormal();
++#ifdef __APPLE__
++        if (m_pCoreServices->getSettings()->getValueString(
++                    ConfigKey("[Config]", "ResizableSkin")) == "XDJ_RX3_Mixxx") {
++            setFixedSize(1280, 800);
++        }
++#endif
+     }
+ }
+ 
+@@ -1461,6 +1521,17 @@
+                 static_cast<QWindowStateChangeEvent*>(event);
+         const bool wasFullScreen = changeEvent->oldState() & Qt::WindowFullScreen;
+         const bool isFullScreenNow = windowState() & Qt::WindowFullScreen;
++#ifdef __APPLE__
++        if (m_pCoreServices && m_pCoreServices->getSettings()->getValueString(
++                    ConfigKey("[Config]", "ResizableSkin")) == "XDJ_RX3_Mixxx") {
++            if (isFullScreenNow) {
++                setMinimumSize(640, 400);
++                setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
++            } else if (wasFullScreen) {
++                QTimer::singleShot(0, this, [this] { if (!isFullScreen()) setFixedSize(1280, 800); });
++            }
++        }
++#endif
+         if ((isFullScreenNow && !wasFullScreen) ||
+                 (!isFullScreenNow && wasFullScreen)) {
+ #ifdef __LINUX__
+@@ -1509,6 +1580,10 @@
+     // initialized. This is because we call QApplication::processEvents to
+     // render LaunchImage progress in the constructor.
+     if (!confirmExit()) {
++        event->ignore();
++        return;
++    }
++    if (m_integratedUpdater && !m_integratedUpdater->prepareQuit()) {
+         event->ignore();
+         return;
+     }
+diff --git a/src/mixxxmainwindow.h b/src/mixxxmainwindow.h
+--- a/src/mixxxmainwindow.h
++++ b/src/mixxxmainwindow.h
+@@ -17,6 +17,7 @@
+ class LaunchImage;
+ class VisualsManager;
+ class WMainMenuBar;
++namespace nautic { class IntegratedUpdater; }
+ 
+ namespace mixxx {
+ 
+@@ -104,6 +105,7 @@
+   private:
+     void initializeWindow();
+     void checkForStartupUpdate();
++    nautic::IntegratedUpdater* m_integratedUpdater = nullptr;
+     void checkDirectRendering();
+ 
+     /// Load skin to a QWidget that we set as the central widget.
+diff --git a/src/network/integratedupdater.cpp b/src/network/integratedupdater.cpp
+new file mode 100644
+--- /dev/null
++++ b/src/network/integratedupdater.cpp
+@@ -0,0 +1,70 @@
++#include "network/integratedupdater.h"
++
++#include <QJsonDocument>
++#include <QJsonObject>
++
++#include "network/startupupdatechecker.h"
++#include "moc_integratedupdater.cpp"
++
++namespace nautic {
++IntegratedUpdater::IntegratedUpdater(QString currentVersion, std::function<bool()> busy,
++        std::function<void()> closeApplication, QObject* parent)
++        : QObject(parent), m_currentVersion(std::move(currentVersion)),
++          m_closeApplication(std::move(closeApplication)), m_busy(std::move(busy)) {
++}
++
++void IntegratedUpdater::begin(const QString& version, Mode mode) {
++    if (m_state != State::Idle && m_state != State::Failed) {
++        return;
++    }
++    const auto metadata = QJsonDocument(QJsonObject{
++            {"tag_name", QStringLiteral("v%1").arg(version)}, {"draft", false}, {"prerelease", false}}).toJson();
++    if (!StartupUpdateChecker::parseRelease(metadata, m_currentVersion, "")) {
++        report(State::Failed, tr("The update version is invalid or is not newer."));
++        return;
++    }
++    m_version = version;
++    m_mode = mode;
++    report(State::Checking, tr("Checking the signed update…"));
++    startDownload();
++}
++
++void IntegratedUpdater::report(State state, const QString& message) {
++    m_state = state;
++    m_message = message;
++    emit changed(state, message);
++}
++
++void IntegratedUpdater::progress(qint64 received, qint64 total) {
++    emit downloadProgress(received, total);
++}
++
++void IntegratedUpdater::ready() {
++    report(State::Ready, tr("Update ready. It will be installed when NauticMixxx closes."));
++    if (m_mode == Mode::InstallNow) {
++        installNow();
++    }
++}
++
++void IntegratedUpdater::installNow() {
++    if (m_state != State::Ready) {
++        return;
++    }
++    if (isBusy()) {
++        report(State::Ready, tr("Stop playback and Auto DJ before installing. Your update is ready."));
++        return;
++    }
++    installAndRelaunch();
++}
++
++bool IntegratedUpdater::prepareQuit() {
++    return m_state != State::Ready || armInstallOnQuit();
++}
++
++#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
++IntegratedUpdater* createIntegratedUpdater(const QString&, const QString&,
++        std::function<bool()>, std::function<void()>, QObject*) {
++    return nullptr;
++}
++#endif
++} // namespace nautic
+diff --git a/src/network/integratedupdater.h b/src/network/integratedupdater.h
+new file mode 100644
+--- /dev/null
++++ b/src/network/integratedupdater.h
+@@ -0,0 +1,46 @@
++#pragma once
++
++#include <QObject>
++#include <functional>
++
++namespace nautic {
++// The platform installer owns replacement only after the audio process exits.
++class IntegratedUpdater : public QObject {
++    Q_OBJECT
++  public:
++    enum class Mode { InstallNow, InstallOnQuit };
++    enum class State { Idle, Checking, Downloading, Verifying, Ready, Installing, Failed };
++    IntegratedUpdater(QString currentVersion, std::function<bool()> busy,
++            std::function<void()> closeApplication, QObject* parent = nullptr);
++    void begin(const QString& version, Mode mode);
++    void installNow();
++    bool prepareQuit();
++    State state() const { return m_state; }
++    Mode mode() const { return m_mode; }
++    QString version() const { return m_version; }
++    QString message() const { return m_message; }
++    bool isBusy() const { return m_busy(); }
++    void report(State state, const QString& message);
++    void ready();
++    void progress(qint64 received, qint64 total);
++  signals:
++    void changed(nautic::IntegratedUpdater::State state, const QString& message);
++    void downloadProgress(qint64 received, qint64 total);
++  protected:
++    virtual void startDownload() = 0;
++    virtual void installAndRelaunch() = 0;
++    virtual bool armInstallOnQuit() = 0;
++    const QString m_currentVersion;
++    std::function<void()> m_closeApplication;
++  private:
++    std::function<bool()> m_busy;
++    QString m_version;
++    QString m_message;
++    Mode m_mode = Mode::InstallOnQuit;
++    State m_state = State::Idle;
++};
++
++IntegratedUpdater* createIntegratedUpdater(const QString& currentVersion,
++        const QString& profilePath, std::function<bool()> busy,
++        std::function<void()> closeApplication, QObject* parent);
++} // namespace nautic
+diff --git a/src/network/integratedupdater_mac.mm b/src/network/integratedupdater_mac.mm
+new file mode 100644
+--- /dev/null
++++ b/src/network/integratedupdater_mac.mm
+@@ -0,0 +1,138 @@
++#include "network/integratedupdater.h"
++#include <QTimer>
++#import <Sparkle/Sparkle.h>
++
++class MacUpdater;
++@interface NauticUpdateDriver : NSObject <SPUUserDriver, SPUUpdaterDelegate>
++@property(nonatomic, assign) MacUpdater* owner;
++@property(nonatomic, strong) SPUUpdater* updater;
++@property(nonatomic, copy) void (^installHandler)(void);
++@property(nonatomic) uint64_t expected;
++@property(nonatomic) uint64_t received;
++@property(nonatomic) BOOL relaunch;
++@end
++
++class MacUpdater final : public nautic::IntegratedUpdater {
++  public:
++    using State = nautic::IntegratedUpdater::State;
++    MacUpdater(QString currentVersion, std::function<bool()> busy,
++            std::function<void()> closeApplication, QObject* parent)
++            : IntegratedUpdater(std::move(currentVersion), std::move(busy),
++                      std::move(closeApplication), parent) {
++        m_driver = [NauticUpdateDriver new];
++        m_driver.owner = this;
++        m_driver.updater = [[SPUUpdater alloc] initWithHostBundle:NSBundle.mainBundle
++                applicationBundle:NSBundle.mainBundle userDriver:m_driver delegate:m_driver];
++    }
++    ~MacUpdater() override { m_driver.owner = nullptr; m_driver.updater = nil; }
++  protected:
++    void startDownload() override {
++        NSError* error = nil;
++        if (![m_driver.updater startUpdater:&error]) {
++            report(State::Failed, QString::fromUtf8(error.localizedDescription.UTF8String));
++            return;
++        }
++        // Sparkle handles extraction, signature verification and atomic replacement.
++        // Scheduling is controlled by NauticMixxx, so it never opens its own UI.
++        m_driver.updater.automaticallyChecksForUpdates = NO;
++        m_driver.updater.automaticallyDownloadsUpdates = YES;
++        m_driver.relaunch = NO;
++        [m_driver.updater checkForUpdatesInBackground];
++    }
++    void installAndRelaunch() override {
++        if (m_driver.installHandler) {
++            m_driver.relaunch = YES;
++            // Preserve the ready state if the user cancels the application's quit.
++            m_driver.installHandler();
++        }
++    }
++    bool armInstallOnQuit() override {
++        // Sparkle's installer waits for process termination and leaves the profile alone.
++        return YES;
++    }
++  private:
++    NauticUpdateDriver* __strong m_driver;
++};
++
++@implementation NauticUpdateDriver
++- (void)showUpdatePermissionRequest:(SPUUpdatePermissionRequest*)request
++        reply:(void (^)(SUUpdatePermissionResponse*))reply {
++    reply([[SUUpdatePermissionResponse alloc] initWithAutomaticUpdateChecks:NO sendSystemProfile:NO]);
++}
++- (void)showUserInitiatedUpdateCheckWithCancellation:(void (^)(void))cancel {}
++- (void)showUpdateFoundWithAppcastItem:(SUAppcastItem*)item state:(SPUUserUpdateState*)state
++        reply:(void (^)(SPUUserUpdateChoice))reply {
++    reply(SPUUserUpdateChoiceInstall);
++}
++- (void)showUpdateReleaseNotesWithDownloadData:(SPUDownloadData*)data {}
++- (void)showUpdateReleaseNotesFailedToDownloadWithError:(NSError*)error {}
++- (void)showUpdateNotFoundWithError:(NSError*)error acknowledgement:(void (^)(void))ack {
++    [self showUpdaterError:error acknowledgement:ack];
++}
++- (void)showUpdaterError:(NSError*)error acknowledgement:(void (^)(void))ack {
++    if (_owner) _owner->report(MacUpdater::State::Failed,
++            QString::fromUtf8(error.localizedDescription.UTF8String));
++    ack();
++}
++- (void)showDownloadInitiatedWithCancellation:(void (^)(void))cancel {
++    _received = 0;
++    _expected = 0;
++    if (_owner) _owner->report(MacUpdater::State::Downloading, QObject::tr("Downloading the update…"));
++}
++- (void)showDownloadDidReceiveExpectedContentLength:(uint64_t)length { _expected = length; }
++- (void)showDownloadDidReceiveDataOfLength:(uint64_t)length {
++    _received += length;
++    if (_owner) _owner->progress(_received, _expected);
++}
++- (void)showDownloadDidStartExtractingUpdate {
++    if (_owner) _owner->report(MacUpdater::State::Verifying, QObject::tr("Verifying and preparing the update…"));
++}
++- (void)showExtractionReceivedProgress:(double)progress {}
++- (void)showReadyToInstallAndRelaunch:(void (^)(SPUUserUpdateChoice))reply {
++    self.installHandler = ^{ reply(SPUUserUpdateChoiceInstall); };
++    if (_owner) _owner->ready();
++}
++- (void)showInstallingUpdateWithApplicationTerminated:(BOOL)terminated
++        retryTerminatingApplication:(void (^)(void))retry {}
++- (void)showUpdateInstalledAndRelaunched:(BOOL)relaunched acknowledgement:(void (^)(void))ack { ack(); }
++- (void)dismissUpdateInstallation {}
++- (void)showUpdateInFocus {}
++- (BOOL)updater:(SPUUpdater*)updater shouldProceedWithUpdate:(SUAppcastItem*)item
++        updateCheck:(SPUUpdateCheck)check error:(NSError**)error {
++    return _owner && _owner->version() == QString::fromUtf8(item.versionString.UTF8String);
++}
++- (BOOL)updater:(SPUUpdater*)updater willInstallUpdateOnQuit:(SUAppcastItem*)item
++        immediateInstallationBlock:(void (^)(void))handler {
++    self.installHandler = handler;
++    if (_owner) _owner->ready();
++    return YES; // No impatient-update popup while a mixing session is running.
++}
++- (BOOL)updater:(SPUUpdater*)updater shouldPostponeRelaunchForUpdate:(SUAppcastItem*)item
++        untilInvokingBlock:(void (^)(void))handler {
++    if (_owner && _owner->isBusy()) {
++        self.installHandler = handler;
++        _owner->report(MacUpdater::State::Ready, QObject::tr("Stop playback before installing."));
++        return YES;
++    }
++    return NO;
++}
++- (BOOL)updaterShouldRelaunchApplication:(SPUUpdater*)updater { return _relaunch; }
++- (void)updater:(SPUUpdater*)updater willDownloadUpdate:(SUAppcastItem*)item
++        withRequest:(NSMutableURLRequest*)request {
++    if (_owner) _owner->report(MacUpdater::State::Downloading, QObject::tr("Downloading the update…"));
++}
++- (void)updater:(SPUUpdater*)updater willExtractUpdate:(SUAppcastItem*)item {
++    if (_owner) _owner->report(MacUpdater::State::Verifying, QObject::tr("Verifying and preparing the update…"));
++}
++- (void)updater:(SPUUpdater*)updater didAbortWithError:(NSError*)error {
++    if (_owner) _owner->report(MacUpdater::State::Failed,
++            QString::fromUtf8(error.localizedDescription.UTF8String));
++}
++@end
++
++namespace nautic {
++IntegratedUpdater* createIntegratedUpdater(const QString& currentVersion, const QString&,
++        std::function<bool()> busy, std::function<void()> closeApplication, QObject* parent) {
++    return new MacUpdater(currentVersion, std::move(busy), std::move(closeApplication), parent);
++}
++} // namespace nautic
+diff --git a/src/network/integratedupdater_win.cpp b/src/network/integratedupdater_win.cpp
+new file mode 100644
+--- /dev/null
++++ b/src/network/integratedupdater_win.cpp
+@@ -0,0 +1,139 @@
++#include "network/integratedupdater.h"
++#include "network/updatepayload.h"
++
++#include <QCoreApplication>
++#include <QDir>
++#include <QFile>
++#include <QFutureWatcher>
++#include <QNetworkAccessManager>
++#include <QNetworkReply>
++#include <QProcess>
++#include <QSaveFile>
++#include <QStandardPaths>
++#include <QTimer>
++#include <QtConcurrent>
++
++namespace nautic {
++class WindowsUpdater final : public IntegratedUpdater {
++  public:
++    WindowsUpdater(QString currentVersion, QString profilePath, std::function<bool()> busy,
++            std::function<void()> closeApplication, QObject* parent)
++            : IntegratedUpdater(std::move(currentVersion), std::move(busy),
++                      std::move(closeApplication), parent), m_profilePath(std::move(profilePath)) {
++    }
++  protected:
++    void startDownload() override {
++        m_directory = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/nautic-updates/" + version();
++        if (!QDir().mkpath(m_directory)) { fail(tr("Cannot create the update cache.")); return; }
++        m_manifest.clear();
++        m_payload.reset();
++        request(QUrl("https://github.com/nauticsoftware/NauticMixxx/releases/download/v" +
++                        version() + "/UPDATE_WINDOWS.json"), false);
++    }
++    void installAndRelaunch() override {
++        m_restart = true;
++        m_closeApplication(); // prepareQuit only runs after the user accepts closing.
++    }
++    bool armInstallOnQuit() override {
++        const auto runtime = QCoreApplication::applicationDirPath();
++        const auto helperDirectory = m_directory + "/helper";
++        if (!QDir().mkpath(helperDirectory)) { fail(tr("Cannot prepare the update installer.")); return false; }
++        // The helper runs outside the installation directory, which NSIS replaces.
++        auto files = QDir(runtime).entryList({"*.dll", "NauticUpdateHelper.exe"}, QDir::Files);
++        if (!files.contains("NauticUpdateHelper.exe")) { fail(tr("The update helper is missing.")); return false; }
++        for (const auto& name : files) {
++            const auto target = helperDirectory + "/" + name;
++            QFile::remove(target);
++            if (!QFile::copy(runtime + "/" + name, target)) { fail(tr("Cannot copy the update helper.")); return false; }
++        }
++        const QStringList arguments{QString::number(QCoreApplication::applicationPid()),
++                QCoreApplication::applicationFilePath(), m_profilePath, m_directory,
++                m_currentVersion, version(), m_restart ? "restart" : "quit"};
++        if (!QProcess::startDetached(helperDirectory + "/NauticUpdateHelper.exe", arguments, helperDirectory)) {
++            fail(tr("Cannot start the update installer."));
++            return false;
++        }
++        report(State::Installing, tr("Closing NauticMixxx to install the verified update…"));
++        return true;
++    }
++  private:
++    void fail(const QString& error) { report(State::Failed, error); }
++    void request(const QUrl& url, bool artifact) {
++        QNetworkRequest request(url);
++        request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
++        request.setMaximumRedirectsAllowed(5);
++        request.setTransferTimeout(30000);
++        request.setRawHeader("User-Agent", "NauticMixxx/" + m_currentVersion.toUtf8());
++        auto* reply = m_network.get(request);
++        reply->setReadBufferSize(65536);
++        auto* deadline = new QTimer(reply);
++        deadline->setSingleShot(true);
++        connect(deadline, &QTimer::timeout, reply, &QNetworkReply::abort);
++        deadline->start(artifact ? 15 * 60 * 1000 : 30000);
++        if (artifact) {
++            m_file = std::make_unique<QSaveFile>(m_directory + "/" + m_payload->filename);
++            if (!m_file->open(QIODevice::WriteOnly)) { reply->abort(); fail(tr("Cannot save the update.")); return; }
++            m_received = 0;
++            report(State::Downloading, tr("Downloading the update…"));
++        }
++        connect(reply, &QNetworkReply::readyRead, this, [this, reply, artifact] {
++            const auto bytes = reply->readAll();
++            if (artifact) {
++                m_received += bytes.size();
++                if (m_received > m_payload->size || m_file->write(bytes) != bytes.size()) {
++                    reply->abort(); return;
++                }
++                progress(m_received, m_payload->size);
++            } else {
++                m_manifest += bytes;
++                if (m_manifest.size() > 16384) reply->abort();
++            }
++        });
++        connect(reply, &QNetworkReply::finished, this, [this, reply, artifact] {
++            reply->deleteLater();
++            if (reply->error() != QNetworkReply::NoError ||
++                    reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() != 200) {
++                m_file.reset(); fail(tr("The update download failed. Your installed version is unchanged.")); return;
++            }
++            if (!artifact) {
++                m_payload = parseUpdateManifest(m_manifest, m_currentVersion, version());
++                if (!m_payload) { fail(tr("The update manifest signature is invalid.")); return; }
++                QSaveFile manifest(m_directory + "/UPDATE_WINDOWS.json");
++                if (!manifest.open(QIODevice::WriteOnly) || manifest.write(m_manifest) != m_manifest.size() || !manifest.commit()) {
++                    fail(tr("Cannot save the signed update manifest.")); return;
++                }
++                request(m_payload->url(), true);
++                return;
++            }
++            if (m_received != m_payload->size || !m_file->commit()) {
++                fail(tr("The update file is incomplete.")); return;
++            }
++            m_file.reset();
++            report(State::Verifying, tr("Verifying the update signature…"));
++            auto* watcher = new QFutureWatcher<bool>(this);
++            connect(watcher, &QFutureWatcher<bool>::finished, this, [this, watcher] {
++                const bool valid = watcher->result();
++                watcher->deleteLater();
++                if (valid) ready();
++                else fail(tr("The update signature is invalid. Installation was canceled."));
++            });
++            const auto payload = *m_payload;
++            const auto path = m_directory + "/" + payload.filename;
++            watcher->setFuture(QtConcurrent::run([path, payload] { return verifyUpdateFile(path, payload); }));
++        });
++    }
++    QNetworkAccessManager m_network;
++    QString m_profilePath;
++    QString m_directory;
++    QByteArray m_manifest;
++    std::optional<UpdatePayload> m_payload;
++    std::unique_ptr<QSaveFile> m_file;
++    qint64 m_received = 0;
++    bool m_restart = false;
++};
++
++IntegratedUpdater* createIntegratedUpdater(const QString& currentVersion, const QString& profilePath,
++        std::function<bool()> busy, std::function<void()> closeApplication, QObject* parent) {
++    return new WindowsUpdater(currentVersion, profilePath, std::move(busy), std::move(closeApplication), parent);
++}
++} // namespace nautic
+diff --git a/src/network/updatehelper.rc.in b/src/network/updatehelper.rc.in
+new file mode 100644
+--- /dev/null
++++ b/src/network/updatehelper.rc.in
+@@ -0,0 +1,22 @@
++#include <windows.h>
++IDI_ICON1 ICON "@CMAKE_CURRENT_SOURCE_DIR@/res/images/icons/ic_mixxx.ico"
++VS_VERSION_INFO VERSIONINFO
++ FILEVERSION @NAUTIC_UPDATE_FILEVERSION@,0
++ PRODUCTVERSION @NAUTIC_UPDATE_FILEVERSION@,0
++ FILETYPE VFT_APP
++BEGIN
++ BLOCK "StringFileInfo"
++ BEGIN
++  BLOCK "040904b0"
++  BEGIN
++   VALUE "ProductName", "NauticMixxx\0"
++   VALUE "FileDescription", "NauticMixxx update installer helper\0"
++   VALUE "FileVersion", "@NAUTICMIX_VERSION@\0"
++   VALUE "ProductVersion", "@NAUTICMIX_VERSION@\0"
++  END
++ END
++ BLOCK "VarFileInfo"
++ BEGIN
++  VALUE "Translation", 0x409, 1200
++ END
++END
+diff --git a/src/network/updatehelper_win.cpp b/src/network/updatehelper_win.cpp
+new file mode 100644
+--- /dev/null
++++ b/src/network/updatehelper_win.cpp
+@@ -0,0 +1,60 @@
++// A small process that waits for NauticMixxx to finish saving and shutting down.
++#include "network/updatepayload.h"
++#include <QCoreApplication>
++#include <QDir>
++#include <QFile>
++#include <QFileInfo>
++#include <QProcess>
++#include <windows.h>
++
++int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
++    int argc = __argc;
++    char** argv = __argv;
++    QCoreApplication app(argc, argv);
++    const auto args = app.arguments();
++    if (args.size() != 8) return 1;
++    bool validPid = false;
++    const auto pid = args[1].toULong(&validPid);
++    if (!validPid || !pid || (args[7] != "restart" && args[7] != "quit")) return 2;
++    const QFileInfo target(args[2]);
++    if (!target.isAbsolute() || !target.isFile() || target.fileName() != "NauticMixxx.exe") return 3;
++    HANDLE parent = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
++    if (!parent) return 4;
++    wchar_t image[32768];
++    DWORD length = 32768;
++    const bool sameProcess = QueryFullProcessImageNameW(parent, 0, image, &length) &&
++            QFileInfo(QString::fromWCharArray(image, length)).canonicalFilePath().compare(
++                    target.canonicalFilePath(), Qt::CaseInsensitive) == 0;
++    if (!sameProcess) { CloseHandle(parent); return 5; }
++    if (WaitForSingleObject(parent, INFINITE) != WAIT_OBJECT_0) { CloseHandle(parent); return 6; }
++    CloseHandle(parent);
++
++    QFile manifest(args[4] + "/UPDATE_WINDOWS.json");
++    if (!manifest.open(QIODevice::ReadOnly) || manifest.size() > 16384) return 7;
++    const auto payload = nautic::parseUpdateManifest(manifest.readAll(), args[5], args[6]);
++    if (!payload) return 8;
++    const auto installer = QDir::toNativeSeparators(args[4] + "/" + payload->filename);
++    // Prevent mutation/deletion between verification and CreateProcess.
++    HANDLE locked = CreateFileW(reinterpret_cast<LPCWSTR>(installer.utf16()), GENERIC_READ,
++            FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
++    if (locked == INVALID_HANDLE_VALUE) return 9;
++    if (!nautic::verifyUpdateFile(installer, *payload)) { CloseHandle(locked); return 10; }
++    QProcess installation;
++    installation.setProgram(installer);
++    installation.setArguments({"/S", "/UPDATE"});
++    // NSIS requires /D to be last and consumes the entire remaining native argument.
++    installation.setNativeArguments("/D=" + QDir::toNativeSeparators(target.absolutePath()));
++    installation.start();
++    const bool success = installation.waitForStarted(30000) && installation.waitForFinished(-1) &&
++            installation.exitStatus() == QProcess::NormalExit && installation.exitCode() == 0;
++    CloseHandle(locked);
++    QFile log(args[4] + "/install-result.txt");
++    if (log.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
++        log.write(success ? "Update installed.\n" : "Update installer failed.\n");
++    }
++    if (!success) return 11;
++    if (args[7] == "restart") {
++        if (!QProcess::startDetached(target.absoluteFilePath(), {"--settings-path", args[3]}, target.absolutePath())) return 12;
++    }
++    return 0;
++}
+diff --git a/src/network/updatepayload.cpp b/src/network/updatepayload.cpp
+new file mode 100644
+--- /dev/null
++++ b/src/network/updatepayload.cpp
+@@ -0,0 +1,89 @@
++#include "network/updatepayload.h"
++
++#include <QCryptographicHash>
++#include <QFile>
++#include <QJsonDocument>
++#include <QJsonObject>
++#include <QRegularExpression>
++#include <openssl/evp.h>
++#include <memory>
++
++namespace nautic {
++namespace {
++std::optional<QList<quint32>> versionParts(const QString& version) {
++    static const QRegularExpression syntax("^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$");
++    if (!syntax.match(version).hasMatch()) return std::nullopt;
++    QList<quint32> parts;
++    for (const auto& part : version.split('.')) {
++        bool ok = false;
++        parts.append(part.toUInt(&ok));
++        if (!ok) return std::nullopt;
++    }
++    return parts;
++}
++QByteArray decode(const QJsonValue& value) {
++    if (!value.isString()) return {};
++    const auto text = value.toString().toLatin1();
++    const auto decoded = QByteArray::fromBase64(text);
++    return decoded.toBase64() == text ? decoded : QByteArray();
++}
++} // namespace
++
++QUrl UpdatePayload::url() const {
++    return QUrl("https://github.com/nauticsoftware/NauticMixxx/releases/download/v" + version + "/" + filename);
++}
++
++bool verifyUpdateSignature(const unsigned char* data, size_t size,
++        const QByteArray& signature, const QByteArray& publicKey) {
++    if (signature.size() != 64 || publicKey.size() != 32) return false;
++    const std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> key(
++            EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, nullptr,
++                    reinterpret_cast<const unsigned char*>(publicKey.constData()), publicKey.size()), EVP_PKEY_free);
++    const std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)> ctx(EVP_MD_CTX_new(), EVP_MD_CTX_free);
++    return key && ctx && EVP_DigestVerifyInit(ctx.get(), nullptr, nullptr, nullptr, key.get()) == 1 &&
++            EVP_DigestVerify(ctx.get(), reinterpret_cast<const unsigned char*>(signature.constData()),
++                    signature.size(), data, size) == 1;
++}
++
++std::optional<UpdatePayload> parseUpdateManifest(const QByteArray& envelope,
++        const QString& currentVersion, const QString& expectedVersion, const QByteArray& publicKey) {
++    if (envelope.size() > 16384) return std::nullopt;
++    const auto outer = QJsonDocument::fromJson(envelope).object();
++    const auto bytes = decode(outer["payload"]);
++    if (bytes.isEmpty() || !verifyUpdateSignature(reinterpret_cast<const unsigned char*>(bytes.constData()),
++                bytes.size(), decode(outer["signature"]), publicKey)) return std::nullopt;
++    const auto json = QJsonDocument::fromJson(bytes).object();
++    const auto version = json["version"].toString();
++    const auto installedParts = versionParts(currentVersion);
++    const auto offeredParts = versionParts(version);
++    if (!installedParts || !offeredParts || *offeredParts <= *installedParts || version != expectedVersion ||
++            json["product"].toString() != "NauticMixxx" || json["platform"].toString() != "windows-x64") {
++        return std::nullopt;
++    }
++    const auto filename = QString("NauticMixxx-%1-Windows-x64-Setup.exe").arg(version);
++    const auto size = json["size"].toDouble(-1);
++    if (json["filename"].toString() != filename || size < 1 || size > kMaximumUpdateBytes ||
++            size != static_cast<qint64>(size)) return std::nullopt;
++    const auto hash = json["sha256"].toString().toLatin1();
++    static const QRegularExpression hashSyntax("^[a-f0-9]{64}$");
++    const auto signature = decode(json["signature"]);
++    if (!hashSyntax.match(QString::fromLatin1(hash)).hasMatch() || signature.size() != 64) return std::nullopt;
++    return UpdatePayload{version, filename, static_cast<qint64>(size), hash, signature};
++}
++
++bool verifyUpdateFile(const QString& path, const UpdatePayload& payload, const QByteArray& publicKey) {
++    QFile file(path);
++    if (!file.open(QIODevice::ReadOnly) || file.size() != payload.size ||
++            payload.size < 1 || payload.size > kMaximumUpdateBytes) return false;
++    auto* bytes = file.map(0, payload.size);
++    if (!bytes) return false;
++    // Memory mapping avoids copying a whole installer into the audio process's heap.
++    const auto hash = QCryptographicHash::hash(
++            QByteArray::fromRawData(reinterpret_cast<const char*>(bytes), payload.size),
++            QCryptographicHash::Sha256).toHex();
++    const bool valid = hash == payload.sha256 &&
++            verifyUpdateSignature(bytes, payload.size, payload.signature, publicKey);
++    file.unmap(bytes);
++    return valid;
++}
++} // namespace nautic
+diff --git a/src/network/updatepayload.h b/src/network/updatepayload.h
+new file mode 100644
+--- /dev/null
++++ b/src/network/updatepayload.h
+@@ -0,0 +1,25 @@
++#pragma once
++#include <QByteArray>
++#include <QString>
++#include <QUrl>
++#include <optional>
++
++namespace nautic {
++inline constexpr char kUpdatePublicKey[] = "qYtGKN6CDB8eym6vRj4XcUD3kLJON9zeYBtlVoEN7Dk=";
++inline constexpr qint64 kMaximumUpdateBytes = 256 * 1024 * 1024;
++struct UpdatePayload {
++    QString version;
++    QString filename;
++    qint64 size;
++    QByteArray sha256;
++    QByteArray signature;
++    QUrl url() const;
++};
++bool verifyUpdateSignature(const unsigned char* data, size_t size,
++        const QByteArray& signature, const QByteArray& publicKey);
++std::optional<UpdatePayload> parseUpdateManifest(const QByteArray& envelope,
++        const QString& currentVersion, const QString& expectedVersion,
++        const QByteArray& publicKey = QByteArray::fromBase64(kUpdatePublicKey));
++bool verifyUpdateFile(const QString& path, const UpdatePayload& payload,
++        const QByteArray& publicKey = QByteArray::fromBase64(kUpdatePublicKey));
++} // namespace nautic
+diff --git a/src/skin/legacy/legacyskinparser.cpp b/src/skin/legacy/legacyskinparser.cpp
+--- a/src/skin/legacy/legacyskinparser.cpp
++++ b/src/skin/legacy/legacyskinparser.cpp
+@@ -788,7 +788,9 @@
+ }
+ 
+ QWidget* LegacySkinParser::parseWidgetGroup(const QDomElement& node) {
+-    WWidgetGroup* pGroup = new WWidgetGroup(m_pParent);
++    WWidgetGroup* pGroup = m_pContext->selectBool(node, "Rx3RangeBadge", false)
++            ? new WRx3RangeBadge(lookupNodeGroup(node), m_pParent)
++            : new WWidgetGroup(m_pParent);
+     setupBaseWidget(node, pGroup);
+     setupWidget(node, pGroup->toQWidget());
+     pGroup->setup(node, *m_pContext);
+diff --git a/src/test/integratedupdater_probe.mm b/src/test/integratedupdater_probe.mm
+new file mode 100644
+--- /dev/null
++++ b/src/test/integratedupdater_probe.mm
+@@ -0,0 +1,45 @@
++// End-to-end updater fixture. Never installed or included in a public package.
++#include <QApplication>
++#include <QFile>
++#include <QStandardPaths>
++#include <QDir>
++#include <QTimer>
++#include <cstdio>
++#import <Foundation/Foundation.h>
++#include "network/integratedupdater.h"
++
++int main(int argc, char** argv) {
++    QApplication app(argc, argv);
++    app.setApplicationName("NauticMixxx Updater Probe");
++    app.setOrganizationName("NauticMixxx");
++    NSString* nativeVersion = [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleVersion"];
++    const auto version = QString::fromUtf8(nativeVersion.UTF8String);
++    const auto directory = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
++    QDir().mkpath(directory);
++    QFile profile(directory + "/profile.txt");
++    if (version == "1.9.1") {
++        const bool preserved = profile.open(QIODevice::ReadOnly) && profile.readAll() == "preserve my settings\n";
++        QFile marker(directory + "/installed.txt");
++        if (marker.open(QIODevice::WriteOnly)) marker.write(preserved ? "1.9.1 profile preserved\n" : "PROFILE LOST\n");
++        return preserved ? 0 : 2;
++    }
++    if (profile.open(QIODevice::WriteOnly)) profile.write("preserve my settings\n");
++    profile.close();
++    const bool background = app.arguments().contains("--background");
++    auto* updater = nautic::createIntegratedUpdater(version, directory, [] { return false; }, [&app] { app.quit(); }, &app);
++    QObject::connect(updater, &nautic::IntegratedUpdater::changed, &app,
++            [&](auto state, const QString& message) {
++                std::fprintf(stdout, "%d %s\n", int(state), message.toUtf8().constData());
++                std::fflush(stdout);
++                if (state == nautic::IntegratedUpdater::State::Ready && background) {
++                    QTimer::singleShot(300, &app, &QCoreApplication::quit);
++                }
++                if (state == nautic::IntegratedUpdater::State::Failed) app.exit(3);
++            });
++    QTimer::singleShot(0, updater, [&] {
++        updater->begin("1.9.1", background ? nautic::IntegratedUpdater::Mode::InstallOnQuit
++                                         : nautic::IntegratedUpdater::Mode::InstallNow);
++    });
++    QTimer::singleShot(120000, &app, [&] { app.exit(4); });
++    return app.exec();
++}
+diff --git a/src/test/integratedupdater_test.cpp b/src/test/integratedupdater_test.cpp
+new file mode 100644
+--- /dev/null
++++ b/src/test/integratedupdater_test.cpp
+@@ -0,0 +1,163 @@
++#include <gtest/gtest.h>
++#include <QCryptographicHash>
++#include <QFile>
++#include <QJsonDocument>
++#include <QJsonObject>
++#include <QTemporaryDir>
++#include <openssl/evp.h>
++
++#include "network/integratedupdater.h"
++#include "network/updatepayload.h"
++
++namespace {
++class FakeUpdater : public nautic::IntegratedUpdater {
++  public:
++    bool playing = false;
++    int downloads = 0;
++    int installations = 0;
++    int armed = 0;
++    FakeUpdater() : IntegratedUpdater("1.9.0", [this] { return playing; }, [] {}) {}
++    void startDownload() override { ++downloads; }
++    void installAndRelaunch() override { ++installations; }
++    bool armInstallOnQuit() override { ++armed; return true; }
++};
++struct SignedFixture {
++    // Deterministic test-only key, unrelated to the release key in macOS Keychain.
++    EVP_PKEY* key = nullptr;
++    QByteArray publicKey = QByteArray(32, '\0');
++    QByteArray artifact = "test installer content";
++    QJsonObject metadata;
++    SignedFixture() {
++        const QByteArray seed(32, 'T');
++        key = EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, nullptr,
++                reinterpret_cast<const unsigned char*>(seed.constData()), seed.size());
++        size_t size = publicKey.size();
++        EVP_PKEY_get_raw_public_key(key, reinterpret_cast<unsigned char*>(publicKey.data()), &size);
++        metadata = {{"product", "NauticMixxx"}, {"platform", "windows-x64"},
++                {"version", "1.9.1"}, {"filename", "NauticMixxx-1.9.1-Windows-x64-Setup.exe"},
++                {"size", artifact.size()},
++                {"sha256", QString::fromLatin1(QCryptographicHash::hash(artifact, QCryptographicHash::Sha256).toHex())},
++                {"signature", QString::fromLatin1(sign(artifact).toBase64())}};
++    }
++    ~SignedFixture() { EVP_PKEY_free(key); }
++    QByteArray sign(const QByteArray& bytes) const {
++        QByteArray signature(64, '\0');
++        size_t length = signature.size();
++        auto* ctx = EVP_MD_CTX_new();
++        EVP_DigestSignInit(ctx, nullptr, nullptr, nullptr, key);
++        EVP_DigestSign(ctx, reinterpret_cast<unsigned char*>(signature.data()), &length,
++                reinterpret_cast<const unsigned char*>(bytes.constData()), bytes.size());
++        EVP_MD_CTX_free(ctx);
++        return signature;
++    }
++    QByteArray envelope() const {
++        const auto payload = QJsonDocument(metadata).toJson(QJsonDocument::Compact);
++        return QJsonDocument(QJsonObject{{"payload", QString::fromLatin1(payload.toBase64())},
++                {"signature", QString::fromLatin1(sign(payload).toBase64())}}).toJson();
++    }
++    std::optional<nautic::UpdatePayload> parse() const {
++        return nautic::parseUpdateManifest(envelope(), "1.9.0", "1.9.1", publicKey);
++    }
++};
++} // namespace
++
++TEST(IntegratedUpdaterTest, RejectsDowngradesInvalidVersionsAndDuplicateStarts) {
++    FakeUpdater updater;
++    for (const auto& version : {"1.8.0", "1.9.0", "1.9.1-beta", "01.9.1", "1.9.1/evil"}) {
++        updater.begin(version, FakeUpdater::Mode::InstallNow);
++        EXPECT_EQ(0, updater.downloads);
++    }
++    updater.begin("1.9.1", FakeUpdater::Mode::InstallNow);
++    updater.begin("1.10.0", FakeUpdater::Mode::InstallNow);
++    EXPECT_EQ(1, updater.downloads);
++}
++TEST(IntegratedUpdaterTest, PlaybackStartingDuringDownloadDefersInstall) {
++    FakeUpdater updater;
++    updater.begin("1.9.1", FakeUpdater::Mode::InstallNow);
++    updater.playing = true;
++    updater.ready();
++    EXPECT_EQ(0, updater.installations);
++    updater.installNow();
++    EXPECT_EQ(0, updater.installations);
++    updater.playing = false;
++    // Stopping playback alone never unexpectedly closes the application.
++    EXPECT_EQ(0, updater.installations);
++    updater.installNow();
++    EXPECT_EQ(1, updater.installations);
++}
++TEST(IntegratedUpdaterTest, BackgroundChoiceNeverClosesTheApplication) {
++    FakeUpdater updater;
++    updater.begin("1.9.1", FakeUpdater::Mode::InstallOnQuit);
++    updater.ready();
++    EXPECT_EQ(0, updater.installations);
++    EXPECT_TRUE(updater.prepareQuit());
++    EXPECT_EQ(1, updater.armed);
++}
++TEST(IntegratedUpdaterTest, IncompleteDownloadsDoNotArmAnInstallerOnQuit) {
++    FakeUpdater updater;
++    updater.begin("1.9.1", FakeUpdater::Mode::InstallNow);
++    updater.installNow();
++    EXPECT_TRUE(updater.prepareQuit());
++    EXPECT_EQ(0, updater.armed);
++    EXPECT_EQ(0, updater.installations);
++}
++TEST(UpdatePayloadTest, AcceptsSignedManifestAndPinsItsArtifactUrl) {
++    SignedFixture fixture;
++    const auto parsed = fixture.parse();
++    ASSERT_TRUE(parsed);
++    EXPECT_EQ(QUrl("https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.9.1/NauticMixxx-1.9.1-Windows-x64-Setup.exe"), parsed->url());
++    EXPECT_FALSE(nautic::parseUpdateManifest(fixture.envelope(), "1.9.0", "1.10.0", fixture.publicKey));
++    EXPECT_FALSE(nautic::parseUpdateManifest(fixture.envelope(), "1.9.1", "1.9.1", fixture.publicKey));
++    EXPECT_FALSE(nautic::parseUpdateManifest(fixture.envelope(), "1.10.0", "1.9.1", fixture.publicKey));
++}
++TEST(UpdatePayloadTest, RejectsAnotherSigningKeyAndUnsignedMetadata) {
++    SignedFixture fixture;
++    EXPECT_FALSE(nautic::parseUpdateManifest(fixture.envelope(), "1.9.0", "1.9.1"));
++    auto envelope = QJsonDocument::fromJson(fixture.envelope()).object();
++    envelope["payload"] = QString::fromLatin1(QByteArray("{}").toBase64());
++    EXPECT_FALSE(nautic::parseUpdateManifest(QJsonDocument(envelope).toJson(), "1.9.0", "1.9.1", fixture.publicKey));
++    envelope["signature"] = "invalid";
++    EXPECT_FALSE(nautic::parseUpdateManifest(QJsonDocument(envelope).toJson(), "1.9.0", "1.9.1", fixture.publicKey));
++}
++TEST(UpdatePayloadTest, RejectsPathsWrongProductsAndMalformedVersionsEvenIfSigned) {
++    for (const auto& pair : {qMakePair("filename", "../evil.exe"), qMakePair("product", "Other"),
++                 qMakePair("platform", "macos-arm64"), qMakePair("version", "01.9.1"),
++                 qMakePair("sha256", "1234"), qMakePair("signature", "bad")}) {
++        SignedFixture fixture;
++        fixture.metadata[pair.first] = pair.second;
++        EXPECT_FALSE(fixture.parse());
++    }
++}
++TEST(UpdatePayloadTest, RejectsEmptyOversizedFractionalAndNonNumericSizes) {
++    for (const auto size : {-1.0, 0.0, 1.5, double(nautic::kMaximumUpdateBytes + 1)}) {
++        SignedFixture fixture;
++        fixture.metadata["size"] = size;
++        EXPECT_FALSE(fixture.parse());
++    }
++    SignedFixture fixture;
++    fixture.metadata["size"] = "1024";
++    EXPECT_FALSE(fixture.parse());
++    EXPECT_FALSE(nautic::parseUpdateManifest(QByteArray(16385, 'x'), "1.9.0", "1.9.1", fixture.publicKey));
++}
++TEST(UpdatePayloadTest, VerifiesCompleteArtifactAndRejectsTamperingAndTruncation) {
++    SignedFixture fixture;
++    const auto payload = fixture.parse();
++    ASSERT_TRUE(payload);
++    QTemporaryDir temporary;
++    ASSERT_TRUE(temporary.isValid());
++    const auto path = temporary.filePath("installer.exe");
++    auto write = [&path](const QByteArray& bytes) {
++        QFile file(path);
++        EXPECT_TRUE(file.open(QIODevice::WriteOnly));
++        EXPECT_EQ(bytes.size(), file.write(bytes));
++    };
++    write(fixture.artifact);
++    EXPECT_TRUE(nautic::verifyUpdateFile(path, *payload, fixture.publicKey));
++    EXPECT_FALSE(nautic::verifyUpdateFile(path, *payload));
++    write(QByteArray(fixture.artifact.size(), 'x'));
++    EXPECT_FALSE(nautic::verifyUpdateFile(path, *payload, fixture.publicKey));
++    write(fixture.artifact.left(3));
++    EXPECT_FALSE(nautic::verifyUpdateFile(path, *payload, fixture.publicKey));
++    write(fixture.artifact + "extra");
++    EXPECT_FALSE(nautic::verifyUpdateFile(path, *payload, fixture.publicKey));
++}
+diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
+--- a/src/test/rx3display_test.cpp
++++ b/src/test/rx3display_test.cpp
+@@ -4,6 +4,7 @@
+ #include <QPointer>
+ #include <QVBoxLayout>
+ #include "util/fpclassify.h"
++#include "control/controlpotmeter.h"
+ #include "test/mixxxtest.h"
+ #include "widget/rx3displayformat.h"
+ #include "widget/wreferencescaler.h"
+@@ -1027,3 +1028,18 @@
+     panel.setStyleSheet("QWidget{background:#000;color:#fff;font-family:Arial;font-weight:bold;} WPushButton{background:#252525;font-size:13px;border:0;}");panel.resize(300,70);panel.show();QCoreApplication::processEvents();
+     ASSERT_TRUE(panel.grab().save(QDir(output).filePath("beat-jump.png")));
+ }
++
++TEST_F(Rx3ReferenceScaleTest, SixPercentBadgeUsesRawRangeAndRestoresRedForHigherRanges) {
++    ControlPotmeter range(ConfigKey("[Channel1]", "rateRange"), 0.01, 4.0);
++    range.set(0.06);
++    WRx3RangeBadge badge("[Channel1]");
++    EXPECT_EQ(1, badge.getHighlight());
++    for (const auto value : {0.10, 0.16, 0.50, 1.0}) {
++        range.set(value);
++        QCoreApplication::processEvents();
++        EXPECT_EQ(0, badge.getHighlight());
++    }
++    range.set(0.06);
++    QCoreApplication::processEvents();
++    EXPECT_EQ(1, badge.getHighlight());
++}
+diff --git a/src/widget/wrx3performancewidgets.h b/src/widget/wrx3performancewidgets.h
+--- a/src/widget/wrx3performancewidgets.h
++++ b/src/widget/wrx3performancewidgets.h
+@@ -6,6 +6,25 @@
+ #include "control/controlobject.h"
+ #include "widget/wlabel.h"
+ #include "widget/wpushbutton.h"
++#include "widget/wwidgetgroup.h"
++
++// rateRange is a potmeter: BindProperty receives its normalized parameter,
++// not the raw fraction used by the 6% label. Observe the raw value explicitly.
++class WRx3RangeBadge : public WWidgetGroup {
++  public:
++    WRx3RangeBadge(const QString& group, QWidget* parent = nullptr)
++            : WWidgetGroup(parent) {
++        auto* range = new ControlProxy(group, "rateRange", this, ControlFlag::NoAssertIfMissing);
++        auto refresh = [this](double value) {
++            const int highlighted = qAbs(value - 0.06) < 1e-9 ? 1 : 0;
++            if (highlighted != getHighlight()) {
++                setHighlight(highlighted);
++            }
++        };
++        range->connectValueChanged(this, refresh);
++        refresh(range->get());
++    }
++};
+ 
+ class WRx3ModeTitle : public WLabel {
+   public:

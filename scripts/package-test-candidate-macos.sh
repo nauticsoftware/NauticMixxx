@@ -53,7 +53,9 @@ config.write_text(config.read_text().replace(sys.argv[2], '@NAUTIC_TEST_PROFILE@
 PY
 safe_id=$(printf '%s' "$candidate_name" | tr '._' '-')
 plutil -replace CFBundleIdentifier -string "org.nauticsoftware.nauticmixxx.test.v$safe_id" "$app/Contents/Info.plist"
-codesign --force --deep --sign - --entitlements "$project/packaging/macos/mixxx-entitlements.plist" "$app"
+sdk="$project/build/test-candidate/updater-dependencies/sparkle"
+python3 "$project/scripts/sparkle-sdk.py" --destination "$sdk"
+python3 "$project/scripts/configure-updater-macos.py" --app "$app" --sdk "$sdk"
 codesign --verify --deep --strict "$app"
 cp "$project/docs/DDJ-FLX4-EN.md" "$candidate/DDJ-FLX4-EN.md"
 cp "$project/docs/CONTROLLERS-RX3-1.5.md" "$candidate/CONTROLLERS-RX3-1.5.md"

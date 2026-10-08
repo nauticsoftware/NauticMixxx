@@ -44,6 +44,9 @@ PUBLIC_SCRIPT_PATHS = [
     "scripts/install-linux-build-deps.sh",
     "scripts/test-linux-package.py",
     "scripts/smoke-linux-gui.py",
+    "scripts/sparkle-sdk.py",
+    "scripts/configure-updater-macos.py",
+    "scripts/generate-update-feeds.py",
     "scripts/build-app-icon-macos.sh",
     "scripts/build-app-icon-windows.py",
     "scripts/prepare-app-branding.py",
@@ -135,8 +138,8 @@ def validate_inputs(app: Path) -> None:
     if skin_version != VERSION:
         raise ValueError(f"La skin declara {skin_version}; se esperaba {VERSION}")
     patches = sorted((ROOT / "patches").glob("00[0-9][0-9]-*.patch"))
-    if len(patches) != 27:
-        raise ValueError("La release requiere exactamente los veintisiete parches 0001–0027")
+    if len(patches) != 28:
+        raise ValueError("La release requiere exactamente los veintiocho parches 0001–0028")
     if not (SOURCE_ROOT / "src/widget/rx3displaystate.h").is_file():
         raise ValueError("Faltan los fuentes correspondientes parcheados de Mixxx")
     if not app.is_dir() or not (app / "Contents/Info.plist").is_file():
@@ -211,20 +214,10 @@ def prepare_app(source_app: Path, target_app: Path) -> None:
     # verification. Strip extended attributes before applying the final sign.
     subprocess.run(["xattr", "-cr", str(target_app)], check=True)
     identity = os.environ.get("NAUTIC_SIGNING_IDENTITY", "-")
-    subprocess.run(
-        [
-            "codesign",
-            "--force",
-            "--deep",
-            "--sign",
-            identity,
-            "--entitlements",
-            str(ROOT / "packaging/macos/mixxx-entitlements.plist"),
-            str(target_app),
-        ],
-        check=True,
-    )
-    subprocess.run(["codesign", "--verify", "--deep", "--strict", str(target_app)], check=True)
+    sdk = ROOT / "build/test-candidate/updater-dependencies/sparkle"
+    subprocess.run(["python3", str(ROOT / "scripts/sparkle-sdk.py"), "--destination", str(sdk)], check=True)
+    subprocess.run(["python3", str(ROOT / "scripts/configure-updater-macos.py"),
+                    "--app", str(target_app), "--sdk", str(sdk)], check=True)
 
 
 def create_skin_zip(output: Path) -> None:

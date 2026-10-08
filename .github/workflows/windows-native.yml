@@ -78,6 +78,8 @@ jobs:
           $installedExe = Join-Path $env:LOCALAPPDATA 'Programs\NauticMixxx\NauticMixxx.exe'
           $profile = Join-Path $env:LOCALAPPDATA 'NauticMixxx'
           if (-not (Test-Path $installedExe)) { throw 'NauticMixxx.exe was not installed' }
+          $helper = Join-Path (Split-Path $installedExe) 'NauticUpdateHelper.exe'
+          if (-not (Test-Path $helper) -or (Get-Item $helper).VersionInfo.ProductName -ne 'NauticMixxx') { throw 'Updater helper is missing or incorrectly branded' }
           if ((Get-Item $installedExe).VersionInfo.ProductName -ne 'NauticMixxx') { throw 'Installed app identity is wrong' }
           if (Test-Path (Join-Path (Split-Path $installedExe) 'mixxx.exe')) { throw 'Old Mixxx executable remains' }
           $cfg = Get-Content (Join-Path $profile 'mixxx.cfg') -Raw
@@ -90,6 +92,15 @@ jobs:
           $effects = [xml](Get-Content (Join-Path $profile 'effects.xml') -Raw)
           $order = @($effects.Effects.QuickEffectPresetList.ChainPresetName)
           if (($order[0..3] -join ',') -ne 'RX3 REVERB,RX3 PING PONG,RX3 NOISE,RX3 FILTER') { throw 'Wrong quick effect order' }
+          # Upgrade mode must preserve user bytes, not reapply the default template.
+          Add-Content (Join-Path $profile 'mixxx.cfg') "`n[UpgradeSentinel]`nUserChoice preserve-me"
+          Add-Content (Join-Path $profile 'effects.xml') "`n<!-- preserve custom effects -->"
+          $cfgHash = (Get-FileHash (Join-Path $profile 'mixxx.cfg') -Algorithm SHA256).Hash
+          $effectsHash = (Get-FileHash (Join-Path $profile 'effects.xml') -Algorithm SHA256).Hash
+          $upgrade = Start-Process -FilePath $setup -ArgumentList '/S /UPDATE' -PassThru -Wait
+          if ($upgrade.ExitCode -ne 0) { throw "Integrated upgrade failed: $($upgrade.ExitCode)" }
+          if ((Get-FileHash (Join-Path $profile 'mixxx.cfg') -Algorithm SHA256).Hash -ne $cfgHash) { throw 'Upgrade rewrote user settings' }
+          if ((Get-FileHash (Join-Path $profile 'effects.xml') -Algorithm SHA256).Hash -ne $effectsHash) { throw 'Upgrade rewrote user effects' }
           $uninstall = Start-Process -FilePath (Join-Path (Split-Path $installedExe) 'Uninstall-NauticMixxx.exe') -ArgumentList '/S' -PassThru -Wait
           if ($uninstall.ExitCode -ne 0) { throw "Silent uninstall failed: $($uninstall.ExitCode)" }
           if (Test-Path $installedExe) { throw 'Uninstall left executable behind' }

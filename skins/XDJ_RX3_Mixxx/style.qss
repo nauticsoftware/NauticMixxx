@@ -3162,7 +3162,7 @@ WEffectSelector#RX3BeatFxSelector {
 #WaveformInfo[highlight="1"] { border: 1px solid #eee; }
 #RX3ZoomControls #GridButton[highlight="1"] { color: #88beff; background: #173d78; border: 1px solid #88beff; }
 #RX3StatusTabs { min-height: 40px; max-height: 40px; border: 2px solid #777; padding: 0; margin: 0; }
-#RX3StatusTabs #RX3StatusTab { min-height: 36px; max-height: 36px; padding: 0; margin: 0; font-size: 16px; }
+#RX3StatusTabs #RX3StatusTab { min-height: 32px; max-height: 32px; padding: 0; margin: 2px; font-size: 16px; }
 #DeckHeaderBpm { min-width: 88px; max-width: 88px; }
 #DeckHeaderBpmTitleRow { min-height: 14px; max-height: 14px; }
 #DeckHeaderBpmTitle { min-width: 28px; max-width: 28px; font-size: 10px; }
@@ -3171,14 +3171,23 @@ WEffectSelector#RX3BeatFxSelector {
 #DeckTempoRow { qproperty-layoutSpacing: 8; }
 #DeckTempoCaption { min-width: 36px; }
 #RateRangeBadge { background: #f84418; }
-#RateRangeBadge[range="0.06"] { background: #18fc00; }
+#RateRangeBadge[highlight="1"] { background: #18fc00; }
 #RateDisplay, #RateRangeSuffix { background: transparent; color: #000; }
 #DeckTrackTime, #DeckTrackTimeMini, #DeckTempoPercent, #BPMPercent,
 #DeckHeaderBpmValue, #RateDisplay, #RateRangeSuffix, #TrackNoValue,
 #TrackNoQuantizeValue, #RX3LibraryDeckTime, #RX3LibraryDeckBpm1, #RX3LibraryDeckBpm2,
 #WaveformInfo_Bars, #WaveformInfoJump, #RX3BeatFxBpm, #RX3BeatFxMilliseconds,
-#RX3BeatFxBeat, #RX3ModePad, #RX3BeatLengthButton, #TopStatusClock { font-weight: bold; }
+#RX3BeatFxBeat, #RX3ModePad, #RX3BeatLengthButton, #TopStatusClock { font-weight: normal; }
 #RX3StatusHotcuePad { font-weight: normal; }
 
-WNumber, WNumberPos, WNumberBpm, WNumberRate, WRateRange, WTime { font-weight: bold; }
-#RX3LoopButton, #WaveformInfoDeckTitle, #RX3LibraryDeckNumber { font-weight: bold; }
+WNumber, WNumberPos, WNumberBpm, WNumberRate, WRateRange, WTime { font-weight: normal; }
+#RX3LoopButton, #WaveformInfoDeckTitle, #RX3LibraryDeckNumber { font-weight: normal; }
+
+/* 1.9.1: reference typography and exact accent colors. */
+#DeckCueLabel { border-color: #BF3413; color: #BF3413; }
+#RateRangeBadge { background: #F84418; }
+#RateRangeBadge[highlight="1"] { background: #18FC00; }
+#BpmMaster { font-weight: normal; }
+#BpmMaster[highlight="1"] { background: #F87020; color: #000; }
+#DeckHeaderBpm[highlight="1"] { border-color: #F87020; }
+#DeckHeaderBpmValue[highlight="1"] { color: #F87020; }

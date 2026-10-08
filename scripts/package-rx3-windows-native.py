@@ -17,8 +17,8 @@ NAME = f'NauticMixxx-{VERSION}-Windows-x64-Setup.exe'
 
 def patch_state():
     patches = sorted((ROOT / 'patches').glob('00[0-9][0-9]-*.patch'))
-    if len(patches) != 27:
-        raise ValueError('Expected twenty-seven NauticMixxx patches')
+    if len(patches) != 28:
+        raise ValueError('Expected twenty-eight NauticMixxx patches')
     return ','.join(digest(p).upper() for p in patches)
 
 
@@ -78,7 +78,7 @@ def validate_runtime(runtime):
     result = ET.parse(runtime / 'rx3-tests.xml').getroot()
     if int(result.get('failures', '-1')) != 0 or int(result.get('errors', '0')) != 0 or int(result.get('tests', '0')) < 75:
         raise ValueError('Expected the complete passing RX3 regression suite')
-    for name in ['Qt6Core.dll', 'platforms/qwindows.dll', 'sqldrivers/qsqlite.dll', 'keyboard/en_US.kbd.cfg']:
+    for name in ['NauticUpdateHelper.exe', 'Qt6Core.dll', 'platforms/qwindows.dll', 'sqldrivers/qsqlite.dll', 'keyboard/en_US.kbd.cfg']:
         if not (runtime / name).is_file():
             raise ValueError(f'Missing runtime dependency: {name}')
 

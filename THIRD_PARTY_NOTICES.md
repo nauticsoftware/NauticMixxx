@@ -5,7 +5,7 @@
 - Proyecto: [Mixxx](https://github.com/mixxxdj/mixxx)
 - Versión base: 2.5.6
 - Licencia: GNU GPL v2.0 o posterior
-- Modificación: diecisiete parches reproducibles en `patches/`
+- Modificación: veintiocho parches reproducibles en `patches/`
 
 Los binarios incluyen el texto de licencia y los avisos de las bibliotecas que
 Mixxx distribuye. El archivo de fuentes correspondiente permite reconstruir la
@@ -53,3 +53,11 @@ Ambos repositorios publican licencia MIT. Las copias de las licencias están en
 `controllers/Pioneer_Roland_RX3/LICENSE-DDJ-WeGO3.txt`.
 Los XML originales se guardan en `vendor/controller-mappings/` para reproducir
 la generación de los presets, incluida la reconstrucción del XML SX3.
+
+## Sparkle
+
+- Project: https://sparkle-project.org/
+- Version: 2.10.0
+- License: permissive Sparkle license (including bundled component notices).
+- Used for macOS signed updates and sandbox-aware installation. No subscription or paid license is required.
+- Full license: `vendor/licenses/Sparkle-2.10.0.txt`, also included in the macOS bundle.

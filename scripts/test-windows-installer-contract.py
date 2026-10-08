@@ -65,7 +65,7 @@ with tempfile.TemporaryDirectory() as directory:
     exe[0x40:0x46] = b'PE\0\0\x64\x86'
     (runtime / 'NauticMixxx.exe').write_bytes(exe)
     (runtime / 'NauticMixxx.ico').write_bytes(b'icon')
-    for name in ('Qt6Core.dll', 'platforms/qwindows.dll', 'sqldrivers/qsqlite.dll', 'keyboard/en_US.kbd.cfg'):
+    for name in ('NauticUpdateHelper.exe', 'Qt6Core.dll', 'platforms/qwindows.dll', 'sqldrivers/qsqlite.dll', 'keyboard/en_US.kbd.cfg'):
         path = runtime / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(b'fixture')

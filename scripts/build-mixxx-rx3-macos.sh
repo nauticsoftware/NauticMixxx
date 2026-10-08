@@ -2,7 +2,7 @@
 # Rebuild NauticMixxx from official Mixxx 2.5.6 sources.
 set -eu
 project=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-work=${RX3_BUILD_ROOT:-"$project/tmp/mixxx-native-rebuild"}
+work=${RX3_BUILD_ROOT:-"$project/build/test-candidate/$(cat "$project/VERSION")-native"}
 deps_name=mixxx-deps-2.5-arm64-osx-min1100-release-40c29ff
 mkdir -p "$work"
 fetch() {
@@ -26,7 +26,7 @@ if [ ! -d "$source_tree" ]; then
   tar -xzf "$work/mixxx-2.5.6.tar.gz" -C "$work"
 fi
 if [ -f "$patch_marker" ] && [ "$(cat "$patch_marker")" != "$patch_digest" ]; then
-  printf 'La carpeta fuente no coincide con los veintisiete parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
+  printf 'La carpeta fuente no coincide con los veintiocho parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
   exit 1
 fi
 if [ ! -f "$patch_signature" ]; then
@@ -39,15 +39,17 @@ if [ ! -f "$patch_signature" ]; then
   printf '%s\n' "$patch_digest" > "$patch_marker"
 fi
 if [ ! -f "$patch_marker" ] || [ ! -f "$patch_signature" ] || [ "$(cat "$patch_marker")" != "$patch_digest" ]; then
-  printf 'La carpeta fuente no coincide con los veintisiete parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
+  printf 'La carpeta fuente no coincide con los veintiocho parches NauticMixxx; usa otro RX3_BUILD_ROOT.\n' >&2
   exit 1
 fi
 deps="$work/buildenv/$deps_name"
+python3 "$project/scripts/sparkle-sdk.py" --destination "$work/sparkle"
 python3 "$project/scripts/prepare-app-branding.py" "$source_tree" "$project"
 "$project/scripts/build-app-icon-macos.sh" "$source_tree/res/osx/application.icns"
 cmake -S "$work/mixxx-2.5.6" -B "$work/build" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
   -DNAUTICMIX_VERSION="$(cat "$project/VERSION")" \
+  -DNAUTIC_SPARKLE_FRAMEWORK="$work/sparkle/Sparkle.framework" \
   -DCMAKE_TOOLCHAIN_FILE="$deps/scripts/buildsystems/vcpkg.cmake" \
   -DMIXXX_VCPKG_ROOT="$deps" -DVCPKG_TARGET_TRIPLET=arm64-osx-min1100-release \
   -DVCPKG_HOST_TRIPLET=x64-osx-min1100-release \
@@ -57,7 +59,7 @@ cmake -S "$work/mixxx-2.5.6" -B "$work/build" -G Ninja \
   -DBUILD_TESTING=ON -DBUILD_BENCH=OFF
 cmake --build "$work/build" --target mixxx mixxx-test --parallel "${RX3_BUILD_JOBS:-6}"
 (cd "$work/build" && QT_QPA_PLATFORM=offscreen ./mixxx-test \
-  --gtest_filter='StartupUpdateCheckerTest.*:StartupUpdateDialogTest.*:StreamCompletionTest.*:LibraryTableViewStateTest.*:Rx3*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*' \
+  --gtest_filter='IntegratedUpdaterTest.*:UpdatePayloadTest.*:StartupUpdateCheckerTest.*:StartupUpdateDialogTest.*:StreamCompletionTest.*:LibraryTableViewStateTest.*:Rx3*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*' \
   --gtest_output=xml:rx3-tests.xml)
 cmake --install "$work/build" --prefix "$work/stage"
 app="$work/stage/NauticMixxx.app"
@@ -82,6 +84,6 @@ plutil -replace CFBundleShortVersionString -string "$(cat "$project/VERSION")" "
 plutil -replace CFBundleVersion -string "$(cat "$project/VERSION")" "$app/Contents/Info.plist"
 plutil -replace NSHumanReadableCopyright -string 'NauticMixxx contributors and Mixxx Development Team' "$app/Contents/Info.plist"
 signing_identity=${NAUTIC_SIGNING_IDENTITY:--}
-codesign --force --deep --sign "$signing_identity" --entitlements "$project/packaging/macos/mixxx-entitlements.plist" "$app"
+NAUTIC_SIGNING_IDENTITY="$signing_identity" python3 "$project/scripts/configure-updater-macos.py" --app "$app" --sdk "$work/sparkle"
 codesign --verify --deep --strict "$app"
 printf 'Aplicación reconstruida: %s\n' "$app"

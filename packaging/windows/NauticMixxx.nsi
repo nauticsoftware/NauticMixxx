@@ -15,6 +15,7 @@ VIAddVersionKey "FileVersion" "${VERSION}"
 VIAddVersionKey "ProductVersion" "${VERSION}"
 
 !include "MUI2.nsh"
+!include "FileFunc.nsh"
 !define MUI_ABORTWARNING
 !define MUI_ICON "${ICON}"
 !define MUI_UNICON "${ICON}"
@@ -46,12 +47,21 @@ Section "NauticMixxx" MainSection
   SetOutPath "$PLUGINSDIR"
   File /oname=profile.cfg "${PAYLOAD}\profile\XDJ_RX3_Mixxx.profile.cfg"
   File /oname=configure-profile.ps1 "${PROFILE_SCRIPT}"
+  ; An integrated upgrade refreshes app-owned resources without rewriting the
+  ; existing user configuration or effects. Fresh profiles still use English.
+  ${GetParameters} $2
+  ClearErrors
+  ${GetOptions} $2 "/UPDATE" $3
+  IfErrors configure_profile
+  IfFileExists "$LOCALAPPDATA\NauticMixxx\mixxx.cfg" preserve_profile configure_profile
+  configure_profile:
   nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$PLUGINSDIR\configure-profile.ps1" -Profile "$LOCALAPPDATA\NauticMixxx" -Template "$PLUGINSDIR\profile.cfg"'
   Pop $0
   Pop $1
   StrCmp $0 "0" +3 0
     MessageBox MB_ICONSTOP "NauticMixxx could not configure its Windows profile: $1"
     Abort
+  preserve_profile:
   SetOutPath "$INSTDIR"
   WriteUninstaller "$INSTDIR\Uninstall-NauticMixxx.exe"
   WriteRegStr HKCU "Software\NauticMixxx" "InstallDir" "$INSTDIR"

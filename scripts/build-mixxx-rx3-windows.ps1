@@ -67,7 +67,7 @@ try {
     }
     $source = Join-Path $WorkRoot 'mixxx-2.5.6'
     $patches = @(Get-ChildItem (Join-Path $projectRoot 'patches\00[0-9][0-9]-*.patch') | Sort-Object Name)
-    if ($patches.Count -ne 27) { throw 'One or more of the twenty-seven NauticMixxx patches is missing.' }
+    if ($patches.Count -ne 28) { throw 'One or more of the twenty-eight NauticMixxx patches is missing.' }
     $patchState = ($patches | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash }) -join ','
     if (-not (Test-Path $source)) {
         Invoke-Checked -File tar -Arguments @('-xzf', $sourceArchive, '-C', $WorkRoot)
@@ -107,14 +107,14 @@ try {
         '-DBUILD_TESTING=ON', '-DBUILD_BENCH=OFF', '-DOPTIMIZE=portable', '-DDEBUG_ASSERTIONS_FATAL=OFF',
         '-DBULK=ON', '-DFFMPEG=OFF', '-DHSS1394=ON', '-DLOCALECOMPARE=ON', '-DMAD=ON',
         '-DMEDIAFOUNDATION=ON', '-DMODPLUG=ON', '-DWAVPACK=ON', '-DDOWNLOAD_MANUAL=OFF')
-    Invoke-Checked -File cmake -Arguments @('--build', $build, '--target', 'mixxx', 'mixxx-test', '--parallel', "$Jobs")
+    Invoke-Checked -File cmake -Arguments @('--build', $build, '--target', 'mixxx', 'mixxx-test', 'NauticUpdateHelper', '--parallel', "$Jobs")
     $env:QT_QPA_PLATFORM = 'offscreen'
     $env:PATH = (Join-Path $deps 'installed\x64-windows-release\bin') + ';' + $env:PATH
     $testXml = Join-Path $build 'rx3-tests.xml'
     Push-Location $build
     try {
         Invoke-Checked -File (Join-Path $build 'mixxx-test.exe') -Arguments @(
-            '--gtest_filter=StartupUpdateCheckerTest.*:StartupUpdateDialogTest.*:StreamCompletionTest.*:LibraryTableViewStateTest.*:Rx3*:BeatGridTest.*:BeatMapTest.*:BeatsTest.*:CueTest.*:CueControlTest.*:WPushButtonTest.*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*',
+            '--gtest_filter=IntegratedUpdaterTest.*:UpdatePayloadTest.*:StartupUpdateCheckerTest.*:StartupUpdateDialogTest.*:StreamCompletionTest.*:LibraryTableViewStateTest.*:Rx3*:BeatGridTest.*:BeatMapTest.*:BeatsTest.*:CueTest.*:CueControlTest.*:WPushButtonTest.*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*',
             "--gtest_output=xml:$testXml")
     } finally { Pop-Location }
     Invoke-Checked -File cmake -Arguments @('--install', $build, '--prefix', $stage)

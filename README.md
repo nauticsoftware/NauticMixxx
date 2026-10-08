@@ -1,4 +1,11 @@
-# NauticMixxx 1.9.0
+# NauticMixxx 1.9.1 — in preparation
+
+
+Version 1.9.1 adds free, signed integrated updates with immediate installation or
+installation on quit, and corrects fullscreen scaling, readout typography,
+STATUS spacing and accent colors. It is being validated. The stable public
+fallback remains 1.9.0; the download links below still point to that release.
+See the [integrated update guide](docs/UPDATES-1.9.1.md).
 
 Version 1.9.0 adds immediate USB category previews, paired browse columns,
 touch search and temporary USB folder playback. Performance adds an active deck
