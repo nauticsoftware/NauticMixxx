@@ -32,7 +32,7 @@ def configure(app, sdk, identity='-'):
     installer_data['CFBundleIconFile'] = 'application.icns'
     with installer_info.open('wb') as handle:
         plistlib.dump(installer_data, handle)
-    info = app / 'Contents/Info.plist' 
+    info = app / 'Contents/Info.plist'
     with info.open('rb') as handle:
         data = plistlib.load(handle)
     data.update(SUFeedURL=FEED_URL, SUPublicEDKey=PUBLIC_KEY,

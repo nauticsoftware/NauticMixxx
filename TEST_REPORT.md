@@ -11,24 +11,29 @@
   install/relaunch and background install on quit, from 1.9.0 to 1.9.1, with a
   signed local feed and signed payload. Both preserved the profile sentinel.
   The background probe was manually relaunched after installation, as intended.
+  Final probes include the branded installer helper. Fixtures execute outside
+  Desktop to avoid granting macOS folder access solely for testing.
 - Native renders verify loaded REMAIN, pitch and BPM values using the thin
   reference faces. Raw six-percent range highlights green; higher ranges restore red.
 - Live app inspection verified fullscreen expansion to 2560×1440 and return to
   the frameless 1280×800 window. The STATUS inset is visible on all four sides.
-  Finder displays the project icon; generated bundle icon bytes match the canonical icon.
+  Finder displays the project icon on the final preview 4; generated application
+  and embedded Updater.app icon bytes match the canonical icon. The final DMG
+  passes checksum, version, profile exclusion and strict nested-signature checks.
 - Public-input audit, XML, controller JavaScript suites, controller preset tests,
   Windows installer/skin contracts and USB-only policy passed.
 
 ## Windows x64
 
-- Initial 1.9.1 native updater build and actual NSIS install/upgrade/uninstall passed:
-  150 native tests passed, 0 failed, 6 optional fixtures skipped.
-  The helper builds with NauticMixxx metadata and the project icon.
+- Final 1.9.1 native build and actual NSIS install/upgrade/uninstall passed:
+  153 native tests passed, 0 failed, 7 optional external fixtures/render exports
+  skipped. Selected-deck, shared-wheel and thin-font regression tests passed.
+  The installer, application and helper contain the canonical project icon;
+  all 28 native patch hashes match the local prepared source.
 - Silent /UPDATE preserves user mixxx.cfg and effects.xml byte for byte. Fresh
   installs default to English and USB-only operation. Uninstall preserves profiles.
 - [Initial updater build and installer evidence](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37712144630).
-- A final build including the later wheel, selected-deck and thin-font corrections
-  is in progress. No final Windows artifact is claimed until that run passes.
+- [Final native build and installer evidence](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37714289047).
 
 ## Scope and limitations
 

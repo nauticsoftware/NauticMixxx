@@ -26,7 +26,10 @@ settings remain in the user's profile.
 The release key is in the maintainer's macOS Keychain under the account
 `nauticmixxx-release-updates`; only its public key is in the repository. No paid
 service, Apple Developer ID, notarization subscription or purchased signing
-certificate is required. OS origin/security warnings can still appear.
+certificate is required. OS origin/security warnings can still appear. Install the app in Applications.
+An app kept on Desktop may require macOS Desktop-folder permission during an
+update, especially when its ad-hoc signature changes; updates do not bypass
+macOS privacy controls.
 
 ## Preparing a release
 
