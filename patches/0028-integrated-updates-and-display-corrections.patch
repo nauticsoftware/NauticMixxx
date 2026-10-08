@@ -1219,7 +1219,47 @@ diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
  #include "test/mixxxtest.h"
  #include "widget/rx3displayformat.h"
  #include "widget/wreferencescaler.h"
-@@ -1027,3 +1028,18 @@
+@@ -977,6 +978,39 @@
+     EXPECT_EQ(0,ControlObject::get(ConfigKey("[RX3Display]","active1")));
+     EXPECT_EQ(1,ControlObject::get(ConfigKey("[RX3Display]","active2")));
+ }
++TEST_F(Rx3ReferenceScaleTest, PlaybackProxyFeedbackNeverChangesSelectedDeckOrGrid) {
++    // BpmControl updates rate_ratio through a ControlProxy on every callback,
++    // rather than the owning ControlObject. Reproduce both decks playing.
++    std::vector<std::unique_ptr<ControlObject>> controls;
++    for (int deck = 1; deck <= 2; ++deck) {
++        for (const auto& item : {"rate_ratio", "beat_distance", "playposition", "VuMeter",
++                     "visual_bpm", "sync_leader", "scratch2", "scratch2_scratching", "jog"}) {
++            controls.push_back(std::make_unique<ControlObject>(
++                    ConfigKey(QString("[Channel%1]").arg(deck), item)));
++        }
++    }
++    Rx3PerformanceState state;
++    state.selectDeck(2);
++    ControlObject::set(ConfigKey("[RX3Controller]", "grid_mode"), 1);
++    for (int tick = 0; tick < 100; ++tick) {
++        for (int deck = 1; deck <= 2; ++deck) {
++            for (const auto& item : {"rate_ratio", "beat_distance", "playposition", "VuMeter",
++                         "visual_bpm", "sync_leader", "scratch2", "scratch2_scratching"}) {
++                ControlProxy feedback(QString("[Channel%1]").arg(deck), item);
++                feedback.set(1.0 + tick * 0.001);
++            }
++        }
++        QCoreApplication::processEvents();
++        EXPECT_EQ(2, state.activeDeck());
++        EXPECT_EQ(0, ControlObject::get(ConfigKey("[RX3Display]", "gridpanel1")));
++        EXPECT_EQ(1, ControlObject::get(ConfigKey("[RX3Display]", "gridpanel2")));
++    }
++    ControlObject::set(ConfigKey("[Channel1]", "jog"), 0.2);
++    QCoreApplication::processEvents();
++    EXPECT_EQ(1, state.activeDeck());
++    EXPECT_EQ(1, ControlObject::get(ConfigKey("[RX3Display]", "gridpanel1")));
++    ControlObject::set(ConfigKey("[RX3Controller]", "grid_mode"), 0);
++}
+ TEST_F(Rx3ReferenceScaleTest, GridToolsOnlyEditSelectedTrackAndResetEntrySnapshot) {
+     PlayerInfo::create();
+     {
+@@ -1027,3 +1061,18 @@
      panel.setStyleSheet("QWidget{background:#000;color:#fff;font-family:Arial;font-weight:bold;} WPushButton{background:#252525;font-size:13px;border:0;}");panel.resize(300,70);panel.show();QCoreApplication::processEvents();
      ASSERT_TRUE(panel.grab().save(QDir(output).filePath("beat-jump.png")));
  }
@@ -1238,6 +1278,58 @@ diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
 +    QCoreApplication::processEvents();
 +    EXPECT_EQ(1, badge.getHighlight());
 +}
+diff --git a/src/widget/rx3performancestate.h b/src/widget/rx3performancestate.h
+--- a/src/widget/rx3performancestate.h
++++ b/src/widget/rx3performancestate.h
+@@ -2,6 +2,7 @@
+ 
+ #include <QApplication>
+ #include <QEvent>
++#include <QRegularExpression>
+ #include <QWidget>
+ #include <array>
+ #include <memory>
+@@ -44,9 +45,11 @@
+         });
+         for(const auto& control:ControlDoublePrivate::getAllInstances()) {
+             const auto key=control->getKey();
+-            // Scratch filter timers and readouts are feedback, not fresh input.
+-            if(key.item.startsWith("scratch2") || key.item.startsWith("visual_") ||
+-                    key.item=="track_loaded" || key.item=="duration") continue;
++            // Engine ControlProxy writes (notably rate_ratio during every audio
++            // callback) also emit inputReceived. Only deck action controls may
++            // select a deck; meters, positions, sync feedback and scratch filter
++            // timers must never move the performer's selection.
++            if (!isSelectionInput(key.item)) continue;
+             for(int deck=1;deck<=2;++deck) {
+                 if(key.group.contains(QString("[Channel%1]").arg(deck)) ||
+                         key.group==QString("[RX3PadModeDeck%1]").arg(deck)) {
+@@ -78,6 +81,25 @@
+         return false;
+     }
+   private:
++    static bool isSelectionInput(const QString& item) {
++        static const QRegularExpression actions(QStringLiteral(
++                "^(play|play_stutter|stop|cue_default|cue_preview|cue_set|cue_clear|"
++                "cue_goto|cue_gotoandplay|cue_gotoandstop|quantize|keylock|"
++                "rate|rateRange|rate_dir|rate_temp_.*|rate_perm_.*|rate_set_.*|"
++                "pitch|pitch_adjust|pitch_up|pitch_down|jog|wheel|scratch|"
++                "scratch_enable|scratch2_enable|scratch2_touch|"
++                "volume|pregain|orientation|filter.*|parameter.*|super[0-9]+|"
++                "mix|enabled|mode|sync_enabled|sync_mode|beatsync|beatsync_phase|"
++                "beatsync_tempo|sync_master|reverse|reverseroll|slip_enabled|"
++                "LoadSelectedTrack|eject|beatjump.*|beatloop_size|"
++                "beatloop_[0-9.]+_(activate|toggle)|"
++                "beatlooproll_[0-9.]+_activate|"
++                "hotcue_[0-9]+_(activate|set|clear|goto|gotoandplay|gotoandstop)|"
++                "loop_in|loop_out|loop_move|loop_double|loop_halve|loop_scale|"
++                "loop_enabled|reloop_toggle|reloop_exit|reloop_andstop|"
++                "waveform_zoom|waveform_zoom_up|waveform_zoom_down)$"));
++        return actions.match(item).hasMatch();
++    }
+     void ensure(const QString& group,const QString& item,double initial) {
+         if(!ControlObject::exists(ConfigKey(group,item))) m_owners.push_back(
+                 std::make_unique<ControlObject>(ConfigKey(group,item),false,false,false,initial));
 diff --git a/src/widget/wrx3performancewidgets.h b/src/widget/wrx3performancewidgets.h
 --- a/src/widget/wrx3performancewidgets.h
 +++ b/src/widget/wrx3performancewidgets.h
