@@ -50,7 +50,7 @@ if [ ! -x "$native_test" ] && [ -x tmp/mixxx-native-rebuild/build/mixxx-test ]; 
 fi
 if [ -x "$native_test" ]; then
   resource_path=$(CDPATH= cd -- "$project/../res" && pwd)
-  (cd "$native_test_dir" && QT_QPA_PLATFORM=offscreen ./mixxx-test \
+  (cd "$native_test_dir" && QT_QPA_PLATFORM=offscreen NAUTIC_RX3_STYLESHEET="$project/skins/XDJ_RX3_Mixxx/style.qss" ./mixxx-test \
     --resource-path "$resource_path" \
     --gtest_output="xml:${NAUTIC_NATIVE_TEST_REPORT:-rx3-release-tests.xml}" \
     --gtest_filter='IntegratedUpdaterTest.*:UpdatePayloadTest.*:StartupUpdateCheckerTest.*:StartupUpdateDialogTest.*:StreamCompletionTest.*:LibraryTableViewStateTest.*:Rx3*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*:RekordboxUsbSessionTest.*:RekordboxRuntimeTrackModelTest.*:TrackCapabilityPolicyTest.*')

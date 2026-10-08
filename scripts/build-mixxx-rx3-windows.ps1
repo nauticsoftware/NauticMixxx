@@ -109,6 +109,7 @@ try {
         '-DMEDIAFOUNDATION=ON', '-DMODPLUG=ON', '-DWAVPACK=ON', '-DDOWNLOAD_MANUAL=OFF')
     Invoke-Checked -File cmake -Arguments @('--build', $build, '--target', 'mixxx', 'mixxx-test', 'NauticUpdateHelper', '--parallel', "$Jobs")
     $env:QT_QPA_PLATFORM = 'offscreen'
+    $env:NAUTIC_RX3_STYLESHEET = Join-Path $projectRoot 'skins\XDJ_RX3_Mixxx\style.qss'
     $env:PATH = (Join-Path $deps 'installed\x64-windows-release\bin') + ';' + $env:PATH
     $testXml = Join-Path $build 'rx3-tests.xml'
     Push-Location $build

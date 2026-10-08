@@ -58,7 +58,7 @@ cmake -S "$work/mixxx-2.5.6" -B "$work/build" -G Ninja \
   '-DMACOS_BUNDLE_IDENTIFIER=org.mixxx.mixxx' \
   -DBUILD_TESTING=ON -DBUILD_BENCH=OFF
 cmake --build "$work/build" --target mixxx mixxx-test --parallel "${RX3_BUILD_JOBS:-6}"
-(cd "$work/build" && QT_QPA_PLATFORM=offscreen ./mixxx-test \
+(cd "$work/build" && QT_QPA_PLATFORM=offscreen NAUTIC_RX3_STYLESHEET="$project/skins/XDJ_RX3_Mixxx/style.qss" ./mixxx-test \
   --gtest_filter='IntegratedUpdaterTest.*:UpdatePayloadTest.*:StartupUpdateCheckerTest.*:StartupUpdateDialogTest.*:StreamCompletionTest.*:LibraryTableViewStateTest.*:Rx3*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*' \
   --gtest_output=xml:rx3-tests.xml)
 cmake --install "$work/build" --prefix "$work/stage"

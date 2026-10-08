@@ -1259,7 +1259,7 @@ diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
  TEST_F(Rx3ReferenceScaleTest, GridToolsOnlyEditSelectedTrackAndResetEntrySnapshot) {
      PlayerInfo::create();
      {
-@@ -1027,3 +1061,147 @@
+@@ -1027,3 +1061,149 @@
      panel.setStyleSheet("QWidget{background:#000;color:#fff;font-family:Arial;font-weight:bold;} WPushButton{background:#252525;font-size:13px;border:0;}");panel.resize(300,70);panel.show();QCoreApplication::processEvents();
      ASSERT_TRUE(panel.grab().save(QDir(output).filePath("beat-jump.png")));
  }
@@ -1280,7 +1280,8 @@ diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
 +}
 +
 +TEST_F(Rx3ReferenceScaleTest, ReferenceReadoutTypographyRemainsThinWhenScaled) {
-+    QFile css(QDir(config()->getResourcePath()).filePath("../nautic/skins/XDJ_RX3_Mixxx/style.qss"));
++    QFile css(qEnvironmentVariable("NAUTIC_RX3_STYLESHEET",
++            QDir(config()->getResourcePath()).filePath("../nautic/skins/XDJ_RX3_Mixxx/style.qss")));
 +    if (!css.exists()) css.setFileName(QDir(config()->getResourcePath()).filePath("skins/XDJ_RX3_Mixxx/style.qss"));
 +    ASSERT_TRUE(css.open(QIODevice::ReadOnly));
 +    auto* canvas = new QWidget;
@@ -1371,7 +1372,8 @@ diff --git a/src/test/rx3display_test.cpp b/src/test/rx3display_test.cpp
 +    ControlObject mode(ConfigKey("[Controls]", "ShowDurationRemaining"), false, false, false, 1);
 +    ControlObject format(ConfigKey("[Controls]", "TimeFormat"));
 +    ControlObject rate(ConfigKey("[Channel1]", "rate_ratio"), false, false, false, 1.0169);
-+    QFile css(QDir(config()->getResourcePath()).filePath("../nautic/skins/XDJ_RX3_Mixxx/style.qss"));
++    QFile css(qEnvironmentVariable("NAUTIC_RX3_STYLESHEET",
++            QDir(config()->getResourcePath()).filePath("../nautic/skins/XDJ_RX3_Mixxx/style.qss")));
 +    if (!css.exists()) css.setFileName(QDir(config()->getResourcePath()).filePath("skins/XDJ_RX3_Mixxx/style.qss"));
 +    ASSERT_TRUE(css.open(QIODevice::ReadOnly));
 +    QWidget panel;
