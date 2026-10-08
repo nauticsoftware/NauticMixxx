@@ -1,6 +1,6 @@
 # Historial de cambios
 
-## 1.9.1 — In preparation
+## 1.9.1 — 2026-10-07
 
 - Fix mutually exclusive ZOOM/GRID highlights, add 4 px black gaps between GRID tools, and align STATUS pad-page titles and buttons.
 - Refresh Hercules Inpulse 500 pad feedback after loading or unloading tracks, including restored Rekordbox hot cues.

@@ -46,6 +46,6 @@ The command fails if the Keychain public key does not match the embedded key.
 Upload appcast-macos.xml and UPDATE_WINDOWS.json alongside the final artifacts.
 Do not modify signed feeds or packages after signing. Never export a private
 key into source, logs, CI artifacts or the public repository. Keep 1.9.0 intact
-as the stable fallback while 1.9.1 is being validated.
+as the stable fallback after publishing 1.9.1.
 
 The display corrections also keep selected-deck/GRID focus stable during engine playback updates and restrict mouse wheel gestures over either main waveform to shared zoom. Deck numeric readouts use thin faces; active QUANTIZE uses #BF3413.

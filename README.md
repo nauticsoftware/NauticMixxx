@@ -1,10 +1,11 @@
-# NauticMixxx 1.9.1 — in preparation
+# NauticMixxx 1.9.1
 
 
 Version 1.9.1 adds free, signed integrated updates with immediate installation or
 installation on quit, and corrects fullscreen scaling, readout typography,
-STATUS spacing and accent colors. It is being validated. The stable public
-fallback remains 1.9.0; the download links below still point to that release.
+STATUS spacing and accent colors. It also aligns the performance panels,
+restores exclusive ZOOM/GRID highlighting and refreshes Hercules hot-cue LEDs.
+Version [1.9.0](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.9.0) remains available as the stable fallback.
 See the [integrated update guide](docs/UPDATES-1.9.1.md).
 
 Version 1.9.0 adds immediate USB category previews, paired browse columns,
@@ -34,10 +35,10 @@ NauticMixxx is an open-source community edition of Mixxx 2.5.6. It brings an XDJ
 
 ## Download and install
 
-Download NauticMixxx 1.9.0 from the [release page](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.9.0):
+Download NauticMixxx 1.9.1 from the [release page](https://github.com/nauticsoftware/NauticMixxx/releases/tag/v1.9.1):
 
-- [macOS Apple Silicon DMG](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.9.0/NauticMixxx-1.9.0-macOS-arm64.dmg)
-- [Windows x64 installer](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.9.0/NauticMixxx-1.9.0-Windows-x64-Setup.exe)
+- [macOS Apple Silicon DMG](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.9.1/NauticMixxx-1.9.1-macOS-arm64.dmg)
+- [Windows x64 installer](https://github.com/nauticsoftware/NauticMixxx/releases/download/v1.9.1/NauticMixxx-1.9.1-Windows-x64-Setup.exe)
 
 The Windows installer includes the native NauticMixxx program, RX3 skin, controller mappings and effects. The app and profile are separate from official Mixxx. Uninstall from Windows Settings; personal settings remain in `%LOCALAPPDATA%\NauticMixxx`.
 
@@ -66,7 +67,7 @@ The Linux recipe was validated with version 1.5.0: native builds, RX3 tests and 
 [Ubuntu 24.04 x86_64 and ARM64](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37158960601)
 and [Debian 12 ARM64](https://github.com/nauticsoftware/NauticMixxx/actions/runs/37159816188).
 The Bookworm build uses Debian's userland; it still needs physical Pi testing.
-No native Linux 1.9.0 package is provided.
+No native Linux 1.9.1 package is provided.
 
 ```sh
 ./scripts/install-linux-build-deps.sh

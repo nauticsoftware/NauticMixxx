@@ -45,8 +45,8 @@
 
 ## Scope and limitations
 
-- Version 1.9.0 remains the public stable fallback. Version 1.9.1 is prepared on a
-  separate branch; it is not published as a release. Source inputs contain 28
+- Version 1.9.1 is promoted to the public release; version 1.9.0 remains available
+  as the stable fallback. Source inputs contain 28
   reproducible native patches, current English release notes and third-party licenses.
 - Release signing keys stay in macOS Keychain. Public packages contain only the
   verification key. No paid update service, Developer ID or Windows certificate is used.
