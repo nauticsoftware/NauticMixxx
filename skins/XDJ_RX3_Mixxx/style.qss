@@ -3052,16 +3052,6 @@ WEffectSelector#RX3BeatFxSelector {
 #RX3LibraryDeckBpmBox1[highlight="1"], #RX3LibraryDeckBpmBox2[highlight="1"] { border-color: #ff7800; }
 #RX3LibraryDeckBpm1[highlight="1"], #RX3LibraryDeckBpm2[highlight="1"] { color: #ff7800; }
 
-/* 0.14: jog beat-grid editing shares the hardware BROWSER gesture. */
-#RX3ZoomControls[highlight="1"] #ZoomInButton,
-#RX3ZoomControls[highlight="1"] #ZoomOutButton { color: #888; border: 1px solid transparent; }
-#RX3ZoomControls[highlight="1"] #GridButton { color: #0098f6; border: 1px solid #0098f6; }
-
-/* 0.15: bind highlight on each painted button: Qt does not repolish
-   descendants when only their parent changes its dynamic property. */
-#RX3ZoomControls #ZoomInButton[highlight="1"],
-#RX3ZoomControls #ZoomOutButton[highlight="1"] { color: #888; border: 1px solid transparent; }
-#RX3ZoomControls #GridButton[highlight="1"] { color: #0098f6; border: 1px solid #0098f6; }
 #RX3TransportRail { background: #202020; qproperty-layoutSpacing: 12; padding: 0 8px; }
 #RX3RemainBlock { background: transparent; }
 #RX3Topbar { qproperty-layoutAlignment: 'AlignLeft | AlignVCenter'; }
@@ -3160,7 +3150,6 @@ WEffectSelector#RX3BeatFxSelector {
 #Deck[highlight="1"], #RX3LibraryDeck[highlight="1"] { border: 1px solid #eee; }
 #WaveformInfo { border: 1px solid transparent; }
 #WaveformInfo[highlight="1"] { border: 1px solid #eee; }
-#RX3ZoomControls #GridButton[highlight="1"] { color: #88beff; background: #173d78; border: 1px solid #88beff; }
 #RX3StatusTabs { min-height: 40px; max-height: 40px; border: 2px solid #777; padding: 0; margin: 0; }
 #RX3StatusTabs #RX3StatusTab { min-height: 32px; max-height: 32px; padding: 0; margin: 2px; font-size: 16px; }
 #DeckHeaderBpm { min-width: 88px; max-width: 88px; }
@@ -3201,3 +3190,10 @@ WNumber, WNumberPos, WNumberBpm, WNumberRate, WRateRange, WTime { font-weight: n
   font-family: "Helvetica Neue", "Segoe UI", "Arial";
   font-weight: 300;
 }
+
+/* GRID and ZOOM are mutually exclusive; displayValue follows the real mode. */
+#RX3ZoomControls #ZoomInButton { color: #0098f6; background: #08090a; border: 1px solid #0098f6; }
+#RX3ZoomControls #ZoomInButton[displayValue="1"] { color: #888; border-color: transparent; }
+#RX3ZoomControls #GridButton { color: #888; background: #08090a; border: 1px solid transparent; }
+#RX3ZoomControls #GridButton[displayValue="1"] { color: #0098f6; border-color: #0098f6; }
+#RX3GridToolRow { background: #000; qproperty-layoutSpacing: 4; }

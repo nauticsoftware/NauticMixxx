@@ -2,6 +2,8 @@
 
 ## 1.9.1 — In preparation
 
+- Fix mutually exclusive ZOOM/GRID highlights and add 4 px black gaps between GRID tools.
+
 - Integrated signed updates with immediate installation or installation on quit.
 - Optional background downloads, playback safeguards and profile-preserving Windows upgrades.
 - STATUS inset, exact accent colors and reference readout typography.

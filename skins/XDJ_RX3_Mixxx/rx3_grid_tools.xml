@@ -1,2 +1,91 @@
 <!DOCTYPE template>
-<Template><WidgetGroup><ObjectName>RX3GridTools</ObjectName><Layout>vertical</Layout><Children><Label><ObjectName>RX3ModeTitle</ObjectName><Rx3ModeTitle>true</Rx3ModeTitle><Text>GRID</Text><Size>0me,16f</Size></Label><WidgetGroup><Layout>horizontal</Layout><Children><PushButton><ObjectName>RX3GridTool</ObjectName><Size>0me,36f</Size><NumberStates>1</NumberStates><State><Number>0</Number><Text>SNAP GRID (CUE)</Text></State><Connection><ConfigKey>[RX3Controller],grid_snap_cue</ConfigKey><ConnectValueToWidget>false</ConnectValueToWidget></Connection></PushButton><PushButton><ObjectName>RX3GridTool</ObjectName><Size>0me,36f</Size><NumberStates>1</NumberStates><State><Number>0</Number><Text>SHIFT GRID</Text></State><Connection><ConfigKey>[RX3Display],gridshift<Variable name="channel"/></ConfigKey><BindProperty>highlight</BindProperty></Connection><Connection><ConfigKey>[RX3Controller],grid_shift</ConfigKey><ConnectValueToWidget>false</ConnectValueToWidget></Connection></PushButton><PushButton><ObjectName>RX3GridTool</ObjectName><Size>0me,36f</Size><NumberStates>1</NumberStates><State><Number>0</Number><Text>◂ 1/2</Text></State><Connection><ConfigKey>[RX3Controller],grid_earlier_half</ConfigKey><ConnectValueToWidget>false</ConnectValueToWidget></Connection></PushButton><PushButton><ObjectName>RX3GridTool</ObjectName><Size>0me,36f</Size><NumberStates>1</NumberStates><State><Number>0</Number><Text>1/2 ▸</Text></State><Connection><ConfigKey>[RX3Controller],grid_later_half</ConfigKey><ConnectValueToWidget>false</ConnectValueToWidget></Connection></PushButton><PushButton><ObjectName>RX3GridTool</ObjectName><Size>0me,36f</Size><NumberStates>1</NumberStates><State><Number>0</Number><Text>RESET</Text></State><Connection><ConfigKey>[RX3Controller],grid_reset</ConfigKey><ConnectValueToWidget>false</ConnectValueToWidget></Connection></PushButton></Children></WidgetGroup></Children></WidgetGroup></Template>
+<Template>
+  <WidgetGroup>
+    <ObjectName>RX3GridTools</ObjectName>
+    <Layout>vertical</Layout>
+    <Children>
+      <Label>
+        <ObjectName>RX3ModeTitle</ObjectName>
+        <Rx3ModeTitle>true</Rx3ModeTitle>
+        <Text>GRID</Text>
+        <Size>0me,16f</Size>
+      </Label>
+      <WidgetGroup>
+        <ObjectName>RX3GridToolRow</ObjectName>
+        <Layout>horizontal</Layout>
+        <Children>
+          <PushButton>
+            <ObjectName>RX3GridTool</ObjectName>
+            <Size>0me,36f</Size>
+            <NumberStates>1</NumberStates>
+            <State>
+              <Number>0</Number>
+              <Text>SNAP GRID (CUE)</Text>
+            </State>
+            <Connection>
+              <ConfigKey>[RX3Controller],grid_snap_cue</ConfigKey>
+              <ConnectValueToWidget>false</ConnectValueToWidget>
+            </Connection>
+          </PushButton>
+          <PushButton>
+            <ObjectName>RX3GridTool</ObjectName>
+            <Size>0me,36f</Size>
+            <NumberStates>1</NumberStates>
+            <State>
+              <Number>0</Number>
+              <Text>SHIFT GRID</Text>
+            </State>
+            <Connection>
+              <ConfigKey>[RX3Display],gridshift<Variable name="channel" />
+              </ConfigKey>
+              <BindProperty>highlight</BindProperty>
+            </Connection>
+            <Connection>
+              <ConfigKey>[RX3Controller],grid_shift</ConfigKey>
+              <ConnectValueToWidget>false</ConnectValueToWidget>
+            </Connection>
+          </PushButton>
+          <PushButton>
+            <ObjectName>RX3GridTool</ObjectName>
+            <Size>0me,36f</Size>
+            <NumberStates>1</NumberStates>
+            <State>
+              <Number>0</Number>
+              <Text>◂ 1/2</Text>
+            </State>
+            <Connection>
+              <ConfigKey>[RX3Controller],grid_earlier_half</ConfigKey>
+              <ConnectValueToWidget>false</ConnectValueToWidget>
+            </Connection>
+          </PushButton>
+          <PushButton>
+            <ObjectName>RX3GridTool</ObjectName>
+            <Size>0me,36f</Size>
+            <NumberStates>1</NumberStates>
+            <State>
+              <Number>0</Number>
+              <Text>1/2 ▸</Text>
+            </State>
+            <Connection>
+              <ConfigKey>[RX3Controller],grid_later_half</ConfigKey>
+              <ConnectValueToWidget>false</ConnectValueToWidget>
+            </Connection>
+          </PushButton>
+          <PushButton>
+            <ObjectName>RX3GridTool</ObjectName>
+            <Size>0me,36f</Size>
+            <NumberStates>1</NumberStates>
+            <State>
+              <Number>0</Number>
+              <Text>RESET</Text>
+            </State>
+            <Connection>
+              <ConfigKey>[RX3Controller],grid_reset</ConfigKey>
+              <ConnectValueToWidget>false</ConnectValueToWidget>
+            </Connection>
+          </PushButton>
+        </Children>
+      </WidgetGroup>
+    </Children>
+  </WidgetGroup>
+</Template>
