@@ -725,7 +725,7 @@ new file mode 100644
 +                if (!manifest.open(QIODevice::WriteOnly) || manifest.write(m_manifest) != m_manifest.size() || !manifest.commit()) {
 +                    fail(tr("Cannot save the signed update manifest.")); return;
 +                }
-+                request(m_payload->url(), true);
++                this->request(m_payload->url(), true);
 +                return;
 +            }
 +            if (m_received != m_payload->size || !m_file->commit()) {
