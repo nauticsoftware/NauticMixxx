@@ -1,0 +1,260 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      draft:
+        description: 'Publish as draft release'
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nauticmixxx-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-macos:
+    name: Build macOS Apple Silicon (arm64)
+    runs-on: macos-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5.4.0
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4.2.0
+        with:
+          node-version: '22'
+
+      - name: Install build tools and dependencies
+        run: |
+          brew install ninja cmake create-dmg
+          pip install Pillow==11.3.0
+
+      - name: Validate public metadata and inputs
+        run: |
+          python3 scripts/release-audit.py
+
+      - name: Build and test native NauticMixxx (macOS arm64)
+        run: |
+          chmod +x scripts/build-mixxx-rx3-macos.sh
+          ./scripts/build-mixxx-rx3-macos.sh
+
+      - name: Package standalone skin ZIP
+        run: |
+          python3 - << 'PY'
+          import zipfile
+          from pathlib import Path
+
+          root = Path('.').resolve()
+          version = (root / 'VERSION').read_text(encoding='utf-8').strip()
+          output_dir = root / 'dist'
+          output_dir.mkdir(exist_ok=True)
+          skin_source = root / 'skins/XDJ_RX3_Mixxx'
+          archive_path = output_dir / f'NauticMixxx-{version}-skin.zip'
+          with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as archive:
+              for path in sorted(skin_source.rglob('*')):
+                  if path.is_file() and not any(part in {'.git', '.DS_Store', '__pycache__'} for part in path.parts):
+                      archive.write(path, Path('XDJ_RX3_Mixxx') / path.relative_to(skin_source))
+          print(f"Created skin archive: {archive_path}")
+          PY
+
+      - name: Package macOS DMG
+        run: |
+          version=$(cat VERSION)
+          app="build/test-candidate/${version}-native/stage/NauticMixxx.app"
+          if [ ! -d "$app" ]; then
+            app=$(find build -name "NauticMixxx.app" -type d | head -n 1)
+          fi
+          mkdir -p dist
+          # Package temporary zip required by package-macos-dmg.sh
+          ditto -c -k --norsrc --keepParent "$app" "dist/NauticMixxx-${version}-macOS-arm64.zip"
+          chmod +x scripts/package-macos-dmg.sh
+          ./scripts/package-macos-dmg.sh dist
+          rm -f "dist/NauticMixxx-${version}-macOS-arm64.zip"
+
+      - name: Generate Sparkle update feed
+        env:
+          SPARKLE_KEY: ${{ secrets.NAUTIC_RELEASE_UPDATES_ED25519_KEY }}
+        run: |
+          version=$(cat VERSION)
+          dmg="dist/NauticMixxx-${version}-macOS-arm64.dmg"
+          if [ -f "$dmg" ] && [ -n "$SPARKLE_KEY" ]; then
+            sdk="build/test-candidate/${version}-native/sparkle"
+            if [ -d "$sdk" ]; then
+              python3 scripts/generate-update-feeds.py --release-dir dist --sdk "$sdk" --platform macos || true
+            fi
+          fi
+
+      - name: Upload macOS release artifacts
+        uses: actions/upload-artifact@v4.6.1
+        with:
+          name: release-artifacts-macos
+          path: |
+            dist/*-macOS-arm64.dmg
+            dist/*-skin.zip
+            dist/appcast-macos.xml
+          if-no-files-found: warn
+          compression-level: 0
+
+  build-windows:
+    name: Build Windows x64
+    runs-on: windows-2022
+    timeout-minutes: 180
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5.4.0
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4.2.0
+        with:
+          node-version: '22'
+
+      - name: Install build tools and dependencies
+        shell: powershell
+        run: |
+          python -m pip install Pillow==11.3.0
+          choco install nsis --yes --no-progress --limit-output
+          if ($LASTEXITCODE -ne 0) { throw 'NSIS installation failed' }
+
+      - name: Validate installer inputs and scripts
+        shell: powershell
+        run: |
+          $scripts = @('scripts/build-mixxx-rx3-windows.ps1', 'packaging/windows/configure-profile.ps1')
+          foreach ($script in $scripts) {
+            $tokens = $null
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors)
+            if ($errors.Count -gt 0) { throw "PowerShell syntax error in $script : $errors" }
+          }
+          python scripts/test-windows-installer-contract.py
+          if ($LASTEXITCODE -ne 0) { throw 'Installer contract test failed' }
+
+      - name: Build, test and package native NauticMixxx (Windows x64)
+        shell: powershell
+        run: |
+          ./scripts/build-mixxx-rx3-windows.ps1 -WorkRoot C:\rx3-build -Jobs 4
+
+      - name: Smoke test Windows Setup installer
+        shell: powershell
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          $setup = Join-Path (Resolve-Path build) "NauticMixxx-$version-Windows-x64-Setup.exe"
+          if (-not (Test-Path $setup)) { throw "Missing setup installer: $setup" }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item $setup dist/
+
+      - name: Upload Windows release artifacts
+        uses: actions/upload-artifact@v4.6.1
+        with:
+          name: release-artifacts-windows
+          path: |
+            dist/*-Windows-x64-Setup.exe
+            dist/UPDATE_WINDOWS.json
+          if-no-files-found: warn
+          compression-level: 0
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up staging directory
+        run: |
+          mkdir -p release-assets
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4.1.9
+        with:
+          name: release-artifacts-macos
+          path: release-assets
+        continue-on-error: true
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4.1.9
+        with:
+          name: release-artifacts-windows
+          path: release-assets
+        continue-on-error: true
+
+      - name: Generate SHA256SUMS.txt
+        working-directory: release-assets
+        run: |
+          # Remove any previous checksum file
+          rm -f SHA256SUMS.txt
+          # Generate checksums for all user-facing and updater files
+          find . -maxdepth 1 -type f -not -name '.*' -exec sha256sum {} + | sed 's| \./|  |' | sort -k2 > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Prepare release body from template
+        run: |
+          VERSION=$(cat VERSION | tr -d '[:space:]')
+          TAG="${GITHUB_REF_NAME}"
+          if [ -z "$TAG" ] || [ "$TAG" = "main" ]; then
+            TAG="v${VERSION}"
+          fi
+          TEMPLATE="docs/releases/release-body-template.md"
+          if [ ! -f "$TEMPLATE" ]; then
+            TEMPLATE="docs/releases/${TAG}/RELEASE_NOTES.md"
+          fi
+          sed "s/{version}/${VERSION}/g" "$TEMPLATE" > release-notes.md
+          cat release-notes.md
+
+      - name: Publish or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(cat VERSION | tr -d '[:space:]')
+          TAG="${GITHUB_REF_NAME}"
+          if [ -z "$TAG" ] || [ "$TAG" = "main" ]; then
+            TAG="v${VERSION}"
+          fi
+          DRAFT_FLAG=""
+          if [ "${{ github.event.inputs.draft }}" = "true" ]; then
+            DRAFT_FLAG="--draft"
+          fi
+
+          echo "Publishing release for tag: $TAG (version: $VERSION)"
+          TITLE="NauticMixxx ${VERSION} — RX3 Workflows, UTILITY & Beat FX"
+
+          # Collect assets to upload
+          ASSETS=()
+          for file in release-assets/*; do
+            if [ -f "$file" ]; then
+              ASSETS+=("$file")
+            fi
+          done
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; updating notes and uploading assets..."
+            gh release edit "$TAG" --title "$TITLE" --notes-file release-notes.md
+            if [ ${#ASSETS[@]} -gt 0 ]; then
+              gh release upload "$TAG" "${ASSETS[@]}" --clobber
+            fi
+          else
+            echo "Creating new release for $TAG..."
+            gh release create "$TAG" "${ASSETS[@]}" \
+              --title "$TITLE" \
+              --notes-file release-notes.md \
+              $DRAFT_FLAG
+          fi

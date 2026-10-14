@@ -1,0 +1,45 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "NauticMixxx-2.0.0",
+  "documentNamespace": "https://nauticmixxx.invalid/spdx/2.0.0/1791912399",
+  "creationInfo": {
+    "created": "2026-10-13T17:26:39Z",
+    "creators": [
+      "Tool: package-release.py"
+    ]
+  },
+  "packages": [
+    {
+      "name": "NauticMixxx",
+      "SPDXID": "SPDXRef-NauticMixxx",
+      "versionInfo": "2.0.0",
+      "downloadLocation": "NOASSERTION",
+      "licenseConcluded": "GPL-3.0-only",
+      "licenseDeclared": "GPL-3.0-only",
+      "filesAnalyzed": false
+    },
+    {
+      "name": "Mixxx",
+      "SPDXID": "SPDXRef-Mixxx",
+      "versionInfo": "2.5.6",
+      "downloadLocation": "https://github.com/mixxxdj/mixxx/releases/tag/2.5.6",
+      "licenseConcluded": "GPL-2.0-or-later",
+      "licenseDeclared": "GPL-2.0-or-later",
+      "filesAnalyzed": false
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-NauticMixxx"
+    },
+    {
+      "spdxElementId": "SPDXRef-NauticMixxx",
+      "relationshipType": "DERIVED_FROM",
+      "relatedSpdxElement": "SPDXRef-Mixxx"
+    }
+  ]
+}

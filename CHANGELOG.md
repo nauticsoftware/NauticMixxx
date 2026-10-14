@@ -1,62 +1,55 @@
-# Historial de cambios
+# Changelog
 
-## 2.0.0 — 2026-10-13
+All notable changes to this project will be documented in this file.
 
-- Correct Windows MY SETTINGS atomic saves by releasing validation handles before replacing files; configure standalone native logo-test resources explicitly.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-- Integrate the existing TOOLS operations into UTILITY, grouped as DECK, MIXER, EFFECTS, BROWSER, RECORDING, DISPLAY and GENERAL. MENU and established controller gestures open the unified table. Use BROWSER’s black/gray rows and gray column divider; restore the selected row on submenu return. Remove hardware-only and unimplemented placeholder rows. Keep live shared settings and preview/apply/cancel editing, per-deck Auto Cue persistence and time-scale fallback when phrase data is absent. Replace the REMAIN font symbol with a scalable vector stopwatch.
-- Add the separate SOURCE MY SETTINGS panel with LOAD, BACKGROUND COLOR and WAVEFORM COLOR. Expose SOURCE, BROWSE, TAG LIST, PLAYLIST, SEARCH and MENU in the BROWSE/SOURCE header; preserve the original PERFORMANCE topbar; use the highlighted SOURCE USB for navigation and settings loading. Keep controller gestures and SHORTCUT access unchanged. Save Nautic USB accents separately from rekordbox files.
-- Remove the large TOOLS entry from the SOURCE device list; retain header/SHORTCUT access and make the existing BACK button selectable after the last action in every encoder tool menu.
+## [2.0.0] - 2026-10-13
 
-- Preserve RX3 overview colors near track end and after completion by removing the red background and outline; retain playing-address blinking and all other end-warning behavior.
+### Added
+- Dedicated `SOURCE MY SETTINGS` panel with `LOAD`, `BACKGROUND COLOR`, and `WAVEFORM COLOR`, saving Nautic USB accents separately from rekordbox files.
+- Four persistent Beat FX favorites with an independent mouse effect chooser and support for 8 curated performance processors (Echo, Reverb, Flanger, Phaser, Filter, Pitch Shift, Tremolo, Glitch).
+- Contextual continuous touch slider for X-PAD adapting dynamically to processors (beat fractions, semitone cells, or tapered rail with cyan touch feedback).
+- Standalone monotonic countdown timer opened via the REMAIN rail, featuring presets, recent durations, numeric entry, and right-to-left progress bar.
+- Touchscreen `INFO` panel with loaded deck selection, highlighted Browse-track metadata, artwork, comment, category Information Jump, and return to load-source list.
+- Cached-audio `EMERGENCY LOOP` repeating cached stereo audio upon lost USB media or read failures, with visual indicators and recovery upon valid track load.
+- Exported USB track rating editing via held browser encoder rotation or touchscreen stars, with atomic background writes and recovery copies.
+- Native blue, RGB, and three-band color samples inside SHORTCUT WAVEFORM COLOR buttons.
+- Standalone centered NauticMixxx logo screen displayed whenever both decks are empty.
+- Persistent `SLIP FLASHING` setting (ON by default) with independent background playhead for Vinyl pause, scratch, loops, held hot cues, and reverse.
+- Shared microphone EQ, low-cut, and talkover controls.
+- Independent per-deck `TIME/REMAIN` mode toggle (short tap) and `AUTO CUE` toggle (hold 1s).
+- Native RX3 Gate Cue, Beat Loop, and Release FX workflows with headphone preview and retained Memory Cues/Active Loops.
 
-- Make SHORTCUT CLOSE reachable immediately after TOOLS with the browser encoder; a short press closes the panel and restores the underlying page.
-- Keep a two-reference-pixel black gap between the main waveform lanes and the right-side Beat FX panel.
+### Changed
+- Unified `UTILITY` menu integrating previous TOOLS operations into DECK, MIXER, EFFECTS, BROWSER, RECORDING, DISPLAY, and GENERAL groups.
+- SHORTCUT panel redesigned with black background, standard `#007CE0` buttons, and compact BROWSE footer.
+- Overview shading and playing-address bar aligned with TIME/REMAIN mode, blinking during the final 30 seconds and accelerating under 15 seconds.
+- STATUS pad-strip spacing matched across both decks and all 8 modes: 8px under mode title, 10px between 18px pad rows.
+- Tempo range indicators color-coded: green for 6%, red for 10%, white for 16%, and unboxed wide text.
+- Window dragging enabled along the frameless 10px top margin without intercepting REMAIN or playback controls.
+- System default audio output resolved dynamically at every launch for MASTER, preserving compatible headphone/input routing.
+- Jumping to a normal Hot Cue relocates active loops without disabling them or rewriting saved cues.
+- Constant-tempo rekordbox PQTZ grids preserved without integer-millisecond rounding jitter.
+- Controller SYNC phase alignment explicitly requested upon enabling SYNC on FLX4 and DDJ-400.
+- BROWSE PREVIEW waveforms scaled to available row height while preserving dynamics, silence, and band colors.
 
-- Correct safe FILTER loading and REVERB signal send/decay control. Add exact ECHO/PHASER/TREMOLO X-PAD fractions, six-second ECHO storage and correct steady-delay read-head advancement. Allow held bank replacement and encoder-operated BEAT FX effect, intensity, routing, tempo and bank controls. Keep the full RX3 effect catalogs deferred.
+### Fixed
+- Windows `MY SETTINGS` atomic saves by releasing validation read handles before replacing files.
+- Safe FILTER loading and REVERB signal send/decay control; steady-delay read-head advancement for Echo, Phaser, and Tremolo.
+- Automatic BROWSE reopening after VIEW toggle on FLX6, FLX4, and Pioneer/Roland controllers.
+- Active loop preservation when jumping to normal Hot Cues with Quantize phase retention.
+- USB settings read handle release avoiding Windows file-sharing violations.
+- Overview color preservation near track ends by removing disruptive red backgrounds while keeping address blinking.
+- SHORTCUT CLOSE accessibility immediately following TOOLS with the browser encoder.
 
-- Add shared microphone EQ, low-cut and normal talkover controls, native audio processing tests and USB mixer-setting round-trips. Define local/remote Link Export requirements without claiming a live connection.
-
-- Add native RX3 Gate Cue/Beat Loop/Release FX workflows, headphone preview, retained Memory Cues/Active Loops and explicit USB performance saves with imported timing preservation.
-- Add shared encoder-operated TOOLS, tags/playlist favorites/combined filters/related keys, USB playlist/history writes, asynchronous MY SETTINGS SAVE, Auto Cue levels, CONTINUE/EJECT LOCK and guarded REC start/stop/split/duration. Inspect the actual macOS filesystem and mounted-device identity. Keep established controller gestures; Link Export and registered MATCHING integration remain in progress.
-
-- Refine the Beat FX sidebar title, field insets, centered effect name, readout rows/units and routing/page selected states from the supplied visual reference.
-- Remove inactive deck card outlines in PERFORMANCE and the browser footer while preserving the selected deck white outline.
-- Match the supplied STATUS pad-strip spacing across both decks and all eight modes: eight reference pixels below the title and ten between pad rows, within the existing 70-pixel page.
-
-- Add four persistent Beat FX favorites and a momentary contextual X-PAD; remove the erroneous deck-loop connections and keep view switching independent of effect activation. Adapt the X-PAD to beat fractions, semitone cells or a continuous rail with end arrows and a gray center gradient, with a neutral gray idle rail and momentary cyan highlight. Keep the current favorite selected after momentary X-PAD release and mark selected favorites and beat/pitch cells with a one-pixel white outline. Keep discrete cells neutral gray/white while held and reserve cyan feedback for the continuous rail. Show Beat FX names in uppercase with slightly larger Bank/chooser/selector fonts. Every empty slot appears as a blank black rectangle and opens an independent mouse effect chooser, regardless of the current effect. Curate the Bank and RX3 selector to eight available performance processors; exclude utility/EQ processors and offer individual repair of old utility favorites. Registering the current processor preserves its activation and parameters.
-
-- Blink the complete overview playing-address bar near the track end, with the existing configurable warning threshold and faster cadence below 15 seconds.
-
-- Allow dragging the frameless window from its empty top margin without intercepting REMAIN or other controls.
-
-- Fix automatic BROWSE reopening after VIEW in FLX6, FLX4 and shared Pioneer/Roland adapters by retaining page-selection triggers.
-
-- Restore the complete empty-deck logo by switching between exclusive logo/waveform pages, with independent deck cards and correct timer/INFO restoration.
-
-- Keep active loops enabled when jumping to a normal Hot Cue, retaining duration and quantized phase without rewriting stored loop cues.
-
-- Add cached-audio EMERGENCY LOOP for lost USB playback sources, limited transport, per-deck emergency presentation and recovery through a valid load.
-- Recover precise constant exported BPM from PQTZ and explicitly align controller SYNC phase; retain genuine variable-tempo grids.
-- Keep the full SHORTCUT footer clear and separate USB slot, device name and grouped waveform/settings rows.
-
-- Add INFO track details, contextual Information Jump, USB rating edits with bounded recovery backup, and waveform-color button samples.
-
-- Restrict selected-deck changes to explicit display targets and PERFORMANCE LOAD; preserve BROWSE loading.
-- Add the RX3 SHORTCUT panel, two-second context-aware BROWSER gestures, touch/encoder editing and persistent settings.
-- Replace brightness/mixer-mode hardware rows with JOG RESPONSE, PLAYBACK SETTINGS and CROSSFADER CURVE.
-- Import validated rekordbox USB MY SETTINGS while both decks are paused, with supported/unsupported reporting and no USB writes.
-- Implement fractional quantization, hot-cue recall policy, jog response, controller vinyl stop, mixer curves and routed effect activation quantization.
-- Render range numerals with a one-pixel stroke; use green 6%, red 10%, white 16% and unboxed A.HOT CUE-colored WIDE.
-- Match SHORTCUT's black background, #007CE0 active selections, standard buttons and compact BROWSE footer; hide native waveform surfaces while open.
-- Add a standalone monotonic countdown timer with presets, persistent history, numeric entry, pause/resume and a shrinking progress rail.
-- Add individual TIME/REMAIN short taps and AUTO CUE holds, persistent per-deck choices and corresponding overview shading and end-of-track warnings.
-- Align TEMPO/BPM readouts and add the two-pixel #00839E track-title top border.
-- Increase BROWSE PREVIEW waveform height with per-track scaling while preserving row geometry, dynamics, silence and band colors.
-- Resolve the system default audio output at every launch for MASTER, including profiles that previously saved another interface. Preserve compatible independent headphone/input routing.
-
-- Restore SLIP transport with an independent background playhead for Vinyl pause/scratch, loops, held hot cues (four-beat limit) and reverse (eight-beat limit). Keep SLIP armed after actions, clear it on track load/eject, and support held SLIP LOOP pads with SLIP off.
-- Show a yellow audible playhead, white overview background playhead and SLIP deck indicator. Add persistent SLIP FLASHING (ON by default); Hercules PLAY/assigned Hot Cue feedback follows this option independently of the active SLIP lamp.
+### Removed
+- Large TOOLS entry from the SOURCE device list (consolidated into header and SHORTCUT).
+- Inactive deck card outline in PERFORMANCE and compact browser footer.
+- Simultaneous three-effect selectors and FX UNIT button in Beat FX (replaced by 4 favorites).
+- Erroneous X-PAD deck-loop commands.
+- Hardware-only and unimplemented placeholder rows in UTILITY menu.
 
 ## 1.9.1 — 2026-10-07
 

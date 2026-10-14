@@ -10,9 +10,9 @@
 <p align="center">
   <a href="https://github.com/nauticsoftware/NauticMixxx/releases/tag/v2.0.0"><strong>Download 2.0.0</strong></a>
   &nbsp; · &nbsp;
-  <a href="RELEASE_NOTES.md">What's new</a>
+  <a href="docs/releases/v2.0.0/RELEASE_NOTES.md">What's new</a>
   &nbsp; · &nbsp;
-  <a href="docs/INSTALLATION-EN.md">Installation</a>
+  <a href="#installation">Installation</a>
   &nbsp; · &nbsp;
   <a href="docs/RX3-WORKFLOW-2.0-EN.md">Workflow guide</a>
 </p>
@@ -21,14 +21,41 @@
 
 ## Get NauticMixxx 2.0
 
-| macOS | Windows |
-| :--- | :--- |
-| **Apple Silicon · arm64** | **Windows 10 / 11 · x64** |
-| [Download the DMG](https://github.com/nauticsoftware/NauticMixxx/releases/download/v2.0.0/NauticMixxx-2.0.0-macOS-arm64.dmg) | [Download the installer](https://github.com/nauticsoftware/NauticMixxx/releases/download/v2.0.0/NauticMixxx-2.0.0-Windows-x64-Setup.exe) |
-| Open the image and drag the app to Applications. | Run the installer. The complete native app is included. |
+| macOS | Windows | Mixxx Skin |
+| :--- | :--- | :--- |
+| **Apple Silicon · arm64** | **Windows 10 / 11 · x64** | **Standalone Skin** |
+| [Download DMG](https://github.com/nauticsoftware/NauticMixxx/releases/download/v2.0.0/NauticMixxx-2.0.0-macOS-arm64.dmg) | [Download Installer](https://github.com/nauticsoftware/NauticMixxx/releases/download/v2.0.0/NauticMixxx-2.0.0-Windows-x64-Setup.exe) | [Download Skin ZIP](https://github.com/nauticsoftware/NauticMixxx/releases/download/v2.0.0/NauticMixxx-2.0.0-skin.zip) |
+| macOS 11+ (Apple Silicon) | Windows 10/11 64-bit | Official Mixxx 2.5+ |
 
-Existing users can install through the signed integrated updater. New profiles start in English.
-The macOS community build is ad-hoc signed and is not Apple-notarized; see the [first-launch instructions](docs/INSTALLATION-EN.md).
+Existing users can update through the signed integrated updater. All new profiles start in English (`en_US`).
+
+## Installation
+
+### macOS (Apple Silicon)
+1. Download [`NauticMixxx-2.0.0-macOS-arm64.dmg`](https://github.com/nauticsoftware/NauticMixxx/releases/download/v2.0.0/NauticMixxx-2.0.0-macOS-arm64.dmg).
+2. Open the disk image and drag **NauticMixxx.app** into your `/Applications` folder.
+3. **First-launch note (un-notarized community build)**: Because NauticMixxx is a free community build signed ad-hoc without Apple notarization, macOS Gatekeeper may block opening it with a double-click on first run. To open:
+   - **Right-click** (or `Control`-click) `NauticMixxx.app` in `/Applications` and select **Open**.
+   - Click **Open** in the confirmation dialog. Subsequent launches open normally.
+4. On launch, grant permission to access external USB volumes when prompted so NauticMixxx can read your rekordbox USB drive.
+
+### Windows (x64)
+1. Download [`NauticMixxx-2.0.0-Windows-x64-Setup.exe`](https://github.com/nauticsoftware/NauticMixxx/releases/download/v2.0.0/NauticMixxx-2.0.0-Windows-x64-Setup.exe).
+2. Run the setup executable. No prior Mixxx installation or manual profile setup is required.
+3. If Windows SmartScreen displays a warning, click **More info** → **Run anyway**.
+4. The installer preserves existing user libraries and configures the optimized RX3 profile automatically in `%LOCALAPPDATA%\NauticMixxx`.
+
+### Verifying SHA-256 Checksums
+Every official release publishes a [`SHA256SUMS.txt`](https://github.com/nauticsoftware/NauticMixxx/releases/download/v2.0.0/SHA256SUMS.txt) file. You can verify the integrity of your download:
+
+- **macOS / Linux**:
+  ```bash
+  shasum -a 256 -c SHA256SUMS.txt --ignore-missing
+  ```
+- **Windows (PowerShell)**:
+  ```powershell
+  Get-FileHash NauticMixxx-2.0.0-Windows-x64-Setup.exe -Algorithm SHA256
+  ```
 
 ## A clear view of your set
 
@@ -73,7 +100,7 @@ Physical controller and RX3 audio calibration remain pending. Link Export, regis
 
 ## Open source, verifiable releases
 
-The release includes corresponding source, a package manifest, signed update feeds and [SHA-256 checksums](https://github.com/nauticsoftware/NauticMixxx/releases/download/v2.0.0/SHA256SUMS.txt). macOS and Windows native regression tests passed; Windows installation, upgrade and uninstallation were checked in [CI](https://github.com/nauticsoftware/NauticMixxx/actions/runs/38434558661). See the [test report](TEST_REPORT.md).
+The release includes corresponding source, a package manifest, signed update feeds and [SHA-256 checksums](https://github.com/nauticsoftware/NauticMixxx/releases/download/v2.0.0/SHA256SUMS.txt). macOS and Windows native regression tests passed; Windows installation, upgrade and uninstallation were checked in [CI](https://github.com/nauticsoftware/NauticMixxx/actions/runs/38434558661). See the [test report](docs/releases/v2.0.0/TEST_REPORT.md).
 
 [Build instructions](docs/BUILDING.md) · [Linux / Raspberry Pi experiments](docs/LINUX-RASPBERRY-PI.md) · [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md) · [Report an issue](https://github.com/nauticsoftware/NauticMixxx/issues)
 
