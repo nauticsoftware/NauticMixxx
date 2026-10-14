@@ -1,0 +1,95 @@
+{
+  "product": "NauticMixxx",
+  "version": "2.0.0",
+  "base": "Mixxx 2.5.6",
+  "platformStatus": {
+    "macOS-arm64": "native-build-locally-tested",
+    "windows-x64": "native-build-ci-tested"
+  },
+  "tests": {
+    "nativePassed": 264,
+    "nativeFailed": 0,
+    "optionalExternalFixturesSkipped": 9,
+    "controllerSuitesPassed": 14,
+    "usbOnlyContractPassed": true,
+    "windowsTargetMachineVerified": true,
+    "windowsNativePassed": 264,
+    "windowsNativeFailed": 0,
+    "windowsOptionalExternalFixturesSkipped": 9,
+    "windowsInstallerPassed": true,
+    "windowsUpgradePreservesProfile": true,
+    "windowsUninstallerPassed": true,
+    "physicalControllerVerified": false,
+    "canonicalPlatformIconsVerified": true,
+    "patchChainPathsMatched": 259
+  },
+  "artifacts": [
+    {
+      "name": "CONFIGURE-AND-OPEN.command",
+      "bytes": 275,
+      "sha256": "1dc8bbfac9caeca120c2705cb1226abd6bd42915ef7d8cb8336216e287f0092e"
+    },
+    {
+      "name": "NauticMixxx-2.0.0-Windows-x64-Setup.exe",
+      "bytes": 50201117,
+      "sha256": "ed765a118d27594422fbe675e4a3caaf8f343b355d2d2ca1811d5df66743bd98"
+    },
+    {
+      "name": "NauticMixxx-2.0.0-github-source.zip",
+      "bytes": 8786724,
+      "sha256": "254e2778e1ef0f6cdaa4f80e90e007bc7ee749fa776eeac6254e866154543f30"
+    },
+    {
+      "name": "NauticMixxx-2.0.0-macOS-arm64.dmg",
+      "bytes": 85407173,
+      "sha256": "9179dfba95ce3a851ea28e3afc6f055db5778ea1b88b89d3c5a7e2028883523e"
+    },
+    {
+      "name": "NauticMixxx-2.0.0-macOS-arm64.zip",
+      "bytes": 81789018,
+      "sha256": "7980b2c79caadf5e8c91f89331a84613b74267c3f00b2e2f69f442eee42822fd"
+    },
+    {
+      "name": "NauticMixxx-2.0.0-skin.zip",
+      "bytes": 672242,
+      "sha256": "10f9de4cc882b440b174837cb738b5b876177dc35d3fd882d9e56a0b0aace7e9"
+    },
+    {
+      "name": "NauticMixxx-2.0.0-source.tar.gz",
+      "bytes": 57202943,
+      "sha256": "4d857645006c34ee3f8d7b136bc493e35a5adbbe6b1e883e4cb46fed78806748"
+    },
+    {
+      "name": "NauticMixxx-2.0.0.spdx.json",
+      "bytes": 1219,
+      "sha256": "24b40eff2bbc7432f57b0720c15bbba0dd9af34b35d8b30b7a14f40790c07a7d"
+    },
+    {
+      "name": "RELEASE_NOTES.md",
+      "bytes": 13660,
+      "sha256": "d8b16cb946671c9138fc64fd9ccfb8e82b2920963992c29d10446e9ecd21586f"
+    },
+    {
+      "name": "TEST_REPORT.md",
+      "bytes": 69239,
+      "sha256": "baf8437cdc6ec1d41c2d214f53aeeb18ab8f14b9bb71167c073902379d339738"
+    },
+    {
+      "name": "UPDATE_WINDOWS.json",
+      "bytes": 551,
+      "sha256": "7e0384094707bfd07ff0a6e5532b12059c9f450dc0b8f723f826d7cf050d6da7"
+    },
+    {
+      "name": "appcast-macos.xml",
+      "bytes": 890,
+      "sha256": "e1ce892654f28c6333c1dee7486651d71ee97828b78a71cea3d430fbf66aa4f9"
+    },
+    {
+      "name": "install-nauticmixxx-macos.sh",
+      "bytes": 1051,
+      "sha256": "d8a067946927a396b89cd23db037dfecc520f574670a075d4715273086b23312"
+    }
+  ],
+  "windowsCI": "https://github.com/nauticsoftware/NauticMixxx/actions/runs/38434558661",
+  "githubSourceCommit": "c73631bafbc7150587cf9de0c32437531d295103"
+}

@@ -85,11 +85,13 @@ def audit(paths: list[Path]) -> list[str]:
 
 def validate_metadata() -> list[str]:
     errors: list[str] = []
-    notes = ROOT / "RELEASE_NOTES.md"
+    version_notes = ROOT / "docs/releases" / f"v{VERSION}" / "RELEASE_NOTES.md"
+    root_notes = ROOT / "RELEASE_NOTES.md"
+    notes = version_notes if version_notes.is_file() else root_notes
     if not notes.is_file():
-        errors.append("missing English release notes: RELEASE_NOTES.md")
+        errors.append("missing English release notes: docs/releases/v<VERSION>/RELEASE_NOTES.md or RELEASE_NOTES.md")
     elif not notes.read_text(encoding="utf-8").startswith(f"# NauticMixxx {VERSION} "):
-        errors.append("RELEASE_NOTES.md must begin with the current NauticMixxx version")
+        errors.append(f"{notes.name} must begin with the current NauticMixxx version")
     for alternate in ROOT.glob("RELEASE_NOTES*.md"):
         if alternate != notes:
             errors.append(f"release notes must use a single English RELEASE_NOTES.md: {alternate.name}")
