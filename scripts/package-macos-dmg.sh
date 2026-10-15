@@ -5,8 +5,21 @@ set -eu
 project=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 version=$(cat "$project/VERSION")
 release_dir=${1:-"$project/build/release-candidate/$version"}
-archive="$release_dir/NauticMixxx-$version-macOS-arm64.zip"
-output="$release_dir/NauticMixxx-$version-macOS-arm64.dmg"
+# Arch: second arg wins, then RX3_MACOS_ARCH env, else auto-detect from ZIPs, else arm64.
+requested_arch=${2:-${RX3_MACOS_ARCH:-auto}}
+case "$requested_arch" in
+  auto)
+    if [ -f "$release_dir/NauticMixxx-$version-macOS-arm64.zip" ]; then macos_arch=arm64
+    elif [ -f "$release_dir/NauticMixxx-$version-macOS-x64.zip" ]; then macos_arch=x64
+    else macos_arch=arm64
+    fi
+    ;;
+  arm64|aarch64) macos_arch=arm64 ;;
+  x86_64|x64) macos_arch=x64 ;;
+  *) printf 'Arquitectura no soportada: %s (usa arm64 o x64)\n' "$requested_arch" >&2; exit 1 ;;
+esac
+archive="$release_dir/NauticMixxx-$version-macOS-$macos_arch.zip"
+output="$release_dir/NauticMixxx-$version-macOS-$macos_arch.dmg"
 command -v create-dmg >/dev/null 2>&1 || {
   printf 'Falta create-dmg. Instálalo con: brew install create-dmg\n' >&2
   exit 1
@@ -19,7 +32,7 @@ command -v create-dmg >/dev/null 2>&1 || {
 temp=$(mktemp -d "${TMPDIR:-/tmp}/nauticmixxx-dmg.XXXXXX")
 trap 'rm -rf "$temp"' EXIT HUP INT TERM
 ditto -x -k "$archive" "$temp"
-source_dir="$temp/NauticMixxx-$version-macOS-arm64"
+source_dir="$temp/NauticMixxx-$version-macOS-$macos_arch"
 app="$source_dir/NauticMixxx.app"
 [ -d "$app" ] || {
   printf 'El ZIP no contiene NauticMixxx.app.\n' >&2

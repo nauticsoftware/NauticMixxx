@@ -2,8 +2,51 @@
 # Rebuild NauticMixxx from official Mixxx 2.5.6 sources.
 set -eu
 project=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-work=${RX3_BUILD_ROOT:-"$project/build/test-candidate/$(cat "$project/VERSION")-native"}
-deps_name=mixxx-deps-2.5-arm64-osx-min1100-release-40c29ff
+# macOS arch selection: arm64 (Apple Silicon) or x64 (Intel).
+# Override with RX3_MACOS_ARCH=x64|arm64. Defaults to the host machine.
+host_machine=$(uname -m)
+case "${RX3_MACOS_ARCH:-$host_machine}" in
+  arm64|aarch64) macos_arch=arm64 ;;
+  x86_64|x64) macos_arch=x64 ;;
+  *) printf 'RX3_MACOS_ARCH no soportado: %s (usa arm64 o x64)\n' "${RX3_MACOS_ARCH:-$host_machine}" >&2; exit 1 ;;
+esac
+case "$macos_arch" in
+  arm64)
+    deps_name=mixxx-deps-2.5-arm64-osx-min1100-release-40c29ff
+    deps_sha=b76685e77f681baf8fdc5037297b0f16d323a405d09ce276d8844304530278e1
+    vcpkg_target_triplet=arm64-osx-min1100-release
+    ;;
+  x64)
+    deps_name=mixxx-deps-2.5-x64-osx-min1100-release-40c29ff
+    deps_sha=a9b7dd2cb9ab00db6d05ac1f05aab933ed0ab2697f71db1a1bad70305befcf1b
+    vcpkg_target_triplet=x64-osx-min1100-release
+    ;;
+esac
+vcpkg_host_triplet=x64-osx-min1100-release
+# Qt6 links the legacy AGL framework, which Apple removed from recent SDKs
+# (macOS 26+). Pin the build to the newest installed SDK that still provides
+# it. Override with RX3_MACOS_SDK=/path/to/MacOSXxx.x.sdk. Unset means
+# auto-detect; without an AGL-bearing SDK the link step is expected to fail.
+if [ -n "${RX3_MACOS_SDK:-}" ]; then
+  macos_sdk="$RX3_MACOS_SDK"
+else
+  macos_sdk=""
+  for candidate_sdk in MacOSX15.4.sdk MacOSX15.sdk MacOSX14.4.sdk MacOSX14.sdk MacOSX13.3.sdk MacOSX13.sdk; do
+    if [ -d "/Library/Developer/CommandLineTools/SDKs/$candidate_sdk/System/Library/Frameworks/AGL.framework" ]; then
+      macos_sdk="/Library/Developer/CommandLineTools/SDKs/$candidate_sdk"
+      break
+    fi
+  done
+fi
+if [ -n "$macos_sdk" ]; then
+  printf 'macOS SDK: %s\n' "$macos_sdk"
+  sdk_cmake_arg="-DCMAKE_OSX_SYSROOT=$macos_sdk"
+else
+  printf 'Aviso: ningún SDK instalado provee AGL.framework; el enlazado puede fallar.\n' >&2
+  sdk_cmake_arg=""
+fi
+work=${RX3_BUILD_ROOT:-"$project/build/test-candidate/$(cat "$project/VERSION")-macOS-$macos_arch"}
+printf 'Arquitectura macOS: %s (%s)\n' "$macos_arch" "$vcpkg_target_triplet"
 mkdir -p "$work"
 fetch() {
   if [ ! -f "$2" ]; then curl --fail --location --retry 3 "$1" -o "$2"; fi
@@ -13,7 +56,7 @@ fetch() {
 fetch https://github.com/mixxxdj/mixxx/archive/refs/tags/2.5.6.tar.gz \
   "$work/mixxx-2.5.6.tar.gz" 9cfc9025d50d2511767ee52a07b8854f75c581f0585197d043bc219fcf9f9050
 fetch "https://downloads.mixxx.org/dependencies/2.5-rel/macOS/$deps_name.zip" \
-  "$work/dependencies.zip" b76685e77f681baf8fdc5037297b0f16d323a405d09ce276d8844304530278e1
+  "$work/dependencies.zip" "$deps_sha"
 if [ ! -d "$work/buildenv/$deps_name" ]; then
   mkdir -p "$work/buildenv"
   unzip -q "$work/dependencies.zip" -d "$work/buildenv"
@@ -51,12 +94,12 @@ cmake -S "$work/mixxx-2.5.6" -B "$work/build" -G Ninja \
   -DNAUTICMIX_VERSION="$(cat "$project/VERSION")" \
   -DNAUTIC_SPARKLE_FRAMEWORK="$work/sparkle/Sparkle.framework" \
   -DCMAKE_TOOLCHAIN_FILE="$deps/scripts/buildsystems/vcpkg.cmake" \
-  -DMIXXX_VCPKG_ROOT="$deps" -DVCPKG_TARGET_TRIPLET=arm64-osx-min1100-release \
-  -DVCPKG_HOST_TRIPLET=x64-osx-min1100-release \
+  -DMIXXX_VCPKG_ROOT="$deps" -DVCPKG_TARGET_TRIPLET="$vcpkg_target_triplet" \
+  -DVCPKG_HOST_TRIPLET="$vcpkg_host_triplet" \
   -DQT6=ON -DQML=OFF -DAU_EFFECTS=OFF -DMACOS_BUNDLE=ON \
   '-DMACOS_BUNDLE_NAME=NauticMixxx' \
   '-DMACOS_BUNDLE_IDENTIFIER=org.mixxx.mixxx' \
-  -DBUILD_TESTING=ON -DBUILD_BENCH=OFF
+  -DBUILD_TESTING=ON -DBUILD_BENCH=OFF ${sdk_cmake_arg:+"$sdk_cmake_arg"}
 cmake --build "$work/build" --target mixxx mixxx-test --parallel "${RX3_BUILD_JOBS:-6}"
 (cd "$work/build" && QT_QPA_PLATFORM=offscreen NAUTIC_SKIN_DIR="$project/skins/XDJ_RX3_Mixxx" NAUTIC_RX3_STYLESHEET="$project/skins/XDJ_RX3_Mixxx/style.qss" ./mixxx-test \
   --gtest_filter='IntegratedUpdaterTest.*:UpdatePayloadTest.*:StartupUpdateCheckerTest.*:StartupUpdateDialogTest.*:StreamCompletionTest.*:LibraryTableViewStateTest.*:Rx3*:RekordboxDecoderTimingTest.*:RekordboxUsbSessionAudioTest.*:RekordboxWaveformImporterTest.*' \

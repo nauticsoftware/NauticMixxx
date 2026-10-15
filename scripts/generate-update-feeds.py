@@ -22,13 +22,16 @@ def sign(tool, path):
     subprocess.run([str(tool), '--account', ACCOUNT, '--verify', str(path), signature], check=True, capture_output=True)
     return signature
 
-def generate(directory, sdk, platform):
+def generate(directory, sdk, platform, macos_arch="arm64"):
     version = (ROOT / 'VERSION').read_text().strip()
     tool = sdk / 'bin/sign_update'
     actual = subprocess.check_output([str(sdk / 'bin/generate_keys'), '--account', ACCOUNT, '-p'], text=True).strip()
     if actual != PUBLIC_KEY:
         raise ValueError('Release signing key does not match the public key in NauticMixxx')
-    suffix = 'macOS-arm64.dmg' if platform == 'macos' else 'Windows-x64-Setup.exe'
+    if platform == 'macos':
+        suffix = f'macOS-{macos_arch}.dmg'
+    else:
+        suffix = 'Windows-x64-Setup.exe'
     artifact = directory / f'NauticMixxx-{version}-{suffix}'
     if not artifact.is_file():
         raise ValueError(f'Missing update artifact: {artifact.name}')
@@ -84,5 +87,7 @@ if __name__ == '__main__':
     parser.add_argument('--release-dir', required=True, type=Path)
     parser.add_argument('--sdk', required=True, type=Path)
     parser.add_argument('--platform', required=True, choices=['macos', 'windows'])
+    parser.add_argument('--macos-arch', default='arm64', choices=['arm64', 'x64'],
+                        help='macOS architecture label for the DMG name (default: arm64)')
     options = parser.parse_args()
-    generate(options.release_dir.resolve(), options.sdk.resolve(), options.platform)
+    generate(options.release_dir.resolve(), options.sdk.resolve(), options.platform, options.macos_arch)
