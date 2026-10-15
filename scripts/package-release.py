@@ -33,7 +33,7 @@ SOURCE_ROOT = (
 )
 LOCAL_APP = APP_ROOT / "stage-v1/NauticMixxx.app"
 REBUILD_APP = ROOT / "tmp/mixxx-native-rebuild/stage/NauticMixxx.app"
-RELEASE_APPS = sorted((WORKSPACE_ROOT / "release").glob("*/NauticMixxx-*-macOS-arm64/NauticMixxx.app"), reverse=True)
+RELEASE_APPS = sorted((WORKSPACE_ROOT / "release").glob("*/NauticMixxx-*-macOS-*/NauticMixxx.app"), reverse=True)
 DEFAULT_APP = next(
     (candidate for candidate in [LOCAL_APP, REBUILD_APP, *RELEASE_APPS] if candidate.exists()),
     REBUILD_APP,
@@ -327,7 +327,7 @@ def create_github_source_zip(output: Path) -> None:
                     archive.write(path, Path(prefix) / path.relative_to(ROOT))
 
 
-def write_installer(path: Path, archive_name: str, expected: str) -> None:
+def write_installer(path: Path, archive_name: str, expected: str, macos_arch: str = "arm64") -> None:
     script = f"""#!/bin/sh
 set -eu
 base=$(CDPATH= cd -- \"$(dirname -- \"$0\")\" && pwd)
@@ -338,7 +338,7 @@ actual=$(shasum -a 256 \"$archive\" | awk '{{print $1}}')
 temp=$(mktemp -d \"${{TMPDIR:-/tmp}}/nauticmixxx-install.XXXXXX\")
 trap 'rm -rf \"$temp\"' EXIT HUP INT TERM
 ditto -x -k \"$archive\" \"$temp\"
-source_app=\"$temp/{PRODUCT}-{VERSION}-macOS-arm64/{PRODUCT}.app\"
+source_app=\"$temp/{PRODUCT}-{VERSION}-macOS-{macos_arch}/{PRODUCT}.app\"
 codesign --verify --deep --strict \"$source_app\"
 target=\"/Applications/{PRODUCT}.app\"
 if [ -e \"$target\" ]; then
@@ -391,8 +391,11 @@ def main() -> None:
     parser.add_argument("--app", type=Path)
     parser.add_argument("--native-test-report", type=Path, help="successful native GoogleTest XML for the packaged binary")
     parser.add_argument("--windows-skin", type=Path, help="validated Windows skin ZIP to include")
+    parser.add_argument("--macos-arch", choices=["arm64", "x64"], default="arm64",
+                        help="macOS architecture label for artifact names (default: arm64)")
     parser.add_argument("--output", type=Path, default=ROOT / "build" / "release-candidate" / VERSION)
     args = parser.parse_args()
+    macos_arch = args.macos_arch
     app = args.app.resolve() if args.app else (DEFAULT_APP if DEFAULT_APP.exists() else FALLBACK_APP)
     windows_skin = args.windows_skin.resolve() if args.windows_skin else None
     output = args.output.resolve()
@@ -431,7 +434,7 @@ def main() -> None:
 
     with tempfile.TemporaryDirectory(prefix="nauticmixxx-release-") as temp_name:
         temp = Path(temp_name)
-        bundle_root = temp / f"{PRODUCT}-{VERSION}-macOS-arm64"
+        bundle_root = temp / f"{PRODUCT}-{VERSION}-macOS-{macos_arch}"
         bundle_root.mkdir()
         prepared_app = bundle_root / f"{PRODUCT}.app"
         prepare_app(app, prepared_app)
@@ -446,7 +449,7 @@ def main() -> None:
             shutil.copy2(ROOT / "docs" / guide, bundle_root / guide)
         shutil.copy2(ROOT / "LICENSE.md", bundle_root)
         shutil.copy2(ROOT / "THIRD_PARTY_NOTICES.md", bundle_root)
-        mac_archive = output / f"{PRODUCT}-{VERSION}-macOS-arm64.zip"
+        mac_archive = output / f"{PRODUCT}-{VERSION}-macOS-{macos_arch}.zip"
         subprocess.run(["ditto", "-c", "-k", "--norsrc", "--keepParent", str(bundle_root), str(mac_archive)], check=True)
 
     skin_archive = output / f"{PRODUCT}-{VERSION}-skin.zip"
@@ -461,7 +464,7 @@ def main() -> None:
     shutil.copy2(ROOT / "TEST_REPORT.md", output / "TEST_REPORT.md")
     create_sbom(output / f"{PRODUCT}-{VERSION}.spdx.json")
     installer = output / "install-nauticmixxx-macos.sh"
-    write_installer(installer, mac_archive.name, sha256(mac_archive))
+    write_installer(installer, mac_archive.name, sha256(mac_archive), macos_arch)
     write_configure_launcher(output / "CONFIGURE-AND-OPEN.command")
 
     artifacts = sorted(path for path in output.iterdir() if path.is_file() and path.name not in {"SHA256SUMS.txt", "release-manifest.json"})
@@ -470,7 +473,7 @@ def main() -> None:
         "version": VERSION,
         "base": "Mixxx 2.5.6",
         "platformStatus": {
-            "macOS-arm64": "native-build-locally-tested",
+            f"macOS-{macos_arch}": "native-build-locally-tested",
             "windows-x64": "skin-only-installer" if windows_skin else "not-built",
         },
         "tests": {

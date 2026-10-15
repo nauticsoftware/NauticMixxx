@@ -1505,6 +1505,16 @@ diff --git a/src/widget/wrx3performancewidgets.h b/src/widget/wrx3performancewid
 diff --git a/src/widget/wwaveformviewer.cpp b/src/widget/wwaveformviewer.cpp
 --- a/src/widget/wwaveformviewer.cpp
 +++ b/src/widget/wwaveformviewer.cpp
+@@ -4,5 +4,6 @@
+ #include <QEvent>
+ 
++#include "control/controlobject.h"
+ #include "control/controlproxy.h"
+ #include "moc_wwaveformviewer.cpp"
+ #include "util/dnd.h"
+diff --git a/src/widget/wwaveformviewer.cpp b/src/widget/wwaveformviewer.cpp
+--- a/src/widget/wwaveformviewer.cpp
++++ b/src/widget/wwaveformviewer.cpp
 @@ -48,6 +48,7 @@
  }
  

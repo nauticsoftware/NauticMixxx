@@ -3,12 +3,21 @@
 NauticMixxx aplica parches versionados sobre el tag oficial Mixxx 2.5.6. Los
 scripts verifican por SHA-256 tanto el código base como las dependencias.
 
-## macOS ARM64
+## macOS ARM64 y macOS Intel x64
 
 Requisitos: Xcode Command Line Tools, CMake, Ninja, Git y unos 8 GB libres.
+macOS 11 o posterior. El script detecta la arquitectura del anfitrión;
+en un Mac Intel compila x64 de forma nativa sin flags adicionales.
 
 ```bash
 ./scripts/build-mixxx-rx3-macos.sh
+```
+
+Forzar una arquitectura concreta (p. ej. validar el flujo Intel):
+
+```bash
+RX3_MACOS_ARCH=x64 ./scripts/build-mixxx-rx3-macos.sh
+RX3_MACOS_ARCH=arm64 ./scripts/build-mixxx-rx3-macos.sh
 ```
 
 El script descarga las entradas verificadas, aplica `patches/0001` a
@@ -17,7 +26,9 @@ mapping dentro del bundle, genera el icono y firma de forma ad hoc.
 
 Variables opcionales:
 
-- `RX3_BUILD_ROOT`: caché y carpeta de compilación.
+- `RX3_BUILD_ROOT`: caché y carpeta de compilación (por defecto incluye la arquitectura, p. ej. `2.0.0-macOS-x64`, para no mezclar cachés ARM64/Intel).
+- `RX3_MACOS_ARCH`: `arm64` o `x64` (por defecto, la del anfitrión).
+- `RX3_MACOS_SDK`: SDK macOS para compilar (por defecto, el más nuevo instalado que aún provea `AGL.framework`, que Qt6 enlaza; los SDK 26+ de Apple lo eliminaron).
 - `RX3_BUILD_JOBS`: paralelismo.
 - `NAUTIC_SIGNING_IDENTITY`: identidad Developer ID/Application para firmar.
 
